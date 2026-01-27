@@ -1,0 +1,6 @@
+mistralai>=1.0.0
+google-genai
+google-api-core
+python-dotenv
+pandas
+statsmodels

@@ -1,0 +1,12 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Codex execution result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["point_estimate", "standard_error", "sample_size"],
+  "properties": {
+    "point_estimate": { "type": "number" },
+    "standard_error": { "type": "number" },
+    "sample_size": { "type": "number" }
+  }
+}

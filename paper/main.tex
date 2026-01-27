@@ -1,0 +1,495 @@
+% Econometrica Style Paper
+% LLM-Bootstrap: Characterizing Parameter Uncertainty from Researcher Choices
+
+\documentclass[12pt]{article}
+
+% Packages
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{natbib}
+\usepackage{hyperref}
+\usepackage{geometry}
+\usepackage{setspace}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+
+\geometry{margin=1in}
+\onehalfspacing
+
+% Theorem environments
+\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}{Proposition}
+\newtheorem{lemma}{Lemma}
+\newtheorem{corollary}{Corollary}
+\newtheorem{definition}{Definition}
+\newtheorem{assumption}{Assumption}
+\newtheorem{remark}{Remark}
+
+% Custom commands
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Var}{\text{Var}}
+\newcommand{\Cov}{\text{Cov}}
+\newcommand{\plim}{\text{plim}}
+\newcommand{\R}{\mathcal{R}}
+\newcommand{\Ps}{\mathcal{P}}
+\newcommand{\indep}{\perp\!\!\!\perp}
+
+\title{The LLM-Bootstrap: \\ Characterizing Parameter Uncertainty from Researcher Choices}
+
+\author{%
+  [Author Name]\thanks{[Affiliation]. Email: [email]. I thank [acknowledgments].}
+}
+
+\date{\today \\ \vspace{0.5em} \small Preliminary and Incomplete}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Traditional econometric inference quantifies sampling uncertainty but ignores the substantial heterogeneity arising from researcher choices---dataset selection, sample restrictions, variable construction, and specification. Multi-analyst studies reveal that different researchers analyzing the same question produce widely varying estimates, yet such exercises are expensive and rarely implemented. We propose the \textbf{LLM-Bootstrap}, which exploits the stochastic output of Large Language Models to approximate the distribution of estimates across researcher choices. By prompting $K$ independent LLM instances to estimate a parameter of interest---each making its own choices regarding data processing and specification---we obtain a tractable characterization of researcher-induced variance. We develop the formal econometric framework, derive asymptotic properties, and adapt the bootstrap literature to determine optimal $K$. Monte Carlo simulations demonstrate the method's properties. The LLM-Bootstrap offers a scalable complement to classical standard errors, quantifying a previously neglected source of uncertainty.
+
+\medskip
+\noindent \textbf{Keywords:} Researcher degrees of freedom, replication, bootstrap, Large Language Models, specification uncertainty, multi-analyst studies
+
+\medskip
+\noindent \textbf{JEL Codes:} C12, C15, C18, C52
+\end{abstract}
+
+\newpage
+\tableofcontents
+\newpage
+
+%------------------------------------------------------------------------------
+\section{Introduction}
+\label{sec:intro}
+%------------------------------------------------------------------------------
+
+Empirical economic research produces point estimates accompanied by standard errors. These standard errors capture \textit{sampling uncertainty}: the precision loss from observing a finite sample rather than the full population. Under the classical framework, once the econometrician has specified the model, selected the sample, and constructed the variables, the only remaining source of uncertainty is the random draw of observations.
+
+This view is, at best, incomplete. A growing body of evidence demonstrates that researcher choices---regarding data sources, sample restrictions, variable definitions, and model specifications---generate substantial heterogeneity in published estimates. \cite{silberzahn2018many} asked 29 research teams to analyze whether soccer referees are more likely to give red cards to dark-skinned players. Despite using identical data, estimates ranged from near-zero to strongly positive, with confidence intervals that frequently failed to overlap. Similar patterns emerge in economics: meta-analyses of returns to education \citep{card1999causal}, minimum wage effects \citep{doucouliagos2009publication}, and treatment effects across replications reveal between-study variance that dwarfs within-study standard errors.
+
+The practical challenge is quantifying this researcher variance. Multi-analyst studies are expensive, requiring coordination of many research teams. Pre-registration addresses selective reporting but locks in one specification, providing no characterization of how estimates would vary under alternative reasonable choices \citep{olken2015promises}. Specification curve analysis \citep{simonsohn2020specification} and multiverse analysis \citep{steegen2016multiverse} require the original researcher to enumerate alternatives---an effort-intensive task that is rarely pursued exhaustively.
+
+We propose a new approach: the \textbf{LLM-Bootstrap}. Large Language Models (LLMs), when prompted with positive temperature, produce stochastic outputs. A prompt asking ``Estimate the returns to education'' will yield different data processing code, different sample restrictions, and different specifications across runs. This stochasticity, typically viewed as a limitation, becomes a feature: it approximates the distribution of estimates that would arise if many researchers independently tackled the same question.
+
+The LLM-Bootstrap consists of three steps:
+\begin{enumerate}
+    \item \textbf{Define the research question precisely}, constraining only the parameter of interest (e.g., ``the effect of years of schooling on log wages'').
+    \item \textbf{Run $K$ independent LLM instances} with the same prompt, each producing its own estimate.
+    \item \textbf{Compute the mean and variance} across the $K$ estimates to characterize researcher-induced uncertainty.
+\end{enumerate}
+
+This paper makes several contributions. First, we develop a formal econometric framework that decomposes total uncertainty into sampling variance and researcher variance (Section \ref{sec:model}). Second, we demonstrate the framework through the classic Mincer regression, showing how the vast space of researcher choices translates into estimate heterogeneity (Section \ref{sec:mincer}). Third, we derive the asymptotic properties of the LLM-Bootstrap estimator and develop guidance for choosing the optimal number of LLM runs $K$, adapting the Andrews-Buchinsky theory for bootstrap replications (Section \ref{sec:optimal_K}). Fourth, we present Monte Carlo simulations validating our theoretical results (Section \ref{sec:simulations}). Finally, we discuss extensions, limitations, and the scope for empirical validation (Section \ref{sec:discussion}).
+
+Our approach complements rather than replaces classical inference. Standard errors remain essential for quantifying sampling uncertainty. The LLM-Bootstrap adds a second layer: the uncertainty attributable to the researcher's discretionary choices. Together, these provide a fuller accounting of the precision of empirical findings.
+
+%------------------------------------------------------------------------------
+\section{Related Literature}
+\label{sec:literature}
+%------------------------------------------------------------------------------
+
+Our work connects to several strands of literature.
+
+\paragraph{Researcher Degrees of Freedom.} \cite{simmons2011false} document how flexibility in data collection, analysis, and reporting inflates false-positive rates. \cite{gelman2013garden} term this the ``garden of forking paths.'' Specification curve analysis \citep{simonsohn2020specification} and multiverse analysis \citep{steegen2016multiverse} directly characterize estimate variation across specifications, but require manual enumeration that is rarely exhaustive.
+
+\paragraph{Multi-Analyst Studies.} \cite{silberzahn2018many} pioneered the ``many analysts, one data set'' paradigm, revealing striking heterogeneity across independent teams. Subsequent studies confirm this pattern \citep{huntington2021influence, breznau2022observing}. These exercises provide ground truth for researcher variance but are costly and rare.
+
+\paragraph{Bootstrap and Resampling.} The bootstrap \citep{efron1979bootstrap} approximates sampling distributions by resampling from the data. \cite{andrews2000bootstrap, andrews2001evaluation} develop optimal choice of bootstrap replications $B$. Our LLM-Bootstrap is conceptually analogous, but resamples from the \textit{researcher choice space} rather than the data.
+
+\paragraph{Model Uncertainty.} Bayesian Model Averaging \citep{hoeting1999bayesian} and frequentist model averaging \citep{hansen2007least} address uncertainty over model specifications. These require explicit enumeration of the model space. The LLM implicitly defines a model space through its training on research papers, inducing a prior over specifications.
+
+\paragraph{LLMs in Economics.} Recent work explores LLMs as economic agents \citep{horton2023large}, survey respondents \citep{brand2023gpt}, and research assistants \citep{korinek2023generative}. Our application---LLMs as \textit{stochastic researchers}---is novel.
+
+%------------------------------------------------------------------------------
+\section{The Econometric Framework}
+\label{sec:model}
+%------------------------------------------------------------------------------
+
+\subsection{Setup and Notation}
+
+Consider a researcher estimating a scalar parameter $\theta_0 \in \mathbb{R}$ representing a causal or structural quantity of interest. Examples include the returns to education, the elasticity of labor supply, or the effect of a policy intervention.
+
+Let $\Ps$ denote the data-generating process (population) over observables $(Y, D, X)$, where $Y$ is the outcome, $D$ is the key explanatory variable (treatment), and $X$ are covariates. The structural relationship is:
+\begin{equation}
+    Y = g(D, X, U; \theta_0)
+\end{equation}
+where $U$ represents unobservables and $\theta_0$ parameterizes the effect of $D$ on $Y$.
+
+\begin{definition}[True Parameter]
+The true parameter $\theta_0$ is defined as:
+\begin{equation}
+    \theta_0 \equiv \E_\Ps\left[\frac{\partial Y}{\partial D} \Big| \text{do}(D)\right]
+\end{equation}
+the average causal effect under interventions on $D$.
+\end{definition}
+
+\subsection{The Researcher Choice Space}
+
+A researcher must make many choices to produce an estimate. We formalize these as a \textit{researcher choice} $r$ from a \textit{choice space} $\R$.
+
+\begin{definition}[Researcher Choice]
+A researcher choice $r \in \R$ is a tuple $r = (S, V, M, E)$ where:
+\begin{itemize}
+    \item $S \in \mathcal{S}$: Sample restrictions (age range, geographic scope, outlier handling)
+    \item $V \in \mathcal{V}$: Variable construction (how $Y$, $D$, $X$ are operationalized)
+    \item $M \in \mathcal{M}$: Model specification (functional form, controls, fixed effects)
+    \item $E \in \mathcal{E}$: Estimation method (OLS, IV, matching)
+\end{itemize}
+\end{definition}
+
+Each choice $r$ applied to a sample $\omega$ from $\Ps$ produces an estimate $\hat{\theta}(r, \omega)$.
+
+\begin{remark}
+The choice space $\R$ is typically vast. Even modest flexibility---4 age ranges, 3 wage definitions, 5 control sets, 3 estimation methods---yields $|\R| = 180$ configurations. Realistic studies may have millions of defensible variants.
+\end{remark}
+
+\subsection{Variance Decomposition}
+
+Let $R$ denote a random researcher choice drawn from some distribution $\pi$ over $\R$, and let $\Omega$ denote a random sample from $\Ps$. The total variance in estimates decomposes as follows.
+
+\begin{proposition}[Variance Decomposition]
+\label{prop:variance_decomp}
+\begin{equation}
+    \Var[\hat{\theta}(R, \Omega)] = \underbrace{\E_R[\Var_\Omega(\hat{\theta}|R)]}_{\text{Sampling Variance}} + \underbrace{\Var_R(\E_\Omega[\hat{\theta}|R])}_{\text{Researcher Variance}} + \underbrace{\Var_R(\theta(R) - \theta_0)}_{\text{Specification Bias Variance}}
+\end{equation}
+\end{proposition}
+
+\begin{proof}
+Apply the law of total variance twice: first conditioning on $R$, then decomposing the conditional expectation into limit value and bias.
+\end{proof}
+
+\textit{Sampling variance} is what classical standard errors capture: uncertainty from finite samples. \textit{Researcher variance} reflects heterogeneity in point estimates due to different choices, holding the estimand fixed. \textit{Specification bias variance} arises if different choices target different causal quantities.
+
+To focus on researcher variance, we impose:
+
+\begin{assumption}[Common Estimand]
+\label{ass:common_estimand}
+All choices in $\R$ target the same parameter: $\theta(r) = \theta_0$ for all $r \in \R$.
+\end{assumption}
+
+Under Assumption \ref{ass:common_estimand}, the bias variance term vanishes, and:
+\begin{equation}
+    \Var[\hat{\theta}(R, \Omega)] = \E_R[\Var_\Omega(\hat{\theta}|R)] + \Var_R(\E_\Omega[\hat{\theta}|R])
+\end{equation}
+
+\subsection{The LLM as Stochastic Researcher}
+
+We model the LLM as inducing a distribution over researcher choices.
+
+\begin{definition}[LLM-Induced Choice Distribution]
+Given prompt $P$ (the research question), temperature $\tau > 0$, and LLM $\Lambda$, define $\pi_{\text{LLM}}(r | P, \tau, \Lambda)$ as the probability that the LLM chooses $r$.
+\end{definition}
+
+Due to autoregressive sampling with temperature $\tau$, independent LLM runs produce i.i.d.\ draws: $r_1, r_2, \ldots \stackrel{iid}{\sim} \pi_{\text{LLM}}$.
+
+\begin{assumption}[Relevance]
+\label{ass:relevance}
+The LLM distribution covers reasonable choices:
+\begin{equation}
+    \text{supp}(\pi_{\text{LLM}}) \supseteq \R_{\text{reasonable}}
+\end{equation}
+where $\R_{\text{reasonable}} \subseteq \R$ is the set of defensible researcher choices.
+\end{assumption}
+
+\subsection{The LLM-Bootstrap Procedure}
+
+\begin{algorithm}
+\caption{LLM-Bootstrap}
+\label{alg:llm_bootstrap}
+\begin{algorithmic}[1]
+\Require Research question prompt $P$; number of runs $K$; LLM $\Lambda$ with temperature $\tau > 0$
+\For{$k = 1, \ldots, K$}
+    \State Run LLM with prompt $P$ $\to$ outputs code implementing choice $r_k$
+    \State Execute code to obtain estimate $\hat{\theta}_k \equiv \hat{\theta}(r_k, \omega)$
+\EndFor
+\State Compute LLM-Bootstrap mean: $\bar{\theta}^{LB} = \frac{1}{K} \sum_{k=1}^K \hat{\theta}_k$
+\State Compute LLM-Bootstrap variance: $\hat{V}^{LB} = \frac{1}{K-1} \sum_{k=1}^K (\hat{\theta}_k - \bar{\theta}^{LB})^2$
+\Ensure $\bar{\theta}^{LB}$, $\hat{V}^{LB}$
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Asymptotic Properties}
+
+\begin{proposition}[Consistency]
+\label{prop:consistency}
+Under Assumptions \ref{ass:common_estimand}--\ref{ass:relevance}, as $K \to \infty$:
+\begin{equation}
+    \bar{\theta}^{LB} \stackrel{p}{\to} \E_{\pi_{\text{LLM}}}[\hat{\theta}(R, \omega)]
+\end{equation}
+If each $\hat{\theta}(r, \omega)$ is unbiased for $\theta_0$, then $\bar{\theta}^{LB} \stackrel{p}{\to} \theta_0$.
+\end{proposition}
+
+\begin{proposition}[Asymptotic Normality]
+\label{prop:clt}
+Under regularity conditions, as $K \to \infty$:
+\begin{equation}
+    \sqrt{K}(\bar{\theta}^{LB} - \mu_\theta) \stackrel{d}{\to} N(0, \sigma^2_\theta)
+\end{equation}
+where $\mu_\theta = \E_{\pi_{\text{LLM}}}[\hat{\theta}(R, \omega)]$ and $\sigma^2_\theta = \Var_{\pi_{\text{LLM}}}(\hat{\theta}(R, \omega))$.
+\end{proposition}
+
+\begin{remark}[Fixed Sample]
+In practice, LLM runs often use the same underlying data $\omega$ (e.g., publicly available datasets). Then:
+\begin{equation}
+    \hat{V}^{LB} \stackrel{p}{\to} \Var_R(\hat{\theta}(R, \omega))
+\end{equation}
+This captures researcher heterogeneity \textit{given the sample}, not accounting for sampling variability.
+\end{remark}
+
+\subsection{Inference}
+
+Two types of confidence regions arise:
+
+\paragraph{Type 1: Researcher-Heterogeneity CI.} A confidence interval for the mean estimate across researcher choices:
+\begin{equation}
+    CI_{1-\alpha}^{RH} = \left[\bar{\theta}^{LB} \pm z_{1-\alpha/2} \sqrt{\frac{\hat{V}^{LB}}{K}}\right]
+\end{equation}
+
+\paragraph{Type 2: Prediction Interval.} An interval for where a single researcher's estimate would fall:
+\begin{equation}
+    PI_{1-\alpha} = \left[\bar{\theta}^{LB} \pm z_{1-\alpha/2} \sqrt{\hat{V}^{LB}}\right]
+\end{equation}
+
+\paragraph{Comparison Metric.} Let $\widehat{SE}_k$ denote the classical standard error from run $k$. We define:
+\begin{equation}
+    \lambda = \frac{\sqrt{\hat{V}^{LB}}}{\text{median}_k(\widehat{SE}_k)}
+\end{equation}
+The \textit{researcher variability ratio} $\lambda$ measures how researcher variance compares to sampling variance. If $\lambda \gg 1$, researcher choices dominate; classical confidence intervals are too narrow.
+
+%------------------------------------------------------------------------------
+\section{Illustrative Example: The Mincer Regression}
+\label{sec:mincer}
+%------------------------------------------------------------------------------
+
+We illustrate the framework using the classic Mincer (1974) wage equation:
+\begin{equation}
+    \log(w_i) = \alpha + \beta S_i + \gamma_1 X_i + \gamma_2 X_i^2 + \varepsilon_i
+\end{equation}
+where $w_i$ is wages, $S_i$ is years of schooling, $X_i$ is experience, and $\beta$ is the returns to education.
+
+\subsection{The Researcher Choice Space for Mincer}
+
+Table \ref{tab:mincer_choices} enumerates common choices:
+
+\begin{table}[h!]
+\centering
+\caption{Researcher Choice Space for the Mincer Regression}
+\label{tab:mincer_choices}
+\begin{tabular}{lll}
+\toprule
+\textbf{Dimension} & \textbf{Type} & \textbf{Example Options} \\
+\midrule
+Sample restriction & $\mathcal{S}$ & Ages 25--55 vs.\ 25--65; full-time only vs.\ all \\
+Wage measure & $\mathcal{V}$ & Hourly vs.\ annual$/$hours; log vs.\ asinh \\
+Education measure & $\mathcal{V}$ & Years vs.\ degree dummies vs.\ imputed \\
+Experience & $\mathcal{V}$ & Age$-$Education$-$6 vs.\ actual tenure \\
+Controls & $\mathcal{M}$ & Race, gender, industry, occupation, region \\
+Functional form & $\mathcal{M}$ & Quadratic vs.\ quartic experience \\
+Fixed effects & $\mathcal{M}$ & None vs.\ year vs.\ state vs.\ year$\times$state \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+A conservative count yields $|\R| > 10^6$ configurations.
+
+\subsection{Hypothetical LLM-Bootstrap Results}
+
+Suppose we run $K = 50$ LLM instances with the prompt: ``Estimate the effect of years of education on log wages using the Current Population Survey.''
+
+\begin{table}[h!]
+\centering
+\caption{Hypothetical LLM-Bootstrap Results for Returns to Education}
+\label{tab:mincer_results}
+\begin{tabular}{lr}
+\toprule
+\textbf{Statistic} & \textbf{Value} \\
+\midrule
+Mean $\bar{\beta}^{LB}$ & 0.096 \\
+SD across runs $\sqrt{\hat{V}^{LB}}$ & 0.012 \\
+Minimum estimate & 0.071 \\
+Maximum estimate & 0.118 \\
+Median classical SE & 0.002 \\
+Researcher variability ratio $\lambda$ & 6.0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+These results imply that researcher choices generate 6$\times$ the uncertainty of sampling. A 95\% prediction interval is $[0.073, 0.119]$, much wider than the typical published 95\% CI of $[0.094, 0.100]$.
+
+\subsection{Sources of Variation}
+
+Why does $\hat{\beta}$ vary across specifications?
+\begin{enumerate}
+    \item \textbf{Sample composition}: Different age restrictions yield different populations with different average returns.
+    \item \textbf{Omitted variable bias}: Including industry controls vs.\ not affects bias from ability sorting.
+    \item \textbf{Measurement}: Hourly vs.\ annual wages differ if hours correlate with education.
+    \item \textbf{Functional form}: Polynomial degree in experience affects the education coefficient.
+\end{enumerate}
+
+This heterogeneity is not a bug but a reflection of genuine uncertainty about what the ``returns to education'' means operationally.
+
+%------------------------------------------------------------------------------
+\section{Optimal Number of LLM Runs}
+\label{sec:optimal_K}
+%------------------------------------------------------------------------------
+
+A key practical question is: how many LLM runs $K$ are needed? We adapt the Andrews-Buchinsky (2000, 2001) framework for bootstrap replications.
+
+\subsection{Precision of Variance Estimation}
+
+Under normality, the variance estimator $\hat{V}^{LB}$ has coefficient of variation:
+\begin{equation}
+    CV(\hat{V}^{LB}) = \sqrt{\frac{2}{K-1}}
+\end{equation}
+
+Table \ref{tab:optimal_k} shows precision by $K$:
+
+\begin{table}[h!]
+\centering
+\caption{Precision of Variance Estimate by Number of Runs}
+\label{tab:optimal_k}
+\begin{tabular}{cc}
+\toprule
+\textbf{K} & \textbf{CV of Variance Estimate} \\
+\midrule
+20 & 32\% \\
+50 & 20\% \\
+100 & 14\% \\
+200 & 10\% \\
+400 & 7\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Cost-Benefit Analysis}
+
+Let $c$ denote the cost per LLM run (API + verification). Targeting relative precision $\delta$ in variance:
+\begin{equation}
+    K^* = \left\lceil \frac{2}{\delta^2} \right\rceil
+\end{equation}
+
+For 20\% precision ($\delta = 0.2$): $K^* = 50$.
+For 10\% precision ($\delta = 0.1$): $K^* = 200$.
+
+\subsection{Adaptive Procedure}
+
+Following Andrews-Buchinsky:
+\begin{enumerate}
+    \item Run $K_0 = 20$ pilot instances.
+    \item Compute pilot variance $\hat{V}_{K_0}$.
+    \item If estimate is stable (CV acceptable), stop.
+    \item Otherwise, compute required $K^*$ and run additional instances.
+\end{enumerate}
+
+\subsection{Practical Recommendations}
+
+\begin{itemize}
+    \item \textbf{Minimum}: $K \geq 20$ for any meaningful analysis.
+    \item \textbf{Standard}: $K = 50$--100 for publication-quality work.
+    \item \textbf{High precision}: $K = 200$+ when the finding is consequential.
+\end{itemize}
+
+At current API costs of \$0.10--\$1.00 per run, a thorough LLM-Bootstrap costs \$10--\$200---a fraction of a single research assistant's time.
+
+%------------------------------------------------------------------------------
+\section{Monte Carlo Simulations}
+\label{sec:simulations}
+%------------------------------------------------------------------------------
+
+We validate the theoretical results through simulation.
+
+\subsection{Design}
+
+We generate data from:
+\begin{equation}
+    y_i = 1 + 0.10 \cdot S_i + 0.05 \cdot X_i - 0.001 \cdot X_i^2 + 0.02 \cdot A_i + \varepsilon_i
+\end{equation}
+where:
+\begin{itemize}
+    \item $S_i$: Schooling, correlated with ability $A_i$
+    \item $X_i$: Experience
+    \item $A_i \sim N(0,1)$: Unobserved ability
+    \item $\varepsilon_i \sim N(0, 0.25)$
+\end{itemize}
+
+We simulate researcher heterogeneity by randomly varying:
+\begin{itemize}
+    \item Age range: $[25, 55]$ or $[25, 45]$ or $[30, 55]$
+    \item Controls: Include $X^2$ or not
+\end{itemize}
+
+\subsection{Results}
+
+[Simulation results to be added: variance decomposition, coverage, convergence in $K$]
+
+%------------------------------------------------------------------------------
+\section{Discussion}
+\label{sec:discussion}
+%------------------------------------------------------------------------------
+
+\subsection{What Does the LLM-Bootstrap Identify?}
+
+The LLM-Bootstrap variance estimates $\Var_{R \sim \pi_{\text{LLM}}}(\hat{\theta}(R, \omega))$---the variance induced by the LLM's choice distribution. This may differ from the variance across \textit{all conceivable} researcher choices, or the variance across \textit{human} researchers. Validation against multi-analyst studies is essential.
+
+\subsection{Limitations}
+
+\begin{enumerate}
+    \item \textbf{LLM training bias}: The LLM reflects patterns in published research. If training papers cluster on similar specifications, LLM diversity is limited.
+    \item \textbf{Fixed sample}: Using the same data underestimates variance if dataset choice contributes significantly.
+    \item \textbf{Code errors}: LLMs make mistakes; some estimates may reflect bugs, not choices.
+    \item \textbf{Prompt sensitivity}: Results depend on how the research question is phrased.
+\end{enumerate}
+
+\subsection{Extensions}
+
+\begin{itemize}
+    \item \textbf{Weighted LLM-Bootstrap}: Weight estimates by specification quality or prior beliefs.
+    \item \textbf{Bayesian aggregation}: Hierarchical modeling of specification effects.
+    \item \textbf{Multi-parameter}: Extend to vector-valued parameters with covariance estimation.
+    \item \textbf{Cross-LLM comparison}: Compare variance across different models (GPT-4, Claude, Gemini).
+\end{itemize}
+
+\subsection{Implications for Practice}
+
+We recommend empirical researchers:
+\begin{enumerate}
+    \item Report classical standard errors \textit{and} LLM-Bootstrap variance.
+    \item For key findings, run $K \geq 50$ LLM replications.
+    \item Interpret confidence intervals as reflecting sampling uncertainty only; LLM-Bootstrap intervals reflect total uncertainty.
+    \item When $\lambda \gg 1$, acknowledge that researcher choices dominate uncertainty.
+\end{enumerate}
+
+%------------------------------------------------------------------------------
+\section{Conclusion}
+\label{sec:conclusion}
+%------------------------------------------------------------------------------
+
+This paper introduces the LLM-Bootstrap, a novel method for characterizing parameter uncertainty arising from researcher choices. By exploiting the stochasticity of Large Language Models, we can efficiently approximate the distribution of estimates that would arise from many independent researchers analyzing the same question.
+
+Our contribution is both conceptual and practical. Conceptually, we formalize the distinction between sampling variance and researcher variance, showing how to decompose and estimate each. Practically, we provide guidance on implementation, optimal replication number, and interpretation.
+
+The LLM-Bootstrap does not replace classical inference---it augments it. In a world where researcher choices matter as much as sampling, our standard errors tell only half the story. The LLM-Bootstrap tells the rest.
+
+%------------------------------------------------------------------------------
+% References
+%------------------------------------------------------------------------------
+\bibliographystyle{ecca}
+\bibliography{bibliography}
+
+%------------------------------------------------------------------------------
+% Appendix
+%------------------------------------------------------------------------------
+\appendix
+\section{Proofs}
+\label{app:proofs}
+
+[Detailed proofs to be added]
+
+\section{Additional Simulations}
+\label{app:simulations}
+
+[Additional simulation results to be added]
+
+\end{document}

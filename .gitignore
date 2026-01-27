@@ -36,6 +36,11 @@ desktop.ini
 *.dta
 *.sav
 *.sas7bdat
+*.csv
+
+# unnecessary replication docs
+*.cbk
+*.xml
 
 # Experiment runs (temporary outputs)
 runs/

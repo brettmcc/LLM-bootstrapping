@@ -1,0 +1,17 @@
+## 1/5/2025 meeting notes
+
+-paper w/ many many replications of a single paper: https://www.nber.org/papers/w33729
+-->try to match both their choices of sample, specification, etc., and distribution of parameter estimates
+-another paper doing the same thing: https://www.pnas.org/doi/10.1073/pnas.2203150119
+
+-something we can do w/ 2 observations per paper for I4R series of replications? Concern: publication bias for one of the obs.
+
+-another concern: published papers will appear in the training data, which may bias result! Solution: compare sample of papers in training data to those very recently released as working papers
+
+-econometricians/applied people very worried about how to entirely remove researcher bias. Solution: we provide our own prompt and a canned command to implement it so that researchers have to default to our language.
+
+-how to ensure the LLM follows economists' best practice: prompt should emphasize this, e.g., telling it, "You're a rigorous applied economists who regularly publishes in AEJ: Applied".
+
+-check out https://arxiv.org/pdf/2412.07031 on LLMs & empirical econ
+
+-ideally: decompose researcher degrees of freedom into 3 components: data, specification, and inference.
