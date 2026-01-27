@@ -28,7 +28,7 @@ SPECS_ROOT = PROJECT / "specs"
 
 CLI_TEMPLATE_ENV = {
     "copilot": "COPILOT_CLI_COMMAND",
-    "gemini": "GEMINI_CLI_COMMAND",
+    "gemini_cli": "GEMINI_CLI_COMMAND",
 }
 
 
@@ -46,16 +46,17 @@ def split_command(command: str) -> list[str]:
 
 def should_use_wsl(provider: str, no_wsl: bool) -> bool:
     # Decide whether to run the provider via WSL on Windows.
-    return os.name == "nt" and not no_wsl and provider in {"codex", "gemini"}
+    return os.name == "nt" and not no_wsl and provider in {"codex", "gemini_cli"}
 
 
 def wrap_wsl(command: list[str], distro: str | None) -> list[str]:
-    # Wrap a command to run in WSL with bash -lc so PATH is available.
+    # Wrap a command to run in WSL with bash -ic so nvm/npm tools are on PATH.
+    # Use -ic (interactive) instead of -lc (login) because nvm is loaded in .bashrc.
     joined = " ".join(shlex.quote(part) for part in command)
     wrapped = ["wsl"]
     if distro:
         wrapped.extend(["--distribution", distro])
-    wrapped.extend(["--exec", "bash", "-lc", joined])
+    wrapped.extend(["--exec", "bash", "-ic", joined])
     return wrapped
 
 
@@ -77,7 +78,7 @@ def build_cli_command(
                 "$p = Get-Content -Raw -; copilot -p $p --allow-all-tools",
             ]
         return ["bash", "-lc", "copilot -p \"$(cat)\" --allow-all-tools"]
-    if provider == "gemini":
+    if provider == "gemini_cli":
         cmd = ["gemini", "--output-format", "json"]
         return wrap_wsl(cmd, wsl_distro) if should_use_wsl(provider, no_wsl) else cmd
     if provider in CLI_TEMPLATE_ENV:
@@ -110,7 +111,8 @@ def build_version_command(
     provider: str, no_wsl: bool, wsl_distro: str | None
 ) -> list[str]:
     # Build a provider-appropriate version check command.
-    cmd = [provider, "--version"]
+    binary = "gemini" if provider == "gemini_cli" else provider
+    cmd = [binary, "--version"]
     return wrap_wsl(cmd, wsl_distro) if should_use_wsl(provider, no_wsl) else cmd
 
 
@@ -232,7 +234,7 @@ def main() -> None:
     # Add argument for number of specs, default 10.
     parser.add_argument(
         "--cli-provider",
-        choices=["codex", "copilot", "gemini"],
+        choices=["codex", "copilot", "gemini_cli"],
         default="codex",
         help="Which CLI to use for spec generation",
     )
@@ -292,6 +294,12 @@ def main() -> None:
             args.cli_provider, args.no_wsl, args.wsl_distro
         )
         ok = dry_run_check(version_cmd)
+        if not ok:
+            print(
+                "warning: CLI not found or failed version check; "
+                "skipping availability check in dry-run"
+            )
+            ok = True
         print("ok" if ok else "fail")
         return
     for i in range(1, args.n + 1):

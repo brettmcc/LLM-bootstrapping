@@ -31,11 +31,11 @@ POLICY_FILE = REPLICATION_DIR / "policy_labor_market_data.csv"
 DOC_FILE = REPLICATION_DIR / "State-Level Data Documentation.md"
 RESULTS_SCHEMA = PROJECT / "results_schema.json"
 
-RUNS_DIR = PROJECT / "runs"
+RUNS_DIR = PROJECT / "runs" / "executions"
 
 CLI_TEMPLATE_ENV = {
     "copilot": "COPILOT_CLI_COMMAND",
-    "gemini": "GEMINI_CLI_COMMAND",
+    "gemini_cli": "GEMINI_CLI_COMMAND",
 }
 
 
@@ -163,6 +163,14 @@ def validate_run_dir(run_dir: Path) -> None:
 def build_prompt(spec_text: str) -> str:
     # This function builds the prompt string that will be sent to the Codex CLI.
     # It includes the research specification and instructions for the LLM.
+    
+    # Determine Python command based on platform
+    if os.name == "nt":
+        python_cmd = r"C:\\Users\\Brett's Workstation\\.venvs\\NHK-replications\\Scripts\\python.exe"
+    else:
+        # On WSL/Linux, use python3 from the environment
+        python_cmd = "python3"
+    
     return f"""You have this research specification:
 
 {spec_text}
@@ -179,7 +187,7 @@ Do not access any other paths.
 1b. If needed, read State-Level Data Documentation.md for the policy data.
 2. Write analysis.py that implements this exact specification.
 3. Run analysis.py on the data in this working directory using:
-   C:\\Users\\Brett's Workstation\\.venvs\\NHK-replications\\Scripts\\python.exe analysis.py
+   {python_cmd} analysis.py
 4. If errors occur, fix them and re-run until successful.
 5. Print final results as JSON: {{"point_estimate": X, "standard_error": Y, "sample_size": N}}.
 6. Do not add any commentary outside the JSON object.
@@ -195,16 +203,17 @@ def split_command(command: str) -> list[str]:
 
 def should_use_wsl(provider: str, no_wsl: bool) -> bool:
     # Decide whether to run the provider via WSL on Windows.
-    return os.name == "nt" and not no_wsl and provider in {"codex", "gemini"}
+    return os.name == "nt" and not no_wsl and provider in {"codex", "gemini_cli"}
 
 
 def wrap_wsl(command: list[str], distro: Optional[str]) -> list[str]:
-    # Wrap a command to run in WSL with bash -lc so PATH is available.
+    # Wrap a command to run in WSL with bash -ic so nvm/npm tools are on PATH.
+    # Use -ic (interactive) instead of -lc (login) because nvm is loaded in .bashrc.
     joined = " ".join(shlex.quote(part) for part in command)
     wrapped = ["wsl"]
     if distro:
         wrapped.extend(["--distribution", distro])
-    wrapped.extend(["--exec", "bash", "-lc", joined])
+    wrapped.extend(["--exec", "bash", "-ic", joined])
     return wrapped
 
 
@@ -245,7 +254,7 @@ def build_cli_command(
         if dangerous:
             cmd.append("--allow-all-tools")
         return cmd
-    elif provider == "gemini":
+    elif provider == "gemini_cli":
         cmd = ["gemini", "--output-format", "json"]
         if dangerous:
             cmd.append("--yolo")
@@ -485,7 +494,7 @@ def main() -> None:
     # Optional convenience flag to select a provider-specific spec directory.
     parser.add_argument(
         "--spec-provider",
-        choices=["codex", "mistral", "google", "copilot", "gemini", "all"],
+        choices=["codex", "mistral", "copilot", "gemini_cli", "gemini_api", "all"],
         default=None,
         help="Shortcut for --spec-dir=specs/<provider> (or all providers)",
     )
@@ -532,7 +541,7 @@ def main() -> None:
     # Dangerous mode flag.
     parser.add_argument(
         "--cli-provider",
-        choices=["codex", "copilot", "gemini"],
+        choices=["codex", "copilot", "gemini_cli"],
         default="codex",
         help="Which CLI to use for implementation",
     )
@@ -566,9 +575,8 @@ def main() -> None:
             spec_dirs = [
                 PROJECT / "specs" / "codex",
                 PROJECT / "specs" / "mistral",
-                PROJECT / "specs" / "google",
-                PROJECT / "specs" / "copilot",
-                PROJECT / "specs" / "gemini",
+                PROJECT / "specs" / "gemini_cli",
+                PROJECT / "specs" / "gemini_api",
             ]
         else:
             spec_dirs = [PROJECT / "specs" / args.spec_provider]

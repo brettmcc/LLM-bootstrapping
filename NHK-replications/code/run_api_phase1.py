@@ -81,7 +81,7 @@ def main() -> None:
     parser.add_argument(
         "--provider",
         type=str,
-        choices=["mistral", "google"],
+        choices=["mistral", "gemini_api"],
         default=None,
         help="LLM provider (default inferred from model)",
     )
@@ -115,14 +115,29 @@ def main() -> None:
     if args.env_file:
         env_candidates.append(Path(args.env_file))
     env_candidates.append(resolve_path(".env"))
-    env_candidates.extend(
-        [
-            Path(
-                r"C:\Users\Brett's Workstation\.LLM-bootstrap\secrets.env"
-            ),
+    
+    # Add platform-appropriate secret locations
+    is_wsl = os.path.exists("/proc/version")
+    try:
+        is_wsl = is_wsl and "microsoft" in Path("/proc/version").read_text().lower()
+    except Exception:
+        is_wsl = False
+    
+    # Always include home directory first
+    env_candidates.append(Path.home() / ".LLM-bootstrap" / "secrets.env")
+    
+    if is_wsl:
+        # WSL mounted paths
+        env_candidates.extend([
+            Path("/mnt/c/Users/Brett's Workstation/.LLM-bootstrap/secrets.env"),
+            Path("/mnt/c/Users/Brett/.LLM-bootstrap/secrets.env"),
+        ])
+    else:
+        # Windows paths
+        env_candidates.extend([
+            Path(r"C:\Users\Brett's Workstation\.LLM-bootstrap\secrets.env"),
             Path(r"C:\Users\Brett\.LLM-bootstrap\secrets.env"),
-        ]
-    )
+        ])
     for env_path in env_candidates:
         if env_path.exists():
             load_dotenv(env_path)
@@ -131,15 +146,18 @@ def main() -> None:
     # Determine provider if not specified
     provider = args.provider
     if provider is None:
-        provider = "google" if args.model.lower().startswith("gemini") else "mistral"
+        provider = (
+            "gemini_api" if args.model.lower().startswith("gemini") else "mistral"
+        )
 
     # Get API key based on provider
     if provider == "mistral":
         api_key = os.getenv("MISTRAL_API_KEY")
         missing_message = "MISTRAL_API_KEY not found in environment or .env"
     else:
+        # Prioritize GEMINI_API_KEY, fallback to GOOGLE_API_KEY for backward compatibility
         api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
-        missing_message = "GEMINI_API_KEY or GOOGLE_API_KEY not found in environment or .env"
+        missing_message = "GEMINI_API_KEY not found in environment or .env"
 
     # Check for API key unless dry run
     if not args.dry_run and not api_key:
@@ -150,7 +168,7 @@ def main() -> None:
 
     # Prepare output directory for raw run logs
     model_dir = args.model.replace("/", "_")
-    runs_dir = resolve_path(f"runs/{model_dir}")
+    runs_dir = resolve_path(f"runs/conversations/{model_dir}")
     runs_dir.mkdir(parents=True, exist_ok=True)
 
     # Prepare output directory for validated JSON specs (grouped by provider)

@@ -33,7 +33,7 @@ class LLMClient:
         # if/elif/else are conditional statements that execute different code based on conditions
         if self.provider == "mistral":
             self._client = Mistral(api_key=api_key)  # Create Mistral API client
-        elif self.provider in {"google", "gemini"}:  # Check if provider is google or gemini
+        elif self.provider == "gemini":  # Check if provider is gemini
             self._client = genai.Client(api_key=api_key)  # Create Google Gemini API client
         else:
             # raise raises an exception to indicate an error
