@@ -239,12 +239,12 @@ def load_spec_files(spec_root: Path, providers: list[str]) -> list[Path]:
         for provider in providers:
             provider_dir = spec_root / provider
             if provider_dir.exists():
-                files.extend(sorted(provider_dir.glob("*.json")))
+                files.extend(sorted(provider_dir.rglob("*.json")))
         return files
     # If no providers specified, scan all subdirectories.
     for subdir in sorted(spec_root.iterdir()):
         if subdir.is_dir():
-            files.extend(sorted(subdir.glob("*.json")))
+            files.extend(sorted(subdir.rglob("*.json")))
     return files
 
 

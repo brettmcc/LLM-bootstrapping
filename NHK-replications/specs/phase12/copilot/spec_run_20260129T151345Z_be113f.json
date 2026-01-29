@@ -1,0 +1,10 @@
+{
+  "model_specification_line": "sm.WLS(fulltime, sm.add_constant(pd.concat([eligible_daca, pd.get_dummies(year,prefix=\"year\",drop_first=True)],axis=1)), weights=perwt).fit()",
+  "outcome_definition": "fulltime = (uhrswork >= 35)",
+  "sample_selection": [
+    "year in [2013,2014,2015,2016]",
+    "hispan==1",
+    "birthyr between 1982 and 1991 inclusive"
+  ],
+  "treatment_definition": "eligible_daca = (birthyr between 1982 and 1991 and yrimmig>0)"
+}
