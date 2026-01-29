@@ -1,0 +1,14 @@
+{
+  "sample_selection": [
+    "BPL == 200",
+    "CITIZEN == 3",
+    "AGE >= 16",
+    "AGE <= 31",
+    "YEAR >= 2013",
+    "YEAR <= 2016",
+    "HISPAN == 1"
+  ],
+  "outcome_definition": "UHRSWORK >= 35",
+  "treatment_definition": "(AGE <= 15) & (YRIMMIG <= 2007) & (YEAR >= 2012)",
+  "model_specification_line": "diff_in_diff = CausalModel(y_name='outcome', d_name='treatment', x_name=None, data=data)"
+}

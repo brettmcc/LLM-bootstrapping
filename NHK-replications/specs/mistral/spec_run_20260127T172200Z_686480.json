@@ -1,0 +1,10 @@
+{
+  "sample_selection": [
+    "(HISPAN == 1) & (BPL == 200) & (YEAR >= 2013) & (YEAR <= 2016)",
+    "(AGE >= 15) & (AGE <= 30) & (YRIMMIG <= 2007) & (YRIMMIG >= (YEAR - 15))",
+    "(CITIZEN == 3) & (SPEAKENG != 1)"
+  ],
+  "outcome_definition": "(EMPSTAT == 1) & (UHRSWORK >= 35)",
+  "treatment_definition": "(YEAR >= 2013) & (AGE <= 30) & (YRIMMIG <= 2007) & (YRIMMIG >= 2000) & (AGE - YRIMMIG <= 15)",
+  "model_specification_line": "DiffInDiff(emp_fulltime ~ daca_eligible + controls, data=df, period='year', treatment='daca_eligible', outcomes='emp_fulltime')"
+}

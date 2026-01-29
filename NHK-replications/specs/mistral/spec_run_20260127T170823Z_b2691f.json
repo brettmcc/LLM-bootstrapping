@@ -1,0 +1,9 @@
+{
+  "sample_selection": [
+    "(BPL == 200) & (HISPAN == 1) & (CITIZEN == 3) & (AGE >= 15) & (AGE <= 31) & (YEAR >= 2013) & (YEAR <= 2016)",
+    "(YRIMMIG <= 2007) & (YRIMMIG != 0)"
+  ],
+  "outcome_definition": "(EMPSTAT == 1) & (UHRSWORK >= 35)",
+  "treatment_definition": "(AGE <= 31) & (YRIMMIG <= 2007) & (YRIMMIG != 0) & (YEAR >= 2013) & (YEAR <= 2016)",
+  "model_specification_line": "smf.ols('outcome ~ treatment + C(YEAR) + C(STATEFIP)', data=df).fit(cov_type='cluster', cov_kwds={'groups': df['STATEFIP']})"
+}

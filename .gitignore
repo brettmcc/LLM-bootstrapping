@@ -36,7 +36,6 @@ desktop.ini
 *.dta
 *.sav
 *.sas7bdat
-*.csv
 
 # unnecessary replication docs
 *.cbk

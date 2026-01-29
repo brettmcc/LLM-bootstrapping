@@ -17,6 +17,8 @@ import os
 import random
 from pathlib import Path
 import secrets
+import concurrent.futures
+import time
 
 from dotenv import load_dotenv
 
@@ -107,6 +109,24 @@ def main() -> None:
         type=str,
         default=None,
         help="Optional path to a .env file with API keys",
+    )
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=600,
+        help="Total per-run timeout in seconds (default: 600)",
+    )
+    parser.add_argument(
+        "--attempt-timeout",
+        type=int,
+        default=60,
+        help="Per-attempt timeout in seconds (default: 60)",
+    )
+    parser.add_argument(
+        "--retry-wait",
+        type=int,
+        default=2,
+        help="Seconds to wait between attempts after errors/timeouts (default: 2)",
     )
     args = parser.parse_args()
 
@@ -219,14 +239,41 @@ def main() -> None:
             print(prompt[:500])
             continue
 
-        # Call the LLM API
+        # Call the LLM API with a timeout
         assert client is not None  # Since dry_run would have continued earlier
-        response = client.complete(
-            prompt=prompt,
-            model=args.model,
-            random_seed=random_seed,
-            temperature=temperature,
-        )
+        print(f"Starting run {i}...", flush=True)
+        run_start = time.monotonic()
+        response = None
+        attempt = 0
+        while True:
+            attempt += 1
+            elapsed = time.monotonic() - run_start
+            remaining = args.timeout - elapsed
+            if remaining <= 0:
+                print(f"Run {i} timed out after {args.timeout}s total. Skipping.")
+                break
+            attempt_timeout = min(args.attempt_timeout, int(remaining))
+            try:
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                    future = executor.submit(
+                        client.complete,
+                        prompt=prompt,
+                        model=args.model,
+                        random_seed=random_seed,
+                        temperature=temperature,
+                    )
+                    response = future.result(timeout=attempt_timeout)
+                break
+            except concurrent.futures.TimeoutError:
+                print(
+                    f"Run {i} attempt {attempt} timed out after {attempt_timeout}s."
+                )
+            except Exception as exc:
+                print(f"Run {i} attempt {attempt} failed with error: {exc}.")
+            time.sleep(args.retry_wait)
+
+        if response is None:
+            continue
 
         # Attempt to parse and save a JSON spec from the response
         try:

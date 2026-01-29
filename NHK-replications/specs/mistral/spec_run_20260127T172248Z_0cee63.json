@@ -1,0 +1,17 @@
+{
+  "sample_selection": [
+    "BPL == 200",
+    "HISPAN == 1",
+    "YEAR >= 2013",
+    "YEAR <= 2016",
+    "AGE >= 16",
+    "AGE <= 30",
+    "YRIMMIG <= 2007",
+    "CITIZEN != 1",
+    "CITIZEN != 2",
+    "SPEAKENG != 1"
+  ],
+  "outcome_definition": "(UHRSWORK >= 35) & (LABFORCE == 2)",
+  "treatment_definition": "(AGE <= 30) & (YRIMMIG <= 2007) & (YEAR >= 2013) & (YEAR <= 2016) & (BPL == 200) & (HISPAN == 1) & (CITIZEN != 1) & (CITIZEN != 2) & (SPEAKENG != 1)",
+  "model_specification_line": "model = DID(ddf, name_u = 'didd_id', name_t = 'YEAR', t_name = 2012, name_g = 'treatment', g_name = 1, outcome = 'outcome', estimation = 'dr')"
+}

@@ -1,0 +1,14 @@
+{
+  "sample_selection": [
+    "HISPAN == 1",
+    "BPL == 200",
+    "CITIZEN == 3",
+    "AGE >= 15",
+    "AGE <= 31",
+    "YEAR >= 2007",
+    "YEAR <= 2012"
+  ],
+  "outcome_definition": "(UHRSWORK >= 35) & (EMPSTAT == 1)",
+  "treatment_definition": "(YEAR >= 2012) & (AGE >= 15) & (AGE <= 31) & (YRIMMIG <= 2007)",
+  "model_specification_line": "smf.ols(formula='outcome ~ treatment + C(YEAR) + C(STATEFIP)', data=data, weights=data['PERWT']).fit()"
+}

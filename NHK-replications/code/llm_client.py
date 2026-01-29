@@ -13,6 +13,8 @@ from typing import Any, Dict, Optional
 from mistralai import Mistral
 from google import genai
 from google.genai import types as genai_types
+from google.genai import errors as genai_errors
+import time
 
 
 # A dataclass is a simple class that automatically generates methods like __init__ and __repr__
@@ -33,7 +35,7 @@ class LLMClient:
         # if/elif/else are conditional statements that execute different code based on conditions
         if self.provider == "mistral":
             self._client = Mistral(api_key=api_key)  # Create Mistral API client
-        elif self.provider == "gemini":  # Check if provider is gemini
+        elif self.provider in {"gemini", "gemini_api"}:  # Check if provider is gemini
             self._client = genai.Client(api_key=api_key)  # Create Google Gemini API client
         else:
             # raise raises an exception to indicate an error
@@ -69,15 +71,26 @@ class LLMClient:
             return LLMResponse(content=content, usage=usage, model=response.model)  # type: ignore
 
         # This else block handles the Google Gemini provider
-        # Call the Google Gemini API to generate content
-        response = self._client.models.generate_content(  # type: ignore
-            model=model,
-            contents=prompt,  # The prompt text
-            config=genai_types.GenerateContentConfig(  # Configuration object
-                temperature=temperature,
-                seed=random_seed,
-            ),
-        )
+        # Call the Google Gemini API to generate content with retry on overload
+        max_attempts = 6
+        delay = 2.0
+        for attempt in range(1, max_attempts + 1):
+            try:
+                response = self._client.models.generate_content(  # type: ignore
+                    model=model,
+                    contents=prompt,  # The prompt text
+                    config=genai_types.GenerateContentConfig(  # Configuration object
+                        temperature=temperature,
+                        seed=random_seed,
+                    ),
+                )
+                break
+            except genai_errors.ServerError as exc:
+                # 503 overload: backoff and retry
+                if attempt >= max_attempts:
+                    raise
+                time.sleep(delay)
+                delay = min(delay * 2, 30.0)
 
         # Get usage metadata, or empty dict if none
         usage_meta = response.usage_metadata or {}  # type: ignore

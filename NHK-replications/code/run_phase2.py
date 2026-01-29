@@ -6,6 +6,9 @@ import json
 import math
 # math provides mathematical functions, here used for checking if numbers are finite.
 
+import sys
+# sys provides access to system-specific parameters and functions, here used for the executable path.
+
 import os
 # os provides functions for interacting with the operating system, like file paths.
 
@@ -109,6 +112,16 @@ def cleanup_data_copy(link_path: Path, target: Path) -> None:
     # Delete only if it's a standalone copy.
 
 
+def cleanup_run_data_file(link_path: Path) -> None:
+    # Always remove the run directory data link/copy after each attempt.
+    try:
+        if link_path.exists():
+            link_path.unlink()
+    except OSError:
+        # Best-effort cleanup.
+        pass
+
+
 def write_layout_excerpt(dest: Path, max_lines: int) -> None:
     # This function writes the first max_lines of the DO_FILE to dest.
     # It's used to provide a layout excerpt for parsing the fixed-width data.
@@ -148,6 +161,8 @@ def validate_run_dir(run_dir: Path) -> None:
         "analysis.py",
         "results.json",
         "validation.txt",
+        "run_analysis.bat",
+        "run_metadata.json",
         "__pycache__",
     }
     # Set of allowed filenames in the run directory.
@@ -160,16 +175,41 @@ def validate_run_dir(run_dir: Path) -> None:
         )
 
 
-def build_prompt(spec_text: str) -> str:
+def python_executable() -> str:
+    # Return the path to the current Python executable.
+    # If the recorded executable path doesn't exist (e.g., user profile name differs
+    # across machines), try to remap it to the current home directory or VIRTUAL_ENV.
+    exe = Path(sys.executable)
+    if exe.exists():
+        return str(exe)
+
+    # Attempt to remap C:\Users\<old>\... to the current user's home directory.
+    try:
+        parts = exe.parts
+        if "Users" in parts:
+            idx = parts.index("Users")
+            if idx + 2 <= len(parts):
+                suffix = Path(*parts[idx + 2 :])
+                remapped = Path.home() / suffix
+                if remapped.exists():
+                    return str(remapped)
+    except Exception:
+        pass
+
+    # Fall back to VIRTUAL_ENV if available.
+    venv = os.environ.get("VIRTUAL_ENV")
+    if venv:
+        candidate = Path(venv) / "Scripts" / "python.exe"
+        if candidate.exists():
+            return str(candidate)
+
+    return str(exe)
+
+
+def build_prompt(spec_text: str, provider: str) -> str:
     # This function builds the prompt string that will be sent to the Codex CLI.
     # It includes the research specification and instructions for the LLM.
-    
-    # Determine Python command based on platform
-    if os.name == "nt":
-        python_cmd = r"C:\\Users\\Brett's Workstation\\.venvs\\NHK-replications\\Scripts\\python.exe"
-    else:
-        # On WSL/Linux, use python3 from the environment
-        python_cmd = "python3"
+    python_cmd = python_executable()
     
     return f"""You have this research specification:
 
@@ -186,14 +226,49 @@ Do not access any other paths.
 1. Read the layout excerpt to parse the fixed-width data in usa_00042.dat.
 1b. If needed, read State-Level Data Documentation.md for the policy data.
 2. Write analysis.py that implements this exact specification.
+2b. Consider yourself to have a maximum of 30GB of memory. Therefore, when reading in usa_00042.dat, you may want to type variables, filter variables early, implement chunking etc. as needed.
 3. Run analysis.py on the data in this working directory using:
    {python_cmd} analysis.py
-4. If errors occur, fix them and re-run until successful.
+4. If errors occur, fix them and re-run until successful, always maintaining fealty to the original specification.
 5. Print final results as JSON: {{"point_estimate": X, "standard_error": Y, "sample_size": N}}.
 6. Do not add any commentary outside the JSON object.
 
-Save the working analysis.py to analysis.py in this directory.
+Save the working analysis.py to this directory.
 """
+
+
+def build_feedback_prompt(
+    base_prompt: str,
+    attempt: int,
+    reason: str,
+    cli_stdout: str,
+    cli_stderr: str,
+    analysis_stdout: str,
+    analysis_stderr: str,
+) -> str:
+    # Build a follow-up prompt with failure details and traceback.
+    tail_cli_stdout = cli_stdout[-6000:] if cli_stdout else ""
+    tail_cli_stderr = cli_stderr[-6000:] if cli_stderr else ""
+    tail_analysis_stdout = analysis_stdout[-6000:] if analysis_stdout else ""
+    tail_analysis_stderr = analysis_stderr[-6000:] if analysis_stderr else ""
+    feedback = [
+        base_prompt,
+        "\n---\n",
+        f"Attempt {attempt} failed: {reason}",
+    ]
+    if tail_analysis_stderr:
+        feedback.append("\nTRACEBACK (analysis.py stderr)\n" + tail_analysis_stderr)
+    if tail_analysis_stdout:
+        feedback.append("\nanalysis.py stdout (tail)\n" + tail_analysis_stdout)
+    if tail_cli_stderr:
+        feedback.append("\nCLI stderr (tail)\n" + tail_cli_stderr)
+    if tail_cli_stdout:
+        feedback.append("\nCLI stdout (tail)\n" + tail_cli_stdout)
+    feedback.append(
+        "\nPlease fix analysis.py based on the traceback and re-run it. "
+        "Return ONLY the final JSON object with point_estimate, standard_error, sample_size."
+    )
+    return "\n".join(feedback)
 
 
 def split_command(command: str) -> list[str]:
@@ -242,17 +317,9 @@ def build_cli_command(
             cmd.append("--full-auto")
         return wrap_wsl(cmd, wsl_distro) if should_use_wsl(provider, no_wsl) else cmd
     elif provider == "copilot":
-        if os.name == "nt":
-            cmd = [
-                "powershell",
-                "-NoProfile",
-                "-Command",
-                "$p = Get-Content -Raw -; copilot -p $p",
-            ]
-        else:
-            cmd = ["bash", "-lc", "copilot -p \"$(cat)\""]
+        cmd = ["copilot", "--allow-all-tools", "--allow-all-paths", "--no-ask-user"]
         if dangerous:
-            cmd.append("--allow-all-tools")
+            cmd.append("--allow-all")
         return cmd
     elif provider == "gemini_cli":
         cmd = ["gemini", "--output-format", "json"]
@@ -268,6 +335,20 @@ def build_version_command(
     # Build a provider-appropriate version check command.
     cmd = [provider, "--version"]
     return wrap_wsl(cmd, wsl_distro) if should_use_wsl(provider, no_wsl) else cmd
+
+
+def run_analysis(run_dir: Path, timeout: int) -> subprocess.CompletedProcess:
+    # Execute analysis.py and return the completed process.
+    python_cmd = python_executable()
+    return subprocess.run(
+        [python_cmd, "analysis.py"],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=timeout,
+        cwd=str(run_dir),
+        env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+    )
 
 
 def dry_run_check(cmd: list[str]) -> bool:
@@ -384,6 +465,7 @@ def run_cli(
     provider: str,
     no_wsl: bool,
     wsl_distro: Optional[str],
+    max_attempts: int,
 ) -> None:
     # This is the main function that runs the selected CLI for a single spec file.
     # It sets up the run directory, runs the CLI, and validates the results.
@@ -393,6 +475,20 @@ def run_cli(
     # Create the run directory path.
     run_dir.mkdir(parents=True, exist_ok=True)
     # Create the directory if it doesn't exist.
+
+    metadata_path = run_dir / "run_metadata.json"
+    metadata_path.write_text(
+        json.dumps(
+            {
+                "phase": "phase2",
+                "cli_provider": provider,
+                "model_phase2": f"{provider}-cli",
+            },
+            indent=2,
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
 
     validate_run_dir(run_dir)
     # Check that the run directory has only expected files.
@@ -411,71 +507,117 @@ def run_cli(
     if not DOC_FILE.exists():
         raise FileNotFoundError(f"Missing documentation file: {DOC_FILE}")
 
-    # Set up the run directory with necessary files.
-    delete_data_copy = ensure_data_link(DATA_FILE, run_dir / "usa_00042.dat")
-    # Ensure the large data file is linked, or copied as a last resort.
-    try:
-        write_layout_excerpt(run_dir / "usa_00042_layout_excerpt.do", layout_lines)
-        copy_if_missing(POLICY_FILE, run_dir / "policy_labor_market_data.csv")
-        copy_if_missing(DOC_FILE, run_dir / "State-Level Data Documentation.md")
+    spec_text = spec_file.read_text(encoding="utf-8")
+    base_prompt = build_prompt(spec_text, provider)
 
-        spec_text = spec_file.read_text(encoding="utf-8")
-        prompt = build_prompt(spec_text)
+    # Build the command to run the selected CLI.
+    cmd = build_cli_command(provider, dangerous, no_wsl, wsl_distro)
 
-        # Build the command to run the selected CLI.
-        cmd = build_cli_command(provider, dangerous, no_wsl, wsl_distro)
+    prompt = base_prompt
+    for attempt in range(1, max_attempts + 1):
+        # Set up the run directory with necessary files for each attempt.
+        ensure_data_link(DATA_FILE, run_dir / "usa_00042.dat")
+        try:
+            write_layout_excerpt(run_dir / "usa_00042_layout_excerpt.do", layout_lines)
+            copy_if_missing(POLICY_FILE, run_dir / "policy_labor_market_data.csv")
+            copy_if_missing(DOC_FILE, run_dir / "State-Level Data Documentation.md")
 
-        # Run the Codex command.
-        result = subprocess.run(
-            cmd,
-            input=prompt,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            timeout=timeout,
-            cwd=str(run_dir),
-            env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
-        )
+            # Run the selected CLI command.
+            if provider == "copilot":
+                run_cmd = [*cmd, "-p", prompt]
+                result = subprocess.run(
+                    run_cmd,
+                    capture_output=True,
+                    text=True,
+                    encoding="utf-8",
+                    timeout=timeout,
+                    cwd=str(run_dir),
+                    env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+                )
+            else:
+                result = subprocess.run(
+                    cmd,
+                    input=prompt,
+                    capture_output=True,
+                    text=True,
+                    encoding="utf-8",
+                    timeout=timeout,
+                    cwd=str(run_dir),
+                    env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+                )
 
-        # Extract the JSON result from the output.
-        extracted = extract_result_json(result.stdout)
-        analysis_path = run_dir / "analysis.py"
-        if not analysis_path.exists():
-            # If analysis.py wasn't created, write failure and exit.
-            write_validation_failure(
-                run_dir, "analysis.py not created", result.stdout, result.stderr
+            analysis_path = run_dir / "analysis.py"
+            if not analysis_path.exists():
+                reason = "analysis.py not created"
+                write_validation_failure(run_dir, reason, result.stdout, result.stderr)
+                print(f"{run_id}: missing analysis.py.")
+                if attempt >= max_attempts:
+                    return
+                prompt = build_feedback_prompt(
+                    base_prompt,
+                    attempt,
+                    reason,
+                    result.stdout,
+                    result.stderr,
+                    "",
+                    "",
+                )
+                continue
+
+            analysis_run = run_analysis(run_dir, timeout)
+            extracted = extract_result_json(analysis_run.stdout)
+            if extracted is None:
+                reason = "unable to extract JSON"
+                write_validation_failure(
+                    run_dir,
+                    reason,
+                    analysis_run.stdout,
+                    analysis_run.stderr,
+                )
+                print(f"{run_id}: invalid output (no JSON).")
+                if attempt >= max_attempts:
+                    return
+                prompt = build_feedback_prompt(
+                    base_prompt,
+                    attempt,
+                    reason,
+                    result.stdout,
+                    result.stderr,
+                    analysis_run.stdout,
+                    analysis_run.stderr,
+                )
+                continue
+
+            # Validate the extracted result.
+            ok, reason = validate_result(extracted)
+            if not ok:
+                write_validation_failure(run_dir, reason, result.stdout, result.stderr)
+                print(f"{run_id}: invalid output ({reason}).")
+                if attempt >= max_attempts:
+                    return
+                prompt = build_feedback_prompt(
+                    base_prompt,
+                    attempt,
+                    reason,
+                    result.stdout,
+                    result.stderr,
+                    analysis_run.stdout,
+                    analysis_run.stderr,
+                )
+                continue
+
+            # If successful, write the results and remove any validation failure file.
+            results_path.write_text(
+                json.dumps(extracted, indent=2, sort_keys=True), encoding="utf-8"
             )
-            print(f"{run_id}: missing analysis.py.")
+            validation_path = run_dir / "validation.txt"
+            if validation_path.exists():
+                validation_path.unlink()
+            print(f"{run_id}: ok")
             return
-        if extracted is None:
-            # If no JSON extracted, write failure and exit.
-            write_validation_failure(
-                run_dir, "unable to extract JSON", result.stdout, result.stderr
-            )
-            print(f"{run_id}: invalid output (no JSON).")
-            return
-
-        # Validate the extracted result.
-        ok, reason = validate_result(extracted)
-        if not ok:
-            # If validation fails, write failure and exit.
-            write_validation_failure(run_dir, reason, result.stdout, result.stderr)
-            print(f"{run_id}: invalid output ({reason}).")
-            return
-
-        # If successful, write the results and remove any validation failure file.
-        results_path.write_text(
-            json.dumps(extracted, indent=2, sort_keys=True), encoding="utf-8"
-        )
-        validation_path = run_dir / "validation.txt"
-        if validation_path.exists():
-            validation_path.unlink()
-        print(f"{run_id}: ok")
-        # Print success message.
-    finally:
-        # Always remove a copied data file to avoid runaway disk usage.
-        if delete_data_copy:
-            cleanup_data_copy(run_dir / "usa_00042.dat", DATA_FILE)
+        finally:
+            # Always remove data file from the run directory after each attempt.
+            cleanup_run_data_file(run_dir / "usa_00042.dat")
 
 
 def main() -> None:
@@ -485,6 +627,13 @@ def main() -> None:
         description="Implement and execute specs via CLI providers."
     )
     # Create an argument parser with a description.
+    parser.add_argument(
+        "--max-attempts",
+        type=int,
+        default=8,
+        help="Maximum number of attempts when validation fails",
+    )
+    # Retry attempts for validation failures.
     parser.add_argument(
         "--spec-dir",
         type=Path,
@@ -509,7 +658,7 @@ def main() -> None:
     parser.add_argument(
         "--timeout",
         type=int,
-        default=1800,
+        default=14000,
         help="Per-run timeout in seconds",
     )
     # Timeout for each run.
@@ -568,6 +717,18 @@ def main() -> None:
     args = parser.parse_args()
     # Parse the arguments.
 
+    if args.dry_run:
+        try:
+            version_cmd = build_version_command(
+                args.cli_provider, args.no_wsl, args.wsl_distro
+            )
+        except ValueError as exc:
+            print(str(exc))
+            return
+        ok = dry_run_check(version_cmd)
+        print("ok" if ok else "fail")
+        return
+
     # If a provider is specified, override spec_dir to the provider folder.
     spec_dirs = [args.spec_dir]
     if args.spec_provider is not None:
@@ -584,16 +745,6 @@ def main() -> None:
     RUNS_DIR.mkdir(parents=True, exist_ok=True)
     # Ensure the runs directory exists.
 
-    spec_files = iter_spec_files(args.spec, spec_dirs)
-    # Get the list of spec files.
-    if args.limit is not None:
-        spec_files = spec_files[: args.limit]
-    # Limit the number if specified.
-
-    if not spec_files:
-        print("No spec files found.")
-        return
-
     try:
         probe_cmd = build_cli_command(
             args.cli_provider, args.dangerous, args.no_wsl, args.wsl_distro
@@ -602,12 +753,15 @@ def main() -> None:
         print(str(exc))
         return
 
-    if args.dry_run:
-        version_cmd = build_version_command(
-            args.cli_provider, args.no_wsl, args.wsl_distro
-        )
-        ok = dry_run_check(version_cmd)
-        print("ok" if ok else "fail")
+
+    spec_files = iter_spec_files(args.spec, spec_dirs)
+    # Get the list of spec files.
+    if args.limit is not None:
+        spec_files = spec_files[: args.limit]
+    # Limit the number if specified.
+
+    if not spec_files:
+        print("No spec files found.")
         return
 
     for spec_file in spec_files:
@@ -623,6 +777,7 @@ def main() -> None:
             args.cli_provider,
             args.no_wsl,
             args.wsl_distro,
+            args.max_attempts,
         )
         # Run the selected CLI for this spec.
 

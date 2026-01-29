@@ -1,0 +1,16 @@
+{
+  "sample_selection": [
+    "HISPAN == 1",
+    "BPL == 200",
+    "YRIMMIG <= 2007",
+    "AGE >= 15",
+    "AGE <= 30",
+    "YEAR >= 2013",
+    "YEAR <= 2016",
+    "MARST != 1",
+    "CITIZEN == 3"
+  ],
+  "outcome_definition": "(UHRSWORK >= 35) & (EMPSTAT == 1)",
+  "treatment_definition": "(AGE >= 15) & (AGE <= 30) & (YRIMMIG <= 2007) & (YEAR >= 2013) & (CITIZEN == 3)",
+  "model_specification_line": "DiffInDiff(periods=[2013, 2014, 2015, 2016], groups=['treated', 'control'], outcome='outcome', treatment='treated', diffs=True)"
+}

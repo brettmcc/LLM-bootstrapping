@@ -27,10 +27,13 @@ See [plan.md](plan.md) for more information.
 - delete temporary helper files created during the agentic flow; only keep files emerging from the agent's work that are to be used going forward.
 - Use the virtual environment located at: C:\Users\Brett\.venvs\NHK-replications\ or C:\Users\Brett's Workstation\.venvs\NHK-replications\ for all Python tasks. Run .venvs\NHK-replications\Scripts\python.exe instead of python on the command line.
 - update requirements.txt whenever new packages are added
+- code should seamlessly run on various machines. Therefore, avoid hardcoding directory references whenever possible
 
 ## Guidelines
 - test programs you've written before claiming to be done
 - I am not super familiar with Python, so please comment verbosely, even on lines that may seem obvious
+- update requirements.txt if new packages are added
+- a single run of of phase 2 may take an hour -- do not force short timeout windows.
 
 ## Critical Thinking
 - Fix root cause (not band-aid).

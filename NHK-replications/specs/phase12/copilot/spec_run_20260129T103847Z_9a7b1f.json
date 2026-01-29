@@ -1,0 +1,20 @@
+{
+  "model_specification_line": "summary = estimate_difference(df)",
+  "outcome_definition": "(empstat == 1) & (uhrswork >= 35)",
+  "sample_selection": [
+    "year >= 2013",
+    "year <= 2016",
+    "hispan == 1",
+    "bpl == 200",
+    "citizen == 3",
+    "age >= 18",
+    "age <= 30",
+    "yrimmig > 0",
+    "yrimmig <= year",
+    "age_at_arrival >= 0",
+    "age_at_arrival < 16",
+    "yrimmig <= 2007",
+    "age_2012 <= 30"
+  ],
+  "treatment_definition": "(age_at_arrival < 16) & (yrimmig <= 2007) & (age_2012 <= 30)"
+}

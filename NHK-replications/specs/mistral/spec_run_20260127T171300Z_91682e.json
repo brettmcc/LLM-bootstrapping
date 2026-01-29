@@ -1,0 +1,13 @@
+{
+  "sample_selection": [
+    "YEAR >= 2013 & YEAR <= 2016",
+    "HISPAN == 1",
+    "BPL == 200",
+    "AGE >= 15 & AGE <= 31",
+    "YRIMMIG <= 2007",
+    "CITIZEN == 3"
+  ],
+  "outcome_definition": "(EMPSTAT == 1) & (UHRSWORK >= 35)",
+  "treatment_definition": "(YEAR >= 2013) & (AGE >= 15) & (AGE <= 31) & (YRIMMIG <= 2007) & (CITIZEN == 3)",
+  "model_specification_line": "model = Logit(outcome ~ treatment + AGE + SEX + EDUC + STATEFIP + YEAR, data=data, weights=PERWT)"
+}

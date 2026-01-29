@@ -1,0 +1,13 @@
+{
+  "sample_selection": [
+    "df['BPL'] == 200",
+    "df['HISPAN'] == 1",
+    "df['CITIZEN'] == 3",
+    "df['YRIMMIG'] <= 2007",
+    "df['AGE'] >= 18",
+    "df['AGE'] <= 50"
+  ],
+  "outcome_definition": "(df['UHRSWORK'] >= 35).astype(int)",
+  "treatment_definition": "((df['AGE'] - (df['YEAR'] - df['YRIMMIG'])) < 16) & ((df['AGE'] - (df['YEAR'] - 2012)) <= 30)",
+  "model_specification_line": "smf.ols('outcome ~ treatment * I(YEAR >= 2012) + AGE + I(AGE**2) + SEX + UNEMP + C(STATEFIP) + C(YEAR)', data=df).fit(cov_type='cluster', cov_kwds={'groups': df['STATEFIP']})"
+}

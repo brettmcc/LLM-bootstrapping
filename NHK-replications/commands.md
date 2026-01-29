@@ -117,6 +117,38 @@ python code/run_phase2.py --spec-provider all --limit 3 --cli-provider codex
 
 ---
 
+## run_phase12.py
+
+```bash
+python code/run_phase12.py [options]
+```
+
+**Parameters:**
+| Argument | Description |
+|----------|-------------|
+| `--n` | Number of runs to execute (default: 1) |
+| `--cli-provider` | CLI to use: codex, copilot (default: codex) |
+| `--timeout` | Per-run timeout in seconds (default: 14000) |
+| `--layout-lines` | Lines in layout excerpt (default: 2000) |
+| `--dangerous` | Run Codex without sandbox (use with caution) |
+| `--dry-run` | Only verify the CLI is available, then exit |
+| `--no-wsl` | Do not run Codex via WSL on Windows |
+| `--wsl-distro` | Optional WSL distribution name |
+| `--codex-reasoning` | Codex reasoning level: low/medium/high/none (default: low) |
+
+**Examples:**
+```bash
+# Verify CLI providers work
+python code/run_phase12.py --cli-provider codex --dry-run
+python code/run_phase12.py --cli-provider copilot --dry-run
+
+# Single execution (Phase 1 + Phase 2 together)
+python code/run_phase12.py --cli-provider codex --n 1
+python code/run_phase12.py --cli-provider copilot --n 1
+```
+
+---
+
 ## run_phase3.py
 
 ```bash

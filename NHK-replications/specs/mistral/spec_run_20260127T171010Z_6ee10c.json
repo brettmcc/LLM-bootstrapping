@@ -1,0 +1,13 @@
+{
+  "sample_selection": [
+    "HISPAN == 1",
+    "BPL == 200",
+    "AGE >= 15",
+    "AGE <= 31",
+    "YEAR >= 2013",
+    "YEAR <= 2016"
+  ],
+  "outcome_definition": "(EMPSTAT == 1) & (UHRSWORK >= 35)",
+  "treatment_definition": "(AGE <= 31) & (BPL == 200) & (YRIMMIG <= 2012) & (YRIMMIG >= 2007) & (CITIZEN == 3)",
+  "model_specification_line": "model = smf.ols('outcome ~ treatment + C(AGE) + C(SEX) + C(EDUC) + C(YEAR) + C(STATEFIP)', data=df).fit()"
+}

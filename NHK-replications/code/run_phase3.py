@@ -182,24 +182,42 @@ def infer_se_adjustment(model_spec: str) -> str:
     return ""
 
 
-def read_results(run_dir: Path) -> tuple[Optional[dict[str, Any]], str]:
-    # Load results.json and validate required keys.
-    results_path = run_dir / "results.json"
-    if not results_path.exists():
+def read_results(run_dirs: list[Path]) -> tuple[Optional[dict[str, Any]], str]:
+    # Load results.json and validate required keys, searching run directories in order.
+    for run_dir in run_dirs:
+        results_path = run_dir / "results.json"
+        if not results_path.exists():
+            continue
+        try:
+            data = json.loads(results_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            return None, "invalid_results"
+        required = {"point_estimate", "standard_error", "sample_size"}
+        if not required.issubset(data.keys()):
+            return None, "invalid_results"
+        return data, "success"
+
+    # No results.json found in any candidate directory; compute status.
+    for run_dir in run_dirs:
         validation_path = run_dir / "validation.txt"
         if validation_path.exists():
             return None, "failed_validation"
         if run_dir.exists():
             return None, "no_results"
-        return None, "not_run"
-    try:
-        data = json.loads(results_path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
-        return None, "invalid_results"
-    required = {"point_estimate", "standard_error", "sample_size"}
-    if not required.issubset(data.keys()):
-        return None, "invalid_results"
-    return data, "success"
+    return None, "not_run"
+
+
+def read_run_metadata(run_dirs: list[Path]) -> dict[str, Any]:
+    # Load run_metadata.json from the first directory that has it.
+    for run_dir in run_dirs:
+        metadata_path = run_dir / "run_metadata.json"
+        if not metadata_path.exists():
+            continue
+        try:
+            return json.loads(metadata_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            return {}
+    return {}
 
 
 def build_metadata_index(log_paths: list[Path]) -> dict[str, list[dict[str, Any]]]:
@@ -257,6 +275,7 @@ def main() -> None:
     spec_root = resolve_path("specs")
     conversations_root = resolve_path("runs/conversations")
     executions_root = resolve_path("runs/executions")
+    phase12_root = executions_root / "phase12"
 
     # Collect log files from Phase 1 API runs.
     log_paths = []
@@ -328,7 +347,6 @@ def main() -> None:
             if not model_phase1:
                 # For CLI specs, mark the provider explicitly.
                 model_phase1 = f"{provider}-cli"
-            model_phase2 = args.phase2_model
 
             # Pull spec fields.
             sample_selection = spec_data.get("sample_selection", [])
@@ -346,9 +364,16 @@ def main() -> None:
             sample_weighting = infer_sample_weighting(model_spec)
             se_adjustment = infer_se_adjustment(model_spec)
 
-            # Load execution results.
-            run_dir = executions_root / run_id
-            results, status = read_results(run_dir)
+            # Load execution results (Phase 2 or Phase 1+2).
+            is_phase12 = any(parent.name == "phase12" for parent in spec_path.parents)
+            run_dirs = [executions_root / run_id]
+            if is_phase12:
+                run_dirs.insert(0, phase12_root / run_id)
+            run_metadata = read_run_metadata(run_dirs)
+            model_phase2 = args.phase2_model or run_metadata.get("model_phase2", "")
+            if not model_phase2 and is_phase12:
+                model_phase2 = f"{provider}-cli"
+            results, status = read_results(run_dirs)
             point_est = ""
             standard_error = ""
             sample_size = ""
