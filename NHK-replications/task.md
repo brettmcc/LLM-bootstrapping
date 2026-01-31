@@ -19,7 +19,7 @@ Submit an identical prompt to an LLM $N$ times, collect structured specification
 
 ## The Prompt
 
-The prompt is in `PROMPT.md`. Do not modify it.
+The prompt is in `PROMPT_JSON.md`. Do not modify it.
 
 ## Phase 2: Implementation + Execution (Codex CLI)
 
@@ -41,6 +41,10 @@ Combine all results into `runs_complete.csv` with columns:
 - model_type, model_specification_line
 - control_variables, fixed_effects, sample_weighting, se_adjustment (imputed from model_specification_line)
 - point_est, SE, sample_size, execution_status
+
+## Phase 4: Analysis
+
+Analyze `runs_complete.csv`, produce charts and tables as in the original `replication-materials/I4R-DP209.pdf` paper.
 
 ## Organization
 

@@ -35,11 +35,11 @@
 \newcommand{\Ps}{\mathcal{P}}
 \newcommand{\indep}{\perp\!\!\!\perp}
 
-\title{The LLM-Bootstrap: \\ Characterizing Parameter Uncertainty from Researcher Choices}
+\title{Replication at Scale}
 
-\author{%
-  [Author Name]\thanks{[Affiliation]. Email: [email]. I thank [acknowledgments].}
-}
+\author{Yagan Hazard\\ \small Collegio Carlo Alberto \& ESOMAS at UniTo
+        \and 
+        Brett A. McCully\\ \small Collegio Carlo Alberto 
 
 \date{\today \\ \vspace{0.5em} \small Preliminary and Incomplete}
 
@@ -258,171 +258,7 @@ Two types of confidence regions arise:
 \end{equation}
 The \textit{researcher variability ratio} $\lambda$ measures how researcher variance compares to sampling variance. If $\lambda \gg 1$, researcher choices dominate; classical confidence intervals are too narrow.
 
-%------------------------------------------------------------------------------
-\section{Illustrative Example: The Mincer Regression}
-\label{sec:mincer}
-%------------------------------------------------------------------------------
 
-We illustrate the framework using the classic Mincer (1974) wage equation:
-\begin{equation}
-    \log(w_i) = \alpha + \beta S_i + \gamma_1 X_i + \gamma_2 X_i^2 + \varepsilon_i
-\end{equation}
-where $w_i$ is wages, $S_i$ is years of schooling, $X_i$ is experience, and $\beta$ is the returns to education.
-
-\subsection{The Researcher Choice Space for Mincer}
-
-Table \ref{tab:mincer_choices} enumerates common choices:
-
-\begin{table}[h!]
-\centering
-\caption{Researcher Choice Space for the Mincer Regression}
-\label{tab:mincer_choices}
-\begin{tabular}{lll}
-\toprule
-\textbf{Dimension} & \textbf{Type} & \textbf{Example Options} \\
-\midrule
-Sample restriction & $\mathcal{S}$ & Ages 25--55 vs.\ 25--65; full-time only vs.\ all \\
-Wage measure & $\mathcal{V}$ & Hourly vs.\ annual$/$hours; log vs.\ asinh \\
-Education measure & $\mathcal{V}$ & Years vs.\ degree dummies vs.\ imputed \\
-Experience & $\mathcal{V}$ & Age$-$Education$-$6 vs.\ actual tenure \\
-Controls & $\mathcal{M}$ & Race, gender, industry, occupation, region \\
-Functional form & $\mathcal{M}$ & Quadratic vs.\ quartic experience \\
-Fixed effects & $\mathcal{M}$ & None vs.\ year vs.\ state vs.\ year$\times$state \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-A conservative count yields $|\R| > 10^6$ configurations.
-
-\subsection{Hypothetical LLM-Bootstrap Results}
-
-Suppose we run $K = 50$ LLM instances with the prompt: ``Estimate the effect of years of education on log wages using the Current Population Survey.''
-
-\begin{table}[h!]
-\centering
-\caption{Hypothetical LLM-Bootstrap Results for Returns to Education}
-\label{tab:mincer_results}
-\begin{tabular}{lr}
-\toprule
-\textbf{Statistic} & \textbf{Value} \\
-\midrule
-Mean $\bar{\beta}^{LB}$ & 0.096 \\
-SD across runs $\sqrt{\hat{V}^{LB}}$ & 0.012 \\
-Minimum estimate & 0.071 \\
-Maximum estimate & 0.118 \\
-Median classical SE & 0.002 \\
-Researcher variability ratio $\lambda$ & 6.0 \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-These results imply that researcher choices generate 6$\times$ the uncertainty of sampling. A 95\% prediction interval is $[0.073, 0.119]$, much wider than the typical published 95\% CI of $[0.094, 0.100]$.
-
-\subsection{Sources of Variation}
-
-Why does $\hat{\beta}$ vary across specifications?
-\begin{enumerate}
-    \item \textbf{Sample composition}: Different age restrictions yield different populations with different average returns.
-    \item \textbf{Omitted variable bias}: Including industry controls vs.\ not affects bias from ability sorting.
-    \item \textbf{Measurement}: Hourly vs.\ annual wages differ if hours correlate with education.
-    \item \textbf{Functional form}: Polynomial degree in experience affects the education coefficient.
-\end{enumerate}
-
-This heterogeneity is not a bug but a reflection of genuine uncertainty about what the ``returns to education'' means operationally.
-
-%------------------------------------------------------------------------------
-\section{Optimal Number of LLM Runs}
-\label{sec:optimal_K}
-%------------------------------------------------------------------------------
-
-A key practical question is: how many LLM runs $K$ are needed? We adapt the Andrews-Buchinsky (2000, 2001) framework for bootstrap replications.
-
-\subsection{Precision of Variance Estimation}
-
-Under normality, the variance estimator $\hat{V}^{LB}$ has coefficient of variation:
-\begin{equation}
-    CV(\hat{V}^{LB}) = \sqrt{\frac{2}{K-1}}
-\end{equation}
-
-Table \ref{tab:optimal_k} shows precision by $K$:
-
-\begin{table}[h!]
-\centering
-\caption{Precision of Variance Estimate by Number of Runs}
-\label{tab:optimal_k}
-\begin{tabular}{cc}
-\toprule
-\textbf{K} & \textbf{CV of Variance Estimate} \\
-\midrule
-20 & 32\% \\
-50 & 20\% \\
-100 & 14\% \\
-200 & 10\% \\
-400 & 7\% \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\subsection{Cost-Benefit Analysis}
-
-Let $c$ denote the cost per LLM run (API + verification). Targeting relative precision $\delta$ in variance:
-\begin{equation}
-    K^* = \left\lceil \frac{2}{\delta^2} \right\rceil
-\end{equation}
-
-For 20\% precision ($\delta = 0.2$): $K^* = 50$.
-For 10\% precision ($\delta = 0.1$): $K^* = 200$.
-
-\subsection{Adaptive Procedure}
-
-Following Andrews-Buchinsky:
-\begin{enumerate}
-    \item Run $K_0 = 20$ pilot instances.
-    \item Compute pilot variance $\hat{V}_{K_0}$.
-    \item If estimate is stable (CV acceptable), stop.
-    \item Otherwise, compute required $K^*$ and run additional instances.
-\end{enumerate}
-
-\subsection{Practical Recommendations}
-
-\begin{itemize}
-    \item \textbf{Minimum}: $K \geq 20$ for any meaningful analysis.
-    \item \textbf{Standard}: $K = 50$--100 for publication-quality work.
-    \item \textbf{High precision}: $K = 200$+ when the finding is consequential.
-\end{itemize}
-
-At current API costs of \$0.10--\$1.00 per run, a thorough LLM-Bootstrap costs \$10--\$200---a fraction of a single research assistant's time.
-
-%------------------------------------------------------------------------------
-\section{Monte Carlo Simulations}
-\label{sec:simulations}
-%------------------------------------------------------------------------------
-
-We validate the theoretical results through simulation.
-
-\subsection{Design}
-
-We generate data from:
-\begin{equation}
-    y_i = 1 + 0.10 \cdot S_i + 0.05 \cdot X_i - 0.001 \cdot X_i^2 + 0.02 \cdot A_i + \varepsilon_i
-\end{equation}
-where:
-\begin{itemize}
-    \item $S_i$: Schooling, correlated with ability $A_i$
-    \item $X_i$: Experience
-    \item $A_i \sim N(0,1)$: Unobserved ability
-    \item $\varepsilon_i \sim N(0, 0.25)$
-\end{itemize}
-
-We simulate researcher heterogeneity by randomly varying:
-\begin{itemize}
-    \item Age range: $[25, 55]$ or $[25, 45]$ or $[30, 55]$
-    \item Controls: Include $X^2$ or not
-\end{itemize}
-
-\subsection{Results}
-
-[Simulation results to be added: variance decomposition, coverage, convergence in $K$]
 
 %------------------------------------------------------------------------------
 \section{Discussion}

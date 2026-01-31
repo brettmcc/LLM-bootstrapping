@@ -270,6 +270,7 @@ YOUR TASK:
 1. Propose a research specification (sample selection, outcome, treatment, model line).
 2. Implement that specification in analysis.py using the local data files.
    analysis.py may already exist; overwrite it with your implementation.
+2b. Consider yourself to have a maximum of 30GB of memory. Therefore, when reading in usa_00042.dat, you may want to type variables, filter variables early, implement chunking etc. as needed.
 3. Verify the sample has variation in the treatment. If not, revise the specification
    and update analysis.py accordingly.
 4. Run analysis.py with:
@@ -279,7 +280,9 @@ YOUR TASK:
 6. Do not delete or move analysis.py or any input files. Leave all files in place
    even if execution fails.
 7. Write the final spec JSON to a file named spec.json in this directory.
-8. Output ONLY a single JSON object with keys "spec" and "results".
+8. Ensure analysis.py prints ONLY a single JSON object with keys "point_estimate",
+    "standard_error", and "sample_size" to STDOUT (no extra text).
+9. Output ONLY a single JSON object with keys "spec" and "results".
 
 Output JSON format:
 {{
@@ -829,7 +832,7 @@ def main() -> None:
     parser.add_argument(
         "--max-attempts",
         type=int,
-        default=3,
+        default=15,
         help="Maximum attempts per run to recover from errors",
     )
     args = parser.parse_args()
