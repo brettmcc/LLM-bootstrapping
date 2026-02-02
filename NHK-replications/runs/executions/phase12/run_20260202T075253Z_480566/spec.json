@@ -1,0 +1,14 @@
+{
+  "sample_selection": [
+    "year >= 2013 and year <= 2016",
+    "labforce == 1",
+    "hispand == 107",
+    "bpl == 200",
+    "age >= 16 and age <= 35",
+    "birthyr > 0",
+    "yrimmig > 0"
+  ],
+  "outcome_definition": "uhrswork >= 35",
+  "treatment_definition": "arrival_age < 16 and yrimmig <= 2007 and age_2012 >= 16 and age_2012 <= 30",
+  "model_specification_line": "model = sm.OLS(df[\"outcome\"], sm.add_constant(df[[\"treatment\"]]))"
+}
