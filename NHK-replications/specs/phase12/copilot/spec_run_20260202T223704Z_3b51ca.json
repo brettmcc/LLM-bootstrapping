@@ -1,0 +1,14 @@
+{
+  "model_specification_line": "model = sm.OLS(df[\"full_time\"], X).fit()",
+  "outcome_definition": "(wrklstwk == 1) and (uhrswork >= 35)",
+  "sample_selection": [
+    "year in 2013-2016",
+    "age between 18 and 34 inclusive",
+    "detailed Hispanic origin indicates Mexican descent (hispand 100-107)",
+    "birthplace code equals 200 (Mexico)",
+    "noncitizen at survey time (citizen == 3)",
+    "positive immigration year with valid birth records and 0 <= yrimmig - birthyr <= 15",
+    "valid usual hours (< 98) among people who worked last week (wrklstwk in {1, 2})"
+  ],
+  "treatment_definition": "(yrimmig <= 2007) and ((yrimmig - birthyr) <= 15) and ((birthyr > 1981) or (birthyr == 1981 and birthqtr >= 3))"
+}

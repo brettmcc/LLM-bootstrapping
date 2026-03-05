@@ -83,6 +83,10 @@ def read_data(chunksize: int = 200_000):
 
 
 def eligible_mask(subset: pd.DataFrame) -> pd.Series:
+    """
+    DACA eligibility is approximated by arriving before 16, being at most 30 in 2012,
+    and entering the U.S. on or before 2007.
+    """
     arrival_age = subset["yrimmig"] - subset["birthyr"]
     age_2012 = 2012 - subset["birthyr"]
     return (

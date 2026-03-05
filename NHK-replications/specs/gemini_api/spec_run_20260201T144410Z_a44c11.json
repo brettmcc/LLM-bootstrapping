@@ -1,0 +1,13 @@
+{
+  "sample_selection": [
+    "HISPAN == 1",
+    "BPL == 200",
+    "CITIZEN == 3",
+    "AGE >= 18",
+    "AGE <= 50",
+    "YRIMMIG > 0"
+  ],
+  "outcome_definition": "(df['UHRSWORK'] >= 35).astype(int)",
+  "treatment_definition": "((df['YRIMMIG'] - (df['YEAR'] - df['AGE']) < 16) & (df['YRIMMIG'] <= 2007) & (df['AGE'] - (df['YEAR'] - 2012) <= 30) & (df['YEAR'] >= 2012)).astype(int)",
+  "model_specification_line": "smf.ols('outcome ~ treatment + C(AGE) + C(SEX) + C(YEAR) + C(STATEFIP)', data=df).fit()"
+}

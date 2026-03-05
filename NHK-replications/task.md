@@ -1,53 +1,132 @@
-# Program to generate a distribution of LLM research choices
+# NHK Replications Pipeline (Canonical)
 
-Submit an identical prompt to an LLM $N$ times, collect structured specifications, implement them, and execute to get actual point estimates.
+This document is the authoritative description of the NHK replications pipeline in this repository.
 
-## Phase 1: Specification Generation (two approaches)
+**Goal.** Sample an LLM (or several LLMs) many times with an identical prompt, treat each run as an independent “researcher workflow,” execute each workflow on the same underlying data, and then meta-analyze the resulting distribution of estimates.
 
-### Approach A: Devstral API (existing)
-- Use Mistral API with `devstral-medium-latest`
-- API key: `C:\Users\Brett's Workstation\.LLM-bootstrap\secrets.env`
-- Supports `random_seed` and `temperature` for reproducibility
-- JSON-structured output via `prompt_json.md`
-- Output: `runs/devstral-medium-latest/run_{i}_B_{timestamp}.txt`
+The core object produced by the pipeline is `runs_complete.csv`, which aggregates:
+- Phase 1 specifications (structured JSON)
+- Phase 2 execution outputs (point estimate, standard error, sample size)
 
-### Approach B: Codex CLI (new)
-- Use OpenAI Codex CLI via WSL
-- Uses ChatGPT Plus subscription
-- No seed/temp control (non-deterministic)
-- Output: `specs/codex/spec_{i}_{timestamp}.json`
+Phase 4 turns `runs_complete.csv` into publication-ready tables/figures and a short LaTeX report.
 
-## The Prompt
+---
 
-The prompt is in `PROMPT_JSON.md`. Do not modify it.
+## Phase 0: Inputs and reproducibility conventions
 
-## Phase 2: Implementation + Execution (Codex CLI)
+### Required data inputs (tracked in this repo)
+All Phase 2 execution runs read only a small whitelisted set of files copied/linked into a per-run folder:
+- `replication-materials/usa_00042.dat` (large microdata file; symlink/hardlink preferred)
+- `replication-materials/usa_00042.do` (layout + missing codes; excerpted into each run)
+- `replication-materials/policy_labor_market_data.csv`
+- `replication-materials/State-Level Data Documentation.md`
 
-For each specification from Phase 1:
-1. Codex implements as `analysis.py`
-2. Codex executes the script
-3. Codex self-corrects any errors and re-runs
-4. Output: `{point_estimate, standard_error, sample_size}`
+### Prompt
+The Phase 1 prompt lives at `PROMPT_JSON.md`.
 
-Results saved to:
-- `implementations/{run_id}/analysis.py`
-- `results/{run_id}.json`
+### Cross-machine paths
+Scripts that need to locate the NHK project root should use `code/path_utils.py` and/or set:
+- `NHK_PROJECT_ROOT` (recommended)
 
-## Phase 3: Aggregation
+This avoids hard-coded absolute paths.
 
-Combine all results into `runs_complete.csv` with columns:
-- run_number, datetime, random_seed, model, temperature, prompt_variant
-- sample_selection, outcome_definition, treatment_definition
-- model_type, model_specification_line
-- control_variables, fixed_effects, sample_weighting, se_adjustment (imputed from model_specification_line)
-- point_est, SE, sample_size, execution_status
+---
 
-## Phase 4: Analysis
+## Phase 1: Specification generation (structured JSON)
 
-Analyze `runs_complete.csv`, produce charts and tables as in the original `replication-materials/I4R-DP209.pdf` paper.
+Each Phase 1 run produces a JSON spec with required keys:
+- `sample_selection` (list of sample restriction strings)
+- `outcome_definition` (string)
+- `treatment_definition` (string)
+- `model_specification_line` (string)
 
-## Organization
+There are two supported approaches.
 
-- Cross-machine paths via `code/path_utils.py`
-- WSL accesses Windows files via `/mnt/c/...`
-- See `revised_plan.md` for full architecture
+### Phase 1A: API sampling (seed + temperature control)
+Script: `code/run_api_phase1.py`
+
+Outputs:
+- Raw logs: `runs/conversations/<model_name>/run_*_B_*.txt`
+- Validated JSON specs: `specs/<provider>/spec_<run_id>.json`
+
+Notes:
+- API keys are read from environment variables or a `.env` file (see the script for search paths).
+- This approach supports `random_seed` and `temperature`.
+
+### Phase 1B: CLI sampling (no seed/temp control)
+Script: `code/run_cli_phase1.py`
+
+Outputs:
+- Validated JSON specs: `specs/<provider>/spec_<run_id>.json`
+
+Notes:
+- Supported CLI providers include Codex, Copilot, and Gemini CLI (depending on local installation/configuration).
+- On Windows, Codex/Gemini may be invoked via WSL when available.
+
+---
+
+## Phase 2: Implementation + execution (per-spec run directory)
+
+Script: `code/run_phase2.py`
+
+For each spec file, Phase 2 creates an isolated run folder at:
+- `runs/executions/<run_id>/`
+
+Within each run folder, the agent is expected to create/modify:
+- `analysis.py` (the implementation)
+- `results.json` (the final numeric outputs)
+
+The run folder also contains only whitelisted inputs:
+- `usa_00042.dat` (linked/copy; removed after each attempt)
+- `usa_00042_layout_excerpt.do` (excerpt written per run)
+- `policy_labor_market_data.csv` (copied)
+- `State-Level Data Documentation.md` (copied)
+
+Validation:
+- A Phase 2 run is marked successful only if `results.json` can be parsed and contains numeric `point_estimate`, `standard_error`, and positive `sample_size`.
+
+---
+
+## Phase 1+2 combined: Phase 12 (single-session spec + execution)
+
+Script: `code/run_phase12.py`
+
+This mode asks the CLI agent to (i) propose a spec and (ii) implement + run it in the same session.
+
+Outputs:
+- Specs: `specs/phase12/<provider>/spec_<run_id>.json`
+- Runs: `runs/executions/phase12/<run_id>/analysis.py` and `results.json`
+
+---
+
+## Phase 3: Aggregation into runs_complete.csv
+
+Script: `code/run_phase3.py`
+
+Input sources:
+- Specs: `specs/**/spec_*.json`
+- Execution outputs: `runs/executions/**/<run_id>/results.json` (including `runs/executions/phase12/`)
+
+Output:
+- `runs_complete.csv`
+
+The aggregator also imputes derived fields (model type, inferred controls, fixed effects, weighting, and SE adjustment) from the `model_specification_line`.
+
+---
+
+## Phase 4: Meta-analysis tables/figures
+
+Script: `code/run_phase4_meta_analysis.py`
+
+Inputs:
+- `runs_complete.csv`
+
+Outputs (default):
+- `meta_analysis/` folder with:
+	- LaTeX tables (e.g., `table1_summary_stats.tex`)
+	- Figures (PNG)
+
+The original NHK/I4R benchmark paper PDF is stored at:
+- `replication-materials/I4R-DP209.pdf`
+
+The Phase 4 outputs are intended to be comparable “like-for-like” to the descriptive tables/figures in that PDF, with transparent notes about any mismatches.

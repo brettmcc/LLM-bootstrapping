@@ -1,0 +1,16 @@
+{
+  "model_specification_line": "model = sm.OLS.from_formula(formula, data=df)",
+  "outcome_definition": "full_time = uhrswork >= 35",
+  "sample_selection": [
+    "year between 2006 and 2016",
+    "hispan == 1",
+    "hispand in {100, 102, 103, 104, 105, 106, 107}",
+    "citizen in {0, 1}",
+    "statefip in {4, 6, 8, 35, 48}",
+    "age between 15 and 35",
+    "labforce == 1",
+    "empstat in {1, 2, 3}",
+    "workedyr == 1"
+  ],
+  "treatment_definition": "dac_eligibility = (2013 <= year <= 2016) & (15 <= age <= 31) & (yrimmig <= year - 6)"
+}

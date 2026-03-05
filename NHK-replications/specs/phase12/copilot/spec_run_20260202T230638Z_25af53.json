@@ -1,0 +1,13 @@
+{
+  "model_specification_line": "results = sm.WLS(full_time.astype(float), sm.add_constant(design_matrix, has_constant=\"add\"), weights=df[\"perwt\"]).fit(cov_type=\"HC3\")",
+  "outcome_definition": "(empstat == 1 and uhrswork >= 35)",
+  "sample_selection": [
+    "year >= 2013 and year <= 2016",
+    "bpl == 200",
+    "hispand in {100,102,103,104,105,106,107}",
+    "birthyr between 1978 and 1998",
+    "yrimmig between 1980 and 2007",
+    "perwt > 0"
+  ],
+  "treatment_definition": "birthyr between 1982 and 1996 and (yrimmig - birthyr) <= 15"
+}

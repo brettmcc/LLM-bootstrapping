@@ -1,0 +1,11 @@
+{
+  "model_specification_line": "result = sm.OLS(y, X, weights=df[\"perwt\"]).fit()",
+  "outcome_definition": "full_time (uhrswork >= 35)",
+  "sample_selection": [
+    "year between 2013 and 2016 inclusive",
+    "age between 18 and 30",
+    "Hispanic (hispan == 1) and Mexican origin (hispand == 100, bpl == 200)",
+    "positive person weight (perwt > 0) and valid immigration year (1900-2016)"
+  ],
+  "treatment_definition": "daca_eligible ((birthyr >= 1981) & (birthyr <= 1994) & (yrimmig >= 1985) & (yrimmig <= year - 5))"
+}

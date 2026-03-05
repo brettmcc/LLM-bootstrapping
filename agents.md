@@ -26,6 +26,7 @@ This project develops a novel econometric framework for characterizing **researc
 - I am not super familiar with Python, so please comment verbosely, even on lines that may seem obvious
 - update requirements.txt if new packages are added
 - a single run of of phase 2 may take an hour -- do not force short timeout windows.
+- when changing NHK-replication, update `NHK-replication/task.md` as necessary
 
 ## Critical Thinking
 - Fix root cause (not band-aid).

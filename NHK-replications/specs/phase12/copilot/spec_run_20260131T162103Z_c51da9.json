@@ -1,0 +1,13 @@
+{
+  "model_specification_line": "treated = (birthyr >= 1982 and birthyr <= 1994 and yrimmig <= 2007 and 0 <= yrimmig - birthyr <= 15)\ncontrol = 1 - treated",
+  "outcome_definition": "int(uhrswork) >= 35",
+  "sample_selection": [
+    "year in range(2013,2017)",
+    "hispan == 1",
+    "bpl == 200",
+    "citizen in {3,4}",
+    "18 <= age <= 40",
+    "empstat == 1"
+  ],
+  "treatment_definition": "(1982 <= birthyr <= 1994) and (yrimmig <= 2007) and (0 <= (yrimmig - birthyr) <= 15)"
+}

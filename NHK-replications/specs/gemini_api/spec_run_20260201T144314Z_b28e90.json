@@ -1,0 +1,12 @@
+{
+  "sample_selection": [
+    "df['BPL'] == 200",
+    "df['HISPAN'] == 1",
+    "df['CITIZEN'] == 3",
+    "df['AGE'].between(18, 35)",
+    "df['YEAR'] != 2012"
+  ],
+  "outcome_definition": "(df['UHRSWORK'] >= 35).astype(int)",
+  "treatment_definition": "((df['AGE'] - (df['YEAR'] - df['YRIMMIG'])) < 16) & (df['YRIMMIG'] <= 2007) & ((df['AGE'] - (df['YEAR'] - 2012)) < 31)",
+  "model_specification_line": "smf.ols('full_time_emp ~ daca_eligible * post_period + C(STATEFIP) + C(YEAR)', data=df).fit()"
+}

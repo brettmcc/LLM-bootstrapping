@@ -1,0 +1,14 @@
+{
+  "model_specification_line": "model = sm.WLS(df[\"employed_fulltime\"], sm.add_constant(df[[\"daca_eligible\", \"age\"]]), weights=df[\"perwt\"]).fit()",
+  "outcome_definition": "(empstat == 1) & (uhrswork >= 35)",
+  "sample_selection": [
+    "year between 2013 and 2016",
+    "hispan == 1 (Hispanic)",
+    "bpl == 200 (Mexico)",
+    "citizen == 3 (noncitizen)",
+    "age between 18 and 34",
+    "yrimmig between 1 and 2007",
+    "uhrswork >= 35"
+  ],
+  "treatment_definition": "birthyr between 1984 and 1996 AND (yrimmig - birthyr) between 0 and 15"
+}

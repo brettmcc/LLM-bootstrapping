@@ -5,7 +5,7 @@ We answer this question by sampling a given LLM(s) $N$ times with the exact same
 
 ## Architecture
 
-See [plan.md](plan.md) for more information.
+See [task.md](task.md) for the canonical, up-to-date pipeline documentation.
 
 **Phase 1 — Specification Generation** (two parallel approaches):
 | Approach | Tool | Seed/Temp Control | Output |
@@ -17,8 +17,11 @@ See [plan.md](plan.md) for more information.
 **Phase 2 — Implementation + Execution**:
 - Codex CLI (`--full-auto`) implements each spec as Python
 - Codex executes, self-corrects errors, re-runs until success
-- Output: `implementations/{id}/analysis.py` + `results/{id}.json`
+- Output: `runs/executions/{run_id}/analysis.py` + `runs/executions/{run_id}/results.json`
 
 **Phase 3 — Aggregation**:
 - Combine specs + execution results into `runs_complete.csv`
 - Impute control_variables, fixed_effects, etc. from `model_specification_line`
+
+**Phase 4 — Meta-analysis**:
+- Use `runs_complete.csv` to generate publication-ready tables/figures under `meta_analysis/`.

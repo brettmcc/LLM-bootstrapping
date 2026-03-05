@@ -1,0 +1,12 @@
+{
+  "model_specification_line": "result = sm.WLS(df[\"full_time_employed\"], sm.add_constant(df[[\"treatment\"]]), weights=df[\"perwt\"]).fit()",
+  "outcome_definition": "(empstat == 1) & (uhrswork >= 35)",
+  "sample_selection": [
+    "year.between(2013,2016)",
+    "hispand == 100",
+    "bpl == 200",
+    "18 <= age <= 30",
+    "citizen == 3"
+  ],
+  "treatment_definition": "(2012 - yrimmig).between(0,15) & yrimmig > 0"
+}

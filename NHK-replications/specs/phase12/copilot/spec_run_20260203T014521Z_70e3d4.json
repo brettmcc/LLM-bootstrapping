@@ -1,0 +1,12 @@
+{
+  "model_specification_line": "model = sm.WLS(y, sm.add_constant(df[[\"treatment\", \"year\"]]), weights=df[\"weight\"]).fit()",
+  "outcome_definition": "(empstat == 1) and (uhrswork >= 35)",
+  "sample_selection": [
+    "year between 2013 and 2016",
+    "hispan == 1 and bpl == 200",
+    "birthyr between 1981 and 1997",
+    "yrimmig <= 2007 and yrimmig <= birthyr + 15",
+    "citizen == 3"
+  ],
+  "treatment_definition": "birthyr between 1981 and 1997 and yrimmig <= 2007 and yrimmig <= birthyr + 15 and citizen == 3"
+}

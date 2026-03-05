@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import tempfile
 from pathlib import Path
 from typing import Iterable
 
@@ -504,8 +505,18 @@ def main() -> None:
     parser.add_argument("--verbose", action="store_true", help="Print progress information")
     args = parser.parse_args()
 
+    # Matplotlib writes cache/config files (fonts, etc.) at import-time.
+    # On some machines (especially Windows, locked-down environments, or CI),
+    # Matplotlib's default config directory can be unwritable.
+    #
+    # We set MPLCONFIGDIR to a user-writable temp directory to make this script
+    # reproducible across machines without requiring special permissions.
     if not os.environ.get("MPLCONFIGDIR"):
-        os.environ["MPLCONFIGDIR"] = "/tmp/matplotlib"
+        mpl_tmp = Path(tempfile.gettempdir()) / "matplotlib"
+        # Ensure the directory exists; Matplotlib will fail if MPLCONFIGDIR points
+        # to a non-existent location.
+        mpl_tmp.mkdir(parents=True, exist_ok=True)
+        os.environ["MPLCONFIGDIR"] = str(mpl_tmp)
 
     output_dir = args.output_dir
     output_dir.mkdir(parents=True, exist_ok=True)

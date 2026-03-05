@@ -1,0 +1,11 @@
+{
+  "model_specification_line": "logit_result = smf.logit(\"full_time ~ eligible_daca + age + I(age**2)\", data=df).fit(disp=False)",
+  "outcome_definition": "full_time = (uhrswork >= 35)",
+  "sample_selection": [
+    "year in [2013, 2014, 2015, 2016]",
+    "hispan == 1 and hispand in {100, 102, 103, 104, 105, 106, 107}",
+    "bpl == 200 (Mexico)",
+    "citizen in {3, 4, 5} (non-citizens without lawful residency)"
+  ],
+  "treatment_definition": "eligible_daca = (age_2012 <= 30) & (yrimmig <= 2007) & (birthyr >= 1982) & (age_2012 >= 0)"
+}

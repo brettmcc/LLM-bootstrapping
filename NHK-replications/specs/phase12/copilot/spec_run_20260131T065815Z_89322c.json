@@ -1,0 +1,11 @@
+{
+  "model_specification_line": "model = sm.OLS(y, X).fit(cov_type=\"HC1\")",
+  "outcome_definition": "full_time = (uhrswork >= 35) after filtering invalid hour codes",
+  "sample_selection": [
+    "ACS respondents observed in years 2010\u20132016",
+    "Hispanic Mexicans (hispan==1, bpl==200) who are noncitizens (citizen==3)",
+    "Immigrated in 2007 or earlier and arrived before age 16 (yrimmig - birthyr <= 15)",
+    "Age between 15 and 35 with valid usual hours (1\u201398) to construct full-time employment indicator"
+  ],
+  "treatment_definition": "treatment = (year >= 2013).astype(int)"
+}

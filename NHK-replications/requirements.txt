@@ -4,3 +4,6 @@ google-api-core
 python-dotenv
 pandas
 statsmodels
+numpy
+matplotlib
+pymupdf
