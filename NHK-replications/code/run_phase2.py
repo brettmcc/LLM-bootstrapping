@@ -115,7 +115,7 @@ def cleanup_data_copy(link_path: Path, target: Path) -> None:
 def cleanup_run_data_file(link_path: Path) -> None:
     # Always remove the run directory data link/copy after each attempt.
     try:
-        if link_path.exists():
+        if link_path.exists() or link_path.is_symlink():
             link_path.unlink()
     except OSError:
         # Best-effort cleanup.

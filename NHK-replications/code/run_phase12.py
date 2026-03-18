@@ -367,7 +367,7 @@ def cleanup_data_copy(link_path: Path, target: Path) -> None:
 def remove_run_data(link_path: Path) -> None:
     # Always remove the run directory data file (symlink, hardlink, or copy).
     try:
-        if link_path.exists():
+        if link_path.exists() or link_path.is_symlink():
             link_path.unlink()
     except OSError:
         pass
