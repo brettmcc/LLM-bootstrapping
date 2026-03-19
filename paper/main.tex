@@ -17,8 +17,6 @@
 \usepackage{fancyvrb}
 
 % Algorithms/diagrams
-\usepackage{algorithm}
-\usepackage{algpseudocode}
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta,positioning}
 
@@ -65,13 +63,13 @@ Brett A. McCully\\ \small Collegio Carlo Alberto
 \maketitle
 
 \begin{abstract}
-Empirical papers report standard errors that quantify sampling uncertainty conditional on one set of researcher decisions, but reasonable alternatives in sample construction and specification can yield different estimates from the same data. We use repeated, independent LLM-generated workflows to measure this additional variation at scale, executing each workflow on a common dataset. In an application calibrated to the many-human analysts experiment of \citet{huntingtonklein2025sources}, the LLM-generated estimates show substantial dispersion and wide sample-size heterogeneity, with tails of economically meaningful magnitude. This variation broadly matches patterns observed in human analyst behavior, thereby supporting using LLM agents as informative proxies for human researcher variation in replication-at-scale designs.
+Reported standard errors capture sampling uncertainty conditional on one set of researcher decisions, but defensible alternatives in sample construction and specification can shift estimates substantially. We use repeated, independent LLM runs as stochastic replication agents---each receiving the same prompt and dataset but generating different research choices---to measure this researcher-induced variation. Applying the method to the immigration policy--employment question studied by \citet{huntingtonklein2025sources}, 61 LLM-executed specifications yield estimates with an interquartile range of $[-0.011,\, 0.043]$, broadly matching human analyst behavior in the benchmark study. Our analysis supports using LLM agents as scalable proxies for multi-analyst designs.
 
 \medskip
-\noindent \textbf{Keywords:} Researcher degrees of freedom, replication, specification uncertainty, multi-analyst studies, Large Language Models
+\noindent \textbf{Keywords:} Researcher degrees of freedom, replication, specification uncertainty, Large Language Models
 
 \medskip
-\noindent \textbf{JEL Codes:} C12, C15, C18, C52
+\noindent \textbf{JEL Codes:} C12, C15, C18
 \end{abstract}
 
 \newpage
@@ -81,163 +79,168 @@ Empirical papers report standard errors that quantify sampling uncertainty condi
 \label{sec:intro}
 %------------------------------------------------------------------------------
 
-Empirical papers routinely report standard errors that quantify sampling uncertainty. These standard errors are conditional on a set of researcher decisions: which dataset to analyze, how to define the estimation sample, how to construct outcomes and treatments, and which specification and standard-error adjustments to use. A growing body of evidence shows that researchers making different  decisions can produce meaningfully different estimates from the same underlying data \citep{silberzahn2018many, huntington2021influence, breznau2022observing}. This implies an additional source of uncertainty beyond standard errors capturing sampling variation: researcher degrees of freedom.
+Empirical papers routinely report standard errors that quantify sampling uncertainty. These standard errors are conditional on a set of researcher decisions: which dataset to analyze, how to define the estimation sample, how to construct outcomes and treatments, and which specification and standard-error adjustments to use. A growing body of evidence shows that researchers making different decisions can produce meaningfully different estimates from the same underlying data \citep{silberzahn2018many, huntington2021influence, breznau2022observing}. This implies an additional source of uncertainty beyond standard errors capturing sampling variation: researcher degrees of freedom.
 
-Measuring parameter uncertainty due to researcher degrees of freedom at scale is challenging. Multi-analyst studies are expensive, requiring extensive recruitment and coordination. Pre-analysis plans constrain discretion but do not measure the sensitivity of results to alternative, still-defensible workflows \citep{olken2015promises}. Specification-curve and multiverse analyses require the original analyst to enumerate and implement various alternatives \citep{simonsohn2020specification, steegen2016multiverse}.
+Measuring parameter uncertainty due to researcher degrees of freedom at scale is challenging. Multi-analyst studies are expensive, requiring extensive recruitment and coordination. Pre-analysis plans and transparency reforms constrain discretion but do not measure the sensitivity of results to alternative, still-defensible research choices \citep{olken2015promises, christensen2018transparency}. Specification-curve and multiverse analyses require the original analyst to enumerate and implement the admissible alternatives \citep{simonsohn2020specification, steegen2016multiverse}.
 
-We make three contributions. First, we provide a tractable framework for researcher-induced uncertainty by treating a \emph{research workflow} as the full mapping from a fixed prompt and raw dataset to an executed estimator, and by studying the resulting distribution of executed estimates across admissible workflows. Second, we show how large language models (LLMs) can be used as stochastic replication agents to approximate this distribution at scale: repeated independent runs from an identical prompt generate different, interpretable workflows that can be executed end-to-end on the same data. Third, we implement an auditable pipeline that makes the full chain of choices---specification, implementation, execution, and aggregation/analysis---transparent and reproducible, allowing researchers to implement the pipeline in their own empirical work.
+We overcome these limitations using a novel approach: generative AI agents can perform empirical analyses at scale. We apply this approach to the DACA--employment question studied by many analysts in \citet{huntingtonklein2025sources}: how does eligibility for the Deferred Action for Childhood Arrivals program affect the probability of full-time employment? Across 61 successfully executed specifications generated by three LLM providers, we obtain an interquartile range from $-0.011$ to 0.043. Sample sizes vary by an order of magnitude (IQR 57{,}840 to 262{,}673). This combination---a near-zero center with fat tails and wide sample-size heterogeneity---broadly resembles the patterns from the benchmark multi-analyst study, in which human researchers produce an IQR from 0.014 to 0.051 under comparable high-discretion conditions.
 
-We emphasize two distinctions that are essential for interpretation.
-First, the distribution across executed workflows is different from the sampling distribution: if all runs use the same dataset, variation reflects workflow-induced heterogeneity (and its interaction with the realized sample), not classical sampling error.
-Second, workflow variation can include \emph{estimand drift}: two workflows may implicitly target different causal parameters by changing the treated population, the timing window, or the treatment definition (for related discussion on explicit estimand definition, see \citet{lundberg2021estimand}). We therefore treat workflow-induced variation as an object of interest in its own right.
+Two distinctions are essential for interpretation. First, the distribution of executed estimates is not a sampling distribution: because all runs use the same realized dataset, dispersion reflects heterogeneity in research choices, not classical sampling error. Second, different research choices can create \emph{estimand mismatch}---two defensible specifications may implicitly target different causal parameters by changing the treated population, timing window, or treatment definition \citep{lundberg2021estimand}.
 
-We apply the approach to a replication-at-scale exercise calibrated to the benchmark multi-analyst study by \citet{huntingtonklein2025sources}, which asks how eligibility for the Deferred Action on Childhood Arrivals immigration policy affects the probability of working full-time. We generate structured specifications from an LLM and execute each workflow in isolation, generating a distinct estimate. Section~\ref{sec:framework} formalizes the problem; Section~\ref{sec:software} documents the computing pipeline; Section~\ref{sec:results} reports results and comparisons; and Section~\ref{sec:limits} discusses limitations and external validity.
+We make two main contributions. First, we contribute to the researcher-degrees-of-freedom literature in economics and adjacent fields. The concern that inference is conditional on a selected specification goes back at least to \citet{leamer1983con}; formal responses treat model and specification uncertainty explicitly \citep{hoeting1999bayesian, hansen2007least}; and recent work on nonstandard errors argues that conventional standard errors omit variation generated across researchers' potential analysis paths \citep{brownlees2024nonstandard}. Empirically, multiverse, specification-curve, and many-analyst designs show that this omitted component can be large \citep{simmons2011false, gelman2013garden, steegen2016multiverse, simonsohn2020specification, silberzahn2018many, huntington2021influence, breznau2022observing, huntingtonklein2025sources}. Relative to these literatures, we provide an AI-enumerated, whole-pipeline multiverse that quantifies researcher-induced estimate dispersion at low cost.
 
-\paragraph{Related literature.}
-This paper builds on work on researcher degrees of freedom approaches that emphasize sensitivity to defensible analytic choices \citep{simmons2011false, gelman2013garden, steegen2016multiverse, simonsohn2020specification}. Relative to analyst-enumerated multiverses, our emphasis is on an estimand and an empirical object: a distribution of executed estimates induced by an explicit distribution over workflows, where a workflow bundles sample selection, variable construction, specification, and variance estimation.
+Second, we contribute to the growing literature on LLMs in economics. Existing work studies LLMs as simulated economic agents or synthetic respondents \citep{horton2023large, brand2023gpt, wu2025survey}, as tools for economic research workflows and econometric measurement \citep{korinek2023generative, korinek2024collaborate, ludwig2025framework}, and as engines for industrial-scale scholarship \citep{novymarx2026ai}. Our contribution is to use repeated independent LLM runs as stochastic replication agents that generate research designs which can be executed without human intervention, providing a computationally tractable approximation to the distribution of human research choices at scale.
 
-We also relate to multi-analyst studies that measure researcher-induced variation directly by recruiting analysts to study the same question on the same data \citep{silberzahn2018many, huntington2021influence, breznau2022observing}. We use these exercises as validation benchmarks for replication at scale: if a AI research agent produces broadly similar dispersion patterns and decision shares as human researchers, it can provide a scalable complement to human-intensive designs.
-
-Finally, our approach is connected to resampling and Monte Carlo ideas, where repeated draws are used to approximate the distribution of a statistic \citep{efron1979bootstrap, andrews2000bootstrap}. Repeated LLM runs play a similar computational role for the induced workflow distribution. We also connect to emerging work on large language models as economic agents and research tools \citep{horton2023large, brand2023gpt, korinek2023generative, novymarx2026ai}.
+Section~\ref{sec:framework} formalizes the research-choice space and the LLM-induced distribution. Section~\ref{sec:software} documents the three-phase pipeline architecture. Section~\ref{sec:results} reports the distribution of executed estimates and compares it to the human-analyst benchmark. Section~\ref{sec:limits} discusses limitations and external validity.
 
 %------------------------------------------------------------------------------
-\section{Framework: workflow-induced uncertainty}
+\section{Framework: researcher-induced uncertainty}
 \label{sec:framework}
 %------------------------------------------------------------------------------
 
-\subsection{Estimand and data}
+We formalize the objects of interest in two steps. First, we define the research problem, the target estimand, and the set of defensible research choices. We then treat repeated LLM runs as a stochastic mechanism that samples from that set.
 
-Fix a prompt $P$ that states the research question and specifies the target population, outcome, and treatment. Let $\Ps(P)$ denote the corresponding population distribution over observables and potential outcomes. We use potential-outcomes notation to keep the estimand well-defined when the treatment is binary.
+\subsection{Scientific target and defensible research choices}
+\label{sec:framework_target}
 
-\begin{definition}[Prompt-level target estimand]
-Let $D \in \{0,1\}$ be a treatment. Let $Y(1)$ and $Y(0)$ denote potential outcomes. The prompt-level target estimand is a scalar $\theta^\star(P)$. A canonical example is the average treatment effect (ATE)
+A research question asks how treatment $T$ affects outcome $Y$ in a given population $U$. Define a research problem $P$ as a tuple of defensible choice sets,
 \[
-\theta^\star(P) \equiv \E_{\Ps(P)}[Y(1) - Y(0)].
+P = (\mathcal{U},\mathcal{Y},\mathcal{T},\mathcal{S}),
 \]
-In applications, $P$ may define a subpopulation by conditioning on covariates; in that case $\Ps(P)$ and $\theta^\star(P)$ are understood to be restricted accordingly.
+where $\mathcal{U}$ is the set of defensible sample definitions, $\mathcal{Y}$ is the set of defensible outcome constructions, $\mathcal{T}$ is the set of defensible treatment constructions, and $\mathcal{S}$ is the set of defensible specifications. An element of $\mathcal{S}$ collects the control set, functional form, estimator, weighting, fixed effects, and variance-estimation choices such as clustering.
+
+For example, in the DACA application researchers may make different defensible choices about age bounds, full-time work definitions, eligibility proxies, controls, and standard-error adjustments. Different combinations of these choices imply different research designs and, in some cases, different causal parameters.
+
+Not every logically possible combination is defensible. A sample definition that includes only U.S. citizens would be inconsistent with the research question, whereas one that restricts attention to plausible DACA-eligible immigrants may be defensible. Similarly, a specification that controls for post-treatment variables is generally less defensible than one that conditions only on pretreatment covariates. Let $\R(P)$ denote the set of defensible research choices: combinations that are internally coherent, feasible in the data, and defensible ex ante given the stated question and standard econometric practice.
+
+Let $\Ps(P)$ denote the underlying population distribution of observables, rich enough to construct any defensible sample restriction in $\mathcal{U}$ and any defensible outcome or treatment variable in $\mathcal{Y}$ and $\mathcal{T}$.
+
+\begin{definition}
+A defensible set of research choices is an element
+\[
+r = (u_r, y_r, t_r, s_r) \in \R(P) \subseteq \mathcal{U} \times \mathcal{Y} \times \mathcal{T} \times \mathcal{S}.
+\]
+Given a realized dataset $\omega$, implementing research choices $r$ produces an estimate $\hat\theta(r, \omega)$.
 \end{definition}
 
-\begin{definition}[Workflow-level estimand and estimand drift]
-A workflow can change the effective target population or treatment/outcome definition through its sample restrictions and variable construction. We therefore associate each workflow $r \in \R$ with a (possibly implicit) workflow-level estimand $\theta(r;P)$ and define its estimand drift relative to the prompt-level target as
+\begin{definition}
+When research problem $P$ is sufficiently specific to determine a single scientific object of interest, its target estimand is a scalar $\theta^\star(P)$.
+\end{definition}
+If the research problem is itself too ambiguous to pin down a unique benchmark object, one can instead treat $P$ as defining a set of defensible target estimands; throughout, we write $\theta^\star(P)$ for the benchmark scientific target the research problem is intended to describe.
+
+\begin{definition}
+Each defensible set of research choices $r \in \R(P)$ induces an implied estimand $\theta(r;P)$, corresponding to the causal or statistical object actually targeted by that choice of population, outcome, treatment, and specification.
+\end{definition}
+
+\begin{definition}
+The \emph{estimand mismatch} of research choices $r$ relative to the target estimand is
 \[
 \delta(r;P) \equiv \theta(r;P) - \theta^\star(P).
 \]
-When $\delta(r;P)\neq 0$, dispersion across executed workflows mixes differences in estimation strategies with differences in targeted causal parameters.
+When $\delta(r;P)\neq 0$, dispersion across executed research choices mixes differences in estimation strategies with differences in targeted causal parameters.
 \end{definition}
 
-\subsection{Workflows}
+The broader causal-inference and statistics literatures distinguish the target estimand from the implied estimand and discuss mismatch between the intended question and the performed analysis \citep{blair2019declaring, choi2023question, chang2024alignment, barnard2026mismatch}. In our setting, mismatch arises when one specification defines full-time work as at least 35 hours per week while another uses 30 hours, annual weeks worked, or a different sample window; similarly, alternative DACA eligibility proxies using different age and arrival cutoffs target different treated populations. Such choices differ not only in estimation strategy but in the object being estimated.
 
-We define a workflow as the full set of choices required to map data and a research question into an executed estimator.
+\subsection{LLMs as replication agents}
+\label{sec:framework_llm}
 
-\begin{definition}[Researcher workflow]
-A workflow is an element $r \in \R$ that bundles:
-\begin{itemize}
-\item sample selection rules,
-\item variable definitions (outcome, treatment, covariates),
-\item a model specification (functional form, controls, fixed effects), and
-\item an estimation and variance procedure.
-\end{itemize}
-Given a realized dataset $\omega$ and workflow $r$, executing the workflow produces an estimate $\hat\theta(r, \omega)$, which we interpret as an estimator for $\theta(r;P)$ when execution is successful.
-\end{definition}
+Fix a research problem $P$ and a temperature parameter $\tau>0$, the standard sampling parameter governing how concentrated the model's next-token probabilities are. Higher $\tau$ increases the probability of lower-ranked continuations and therefore generates more variation across runs. In our setting, $\tau>0$ allows one fixed prompt to produce multiple non-identical but problem-consistent sets of research choices.
 
-\subsection{A basic decomposition and the role of estimand drift}
-Let $R$ denote a random workflow drawn from a distribution $\pi$ over $\R$. Let $\Omega$ denote a random sample drawn from $\Ps(P)$. The total dispersion of executed estimates across workflows and samples can be decomposed.
+Repeated independent runs of the same LLM on the same problem description induce a distribution over defensible research choices, $\pi_{\mathrm{LLM}}(\cdot\mid P,\tau)$, supported on $\R(P)$. If $R \sim \pi_{\mathrm{LLM}}(\cdot\mid P,\tau)$ and the dataset is fixed at $\omega$, the empirical object in this paper is the fixed-sample distribution of executed estimates $\hat\theta(R,\omega)$.
 
-\begin{remark}[Law of total variance for workflow and sampling variation]
-\label{prop:decomp}
-Assume $\E[\hat\theta(R,\Omega)^2] < \infty$. Then
-\[
-\Var\big(\hat\theta(R,\Omega)\big)
-= \E\big[\Var(\hat\theta(R,\Omega)\mid R)\big]
- + \Var\big(\E[\hat\theta(R,\Omega)\mid R]\big).
-\]
-\end{remark}
+Why might LLMs produce plausible research choices? Their training corpora include academic articles, codebases, and empirical templates \citep{gao2020pile, chen2021codex}---the same materials from which researchers learn to define samples, write regression equations, and choose standard-error adjustments. LLM outputs can therefore be interpreted as draws from a compressed, noisy representation of documented researcher practice.
 
-\begin{remark}[Interpretation]
-The first term is sampling variability averaged across workflows; the second term is workflow-induced heterogeneity in the workflow-specific expected estimate. In a fixed-sample setting, variation across LLM runs describes the dispersion of $\hat\theta(R,\omega)$ conditional on the fixed realized dataset $\omega$.
-\end{remark}
-
-This standard variance decomposition does not by itself guarantee that workflow-induced heterogeneity reflects ``researcher variance holding the estimand fixed.'' A convenient bookkeeping identity is
-\[
-\hat\theta(r,\omega) - \theta^\star(P)
-=
-\underbrace{\big(\hat\theta(r,\omega) - \theta(r;P)\big)}_{\text{estimation error}}
-+
-\underbrace{\delta(r;P)}_{\text{estimand drift}}.
-\]
-If workflows change the target population or the treatment definition, then $\delta(r;P)$ may be nonzero, and dispersion across executed workflows reflects both differences in estimation strategies and differences in targeted causal parameters. In our application, we therefore report (i) the distribution of executed estimates and (ii) diagnostics based on structured specification fields (sample selection, outcome and treatment definitions) to assess comparability.
-
-\subsection{LLMs as a workflow generator}
-
-Fix a prompt $P$ that states the research question and defines required objects. For a given LLM and temperature parameter $\tau>0$, repeated runs of the model with identical $P$ generate a distribution over workflows, which we denote $\pi_{\mathrm{LLM}}(\cdot\mid P,\tau)$. Our empirical object is the distribution of executed estimates induced by $\pi_{\mathrm{LLM}}$ in a fixed dataset setting.
-
-\begin{algorithm}[t]
-\caption{Replication at scale with stochastic replication agents}
-\label{alg:pipeline}
-\begin{algorithmic}[1]
-\Require Prompt $P$; number of runs $K$; LLM with temperature $\tau>0$; fixed dataset $\omega$
-\For{$k=1,\dots,K$}
-\State Sample a workflow $r_k \sim \pi_{\mathrm{LLM}}(\cdot\mid P,\tau)$
-\State Implement and execute $r_k$ on $\omega$ in an isolated run directory
-\State Record $(\hat\theta_k, \widehat{SE}_k, n_k)$
-\EndFor
-\State Summarize the distribution of $\{\hat\theta_k\}_{k=1}^K$ and relate it to workflow features
-\end{algorithmic}
-\end{algorithm}
+We do not assume that $\pi_{\mathrm{LLM}}(\cdot\mid P,\tau)$ coincides with the distribution human researchers would generate. It is a computational proxy whose usefulness is empirical: it depends on whether the induced dispersion, tails, and decision shares resemble those observed in benchmark multi-analyst studies \citep{silberzahn2018many, huntington2021influence, breznau2022observing, huntingtonklein2025sources}.
 
 %------------------------------------------------------------------------------
 \section{Software architecture}
 \label{sec:software}
 %------------------------------------------------------------------------------
 
-We implement Algorithm~\ref{alg:pipeline} in a modular three-phase pipeline whose artifacts---prompt, specification, executable analysis, numeric output, and summary objects---can be audited and reproduced end-to-end. This section describes the design in enough detail for both replication and extension. Figure~\ref{fig:flowchart} gives an overview.
+We operationalize the framework from Section~\ref{sec:framework} in a modular three-phase pipeline. Research problem $P$ is encoded as a markdown prompt. Each phase produces auditable artifacts---specifications, executable scripts, numeric outputs, and summary objects---that can be reproduced end-to-end. Figure~\ref{fig:flowchart} provides an overview, embedding the core algorithm alongside the pipeline architecture.
 
 \begin{figure}[t]
 \centering
 \begin{tikzpicture}[
-  node distance=1.6cm and 0.6cm,
-  phase/.style={draw, rounded corners=4pt, minimum width=3.3cm,
-                minimum height=1.3cm, align=center, font=\small\bfseries,
-                inner sep=5pt},
-  artifact/.style={draw, dashed, rounded corners=2pt, font=\scriptsize,
-                   align=center, inner sep=3pt, fill=white},
-  arr/.style={-{Latex[length=2.5mm]}, thick, color=black!70},
-  p1/.style={phase, fill=RoyalBlue!15},
-  p2/.style={phase, fill=ForestGreen!12},
-  p3/.style={phase, fill=Goldenrod!12},
+  % --- global styles ---
+  node distance=0.9cm and 0.7cm,
+  >=Latex,
+  % phase boxes
+  phase/.style={draw, rounded corners=5pt, minimum width=3.6cm,
+                minimum height=1.25cm, align=center, font=\small\bfseries,
+                inner sep=6pt, line width=0.6pt},
+  % dashed artifact boxes
+  artifact/.style={draw, dashed, rounded corners=3pt, font=\scriptsize,
+                   align=center, inner sep=4pt, fill=white, text=black!80,
+                   line width=0.5pt},
+  % input boxes (left)
+  inputbox/.style={draw, rounded corners=3pt, font=\small, align=center,
+                   fill=gray!6, minimum width=3cm, inner sep=5pt,
+                   line width=0.5pt},
+  % arrow style
+  arr/.style={->, thick, color=black!60, line width=0.7pt},
+  % phase colors (soft, print-friendly)
+  p1/.style={phase, fill=RoyalBlue!12, draw=RoyalBlue!50},
+  p2/.style={phase, fill=ForestGreen!10, draw=ForestGreen!45},
+  p3/.style={phase, fill=Goldenrod!10, draw=Goldenrod!50},
+  % algorithm box
+  algobox/.style={draw=black!40, rounded corners=4pt, inner sep=8pt,
+                  fill=black!2, line width=0.5pt},
+  % step labels
+  steplbl/.style={font=\scriptsize\itshape, text=black!60},
 ]
 
-% -- input column
-\node[draw, rounded corners=2pt, font=\small, align=center,
-      fill=gray!8, minimum width=2.8cm] (prompt)
-  {Prompt $P$\\(Markdown)};
+% ============ TOP: ALGORITHM STRIP ============
+\node[algobox, text width=14.8cm, align=left] (algo) {%
+  \textbf{Algorithm}\; \textnormal{Replication at scale with stochastic replication agents}\\[3pt]
+  {\small\textbf{Input:}\; Research problem $P$;\; runs $K$;\; LLM temperature $\tau>0$;\; dataset $\omega$}\\[2pt]
+  {\small\textbf{for} $k=1,\dots,K$ \textbf{do}}\\[1pt]
+  \hspace{1em}{\small 1.\; Sample research choices $r_k \sim \pi_{\mathrm{LLM}}(\cdot\mid P,\tau)$
+               \hfill\textnormal{\scriptsize\color{RoyalBlue!70} Phase~1}}\\[1pt]
+  \hspace{1em}{\small 2.\; Execute $r_k$ on $\omega$ in an isolated workspace
+               \hfill\textnormal{\scriptsize\color{ForestGreen!70} Phase~2}}\\[1pt]
+  \hspace{1em}{\small 3.\; Record $(\hat\theta_k,\, \widehat{SE}_k,\, n_k)$}\\[2pt]
+  {\small\textbf{end for}}\\[1pt]
+  {\small 4.\; Summarize $\{\hat\theta_k\}_{k=1}^K$ and relate to research-choice features
+               \hfill\textnormal{\scriptsize\color{Goldenrod!80!black} Phase~3}}%
+};
 
-\node[draw, rounded corners=2pt, font=\small, align=center,
-      fill=gray!8, minimum width=2.8cm, below=0.6cm of prompt] (data)
-  {Fixed dataset\\(ACS microdata)};
+% ============ BOTTOM: PIPELINE DIAGRAM ============
+% -- inputs
+\node[inputbox, below=1.4cm of algo.south west, anchor=north west, xshift=0.4cm]
+  (prompt) {Research problem $P$};
+\node[inputbox, below=0.55cm of prompt] (data) {Raw dataset $\omega$};
 
 % -- phases
-\node[p1, right=1.4cm of prompt] (ph1) {Phase 1\\Specification};
-\node[p2, right=of ph1] (ph2) {Phase 2\\Execution};
-\node[p3, below=of ph2] (ph3) {Phase 3\\Aggregation + Analysis};
+\node[p1, right=1.6cm of prompt] (ph1) {Phase 1\\[1pt]Specification};
+\node[p2, right=1.2cm of ph1]   (ph2) {Phase 2\\[1pt]Execution};
+\node[p3, below=1.1cm of ph2]   (ph3) {Phase 3\\[1pt]Aggregation};
 
-% -- artifacts below each phase
-\node[artifact, below=0.35cm of ph1] (a1) {JSON spec\\(4-field contract)};
-\node[artifact, below=0.35cm of ph2] (a2) {Executable script\\+ numeric outputs};
-\node[artifact, below=0.35cm of ph3] (a3) {Integrated results\\+ tables \& figures};
+% -- artifacts
+\node[artifact, below=0.4cm of ph1] (a1) {JSON spec\\(4-field contract)};
+\node[artifact, below=0.4cm of ph2] (a2) {Executable script\\+ numeric outputs};
+\node[artifact, below=0.4cm of ph3] (a3) {Tables, figures,\\meta-analysis};
 
-% -- arrows: inputs -> phase 1
+% -- arrows: inputs -> phases
 \draw[arr] (prompt.east) -- (ph1.west);
-\draw[arr] (data.east) -| ([xshift=-0.4cm]ph2.south west) -- (ph2.south west);
+\draw[arr] (data.east) -| ([xshift=-0.5cm]ph2.south west) -- (ph2.south west);
 
 % -- arrows: phase chain
-\draw[arr] (ph1) -- (ph2) node[midway, above, font=\scriptsize]{JSON spec};
+\draw[arr] (ph1.east) -- (ph2.west)
+  node[midway, above, font=\scriptsize, text=black!65]{JSON spec};
 \draw[arr] (ph2.south) -- (ph3.north);
-\draw[arr] (ph1.south) -- ++(0,-1.4) -| ([xshift=-0.4cm]ph3.west) -- (ph3.west)
-  node[pos=0.25, left, font=\scriptsize, text width=1.8cm, align=right]{spec\\metadata};
+\draw[arr] (ph1.south) -- ++(0,-1.4) -| ([xshift=-0.5cm]ph3.west) -- (ph3.west)
+  node[pos=0.25, left, font=\scriptsize, text width=1.6cm, align=right, text=black!65]{spec\\metadata};
+
+% -- subtle connector: algo -> pipeline
+\draw[arr, dashed, color=black!30]
+  ([yshift=-2pt]algo.south) -- ++(0,-0.55)
+  node[midway, right, steplbl]{\; implemented as};
+
 \end{tikzpicture}
-\caption{Replication-at-scale pipeline and artifacts}
-\caption*{\textbf{Notes:} Rounded boxes are pipeline phases; dashed boxes are the primary artifact produced by each phase. The prompt and dataset are fixed inputs; only the LLM's stochastic choices vary across runs. Phase~1 generates structured specifications; Phase~2 implements and executes each specification in an isolated environment; Phase~3 integrates outputs and produces publication-ready summaries.}
+\caption{Replication-at-scale pipeline: algorithm and architecture}
+\caption*{\textbf{Notes:} The top panel states the core algorithm; color annotations map each step to the pipeline phase below. The bottom panel shows how the three phases transform fixed inputs (research problem and dataset) into auditable outputs. Phase~1 generates a structured JSON specification via a stochastic LLM call. Phase~2 executes each specification in an isolated sandbox. Phase~3 integrates all outputs and produces publication-ready summaries. Only the LLM's stochastic research choices vary across runs.}
 \label{fig:flowchart}
 \end{figure}
 
@@ -246,18 +249,18 @@ We implement Algorithm~\ref{alg:pipeline} in a modular three-phase pipeline whos
 Three principles guide the architecture.
 
 \paragraph{Auditability.}
-Each run's provenance chain is stored: the prompt text, the LLM's raw response, the validated JSON specification, and the numeric output.  The generated Python script is executed inside the sandboxed directory and retained there; a reviewer can trace any estimate back to the specification choices that produced it, though re-execution requires invoking the coding agent again.
+The pipeline stores each run's full provenance chain: the research-problem description, the LLM's raw response, the validated JSON specification, and the numeric output. The generated Python script executes inside the sandboxed directory and remains there; a reviewer can trace any estimate back to the specification choices that produced it.
 
 \paragraph{Isolation.}
-Every Phase~2 execution runs in its own directory containing only whitelisted input files. There is no shared state between runs and no access to other runs' outputs. This ensures that each workflow is an independent draw and eliminates cross-contamination.
+Every Phase~2 execution runs in its own directory containing only whitelisted input files. No shared state or cross-run access exists, ensuring each set of research choices is an independent draw.
 
 \paragraph{Portability.}
-Resource locations are resolved dynamically at runtime rather than hardcoded. The pipeline runs identically on Windows, macOS, and Linux (including WSL), and supports both API-based and CLI-based LLM providers without code changes.
+Resource locations resolve dynamically at runtime. The pipeline runs identically on Windows, macOS, and Linux, and supports both API-based and CLI-based LLM providers without code changes.
 
 \subsection{Phase~1: structured specification generation}
 \label{sec:phase1}
 
-Phase~1 converts the natural-language prompt into a machine-readable \emph{specification}---a JSON object with four required fields:
+Phase~1 converts the natural-language description of the research problem into a machine-readable \emph{specification}---a JSON object with four required fields:
 \begin{Verbatim}[fontsize=\small, frame=single]
 {
   "sample_selection":        [<filter condition>, ...],
@@ -266,44 +269,44 @@ Phase~1 converts the natural-language prompt into a machine-readable \emph{speci
   "model_specification_line": "<executable Python line>"
 }
 \end{Verbatim}
-This contract is enforced by a JSON Schema that the pipeline validates before any code is executed. The contract is deliberately minimal: it pins down what every workflow must produce (an estimator applied to an outcome, treatment, and sample) while leaving maximum freedom in how those objects are defined. The \texttt{model\_specification\_line} must be a single executable Python statement that calls an estimator (e.g., \texttt{smf.ols(...).fit()}) and may embed controls, fixed effects, sample weights, and clustering choices.
+This contract is enforced by a JSON Schema validated before any code executes. The contract is deliberately minimal: it pins down what every set of research choices must produce (an estimator applied to an outcome, treatment, and sample) while leaving maximum freedom in how those objects are defined. The \texttt{model\_specification\_line} must be a single executable Python statement calling an estimator (e.g., \texttt{smf.ols(...).fit()}) and may embed controls, fixed effects, sample weights, and clustering choices.
 
 \paragraph{Generation modes.}
-Phase~1 can run through either API-based or interactive command-line LLM interfaces, depending on the provider and deployment context. In both cases, the system extracts the structured JSON object from the model response, validates it against the schema contract, and stores provider-agnostic metadata for auditing.
+Phase~1 runs through either API-based or interactive command-line LLM interfaces. In both cases, the system extracts the JSON object from the model response, validates it against the schema, and stores provider-agnostic metadata for auditing.
 
 \paragraph{LLM client abstraction.}
-A thin client layer provides a unified completion interface across providers. Adding a new provider requires implementing one adapter to handle authentication, retries for transient errors, and normalization of usage metadata into a common schema.
+A thin client layer provides a unified completion interface across providers. Adding a new provider requires one adapter for authentication, retries, and metadata normalization.
 
 \subsection{Phase~2: sandboxed implementation and execution}
 \label{sec:phase2}
 
-Phase~2 takes each validated specification and produces an executable analysis script plus numeric results. The implementation proceeds as follows for each specification:
+Phase~2 takes each validated specification and produces an executable analysis script plus numeric results:
 
 \begin{enumerate}
-\item \textbf{Create an isolated run workspace.} Each run receives only whitelisted input data and documentation files needed for implementation.
+\item \textbf{Create an isolated workspace.} Each run receives only whitelisted input data and documentation files.
 
-\item \textbf{Manage large inputs efficiently.} Large data assets are shared across runs using platform-appropriate linking strategies, with safe fallbacks when links are unavailable.
+\item \textbf{Link large inputs.} Large data assets share across runs via platform-appropriate linking, with safe fallbacks.
 
-\item \textbf{Invoke a coding agent.} The agent receives the structured specification and is instructed to generate and execute analysis code, with bounded self-correction loops for runtime errors.
+\item \textbf{Invoke a coding agent.} The agent receives the structured specification, generates analysis code, and executes it with bounded self-correction for runtime errors.
 
-\item \textbf{Validate the output.} The pipeline verifies that the structured result object exists, parses correctly, and contains numeric fields for point estimate, standard error, and sample size (with positive sample size). Runs that fail validation are recorded as failures in the aggregation step.
+\item \textbf{Validate output.} The pipeline verifies the result object exists, parses correctly, and contains numeric fields for point estimate, standard error, and sample size. Runs failing validation enter the aggregation step as failures.
 \end{enumerate}
 
-A combined mode can ask a single agent session to both propose a specification and implement it. This is useful for agents that benefit from end-to-end context while preserving the same auditable artifacts.
+A combined mode allows a single agent session to both propose and implement a specification, useful for agents that benefit from end-to-end context.
 
 \subsection{Phase~3: aggregation and meta-analysis}
 \label{sec:phase3}
 
-Phase~3 collects all validated specifications and execution results, merges them by run identifier into a unified analysis dataset, and then produces publication-ready summary objects. In addition to raw specification fields and numeric outputs, the aggregator infers derived metadata from \texttt{model\_specification\_line} using regular-expression classifiers:
+Phase~3 collects all validated specifications and results, merges them by run identifier, and produces publication-ready summaries. The aggregator infers derived metadata from \texttt{model\_specification\_line} using regular-expression classifiers:
 \begin{itemize}
-\item \textbf{Model type}: OLS, WLS, Logit, or Other, inferred from the estimator function name.
-\item \textbf{Control variables and fixed effects}: Parsed from the formula's right-hand-side terms, distinguishing continuous regressors from categorical (\texttt{C(...)}) terms.
-\item \textbf{Sample weighting}: Detected from \texttt{weights=} arguments (typically the ACS person weight \texttt{PERWT}).
-\item \textbf{Standard-error adjustment}: Classified as clustered (state), heteroskedasticity-robust (HC), or none, based on \texttt{cov\_type} and \texttt{cov\_kwds} arguments.
+\item \textbf{Model type}: OLS, WLS, Logit, or Other, from the estimator function name.
+\item \textbf{Controls and fixed effects}: parsed from the formula's right-hand side, distinguishing continuous regressors from categorical (\texttt{C(...)}) terms.
+\item \textbf{Sample weighting}: detected from \texttt{weights=} arguments (typically the ACS person weight \texttt{PERWT}).
+\item \textbf{SE adjustment}: classified as clustered (state), heteroskedasticity-robust (HC), or none, from \texttt{cov\_type} and \texttt{cov\_kwds} arguments.
 \end{itemize}
-Because this classification operates on structured text (Python code), it avoids reliance on self-reported metadata from the LLM, which may be inconsistent.
+This classification operates on structured text (Python code), avoiding reliance on self-reported LLM metadata.
 
-The same phase applies quality filters (dropping runs with missing estimates, non-positive standard errors, or implausibly large effect sizes $|\hat\theta|>1$) and produces publication-ready outputs:
+Quality filters drop runs with missing estimates, non-positive standard errors, or $|\hat\theta|>1$. The phase then produces:
 \begin{itemize}
 \item \textbf{Summary statistics} (Table~\ref{tab:nhk_summary}): Unweighted and inverse-SE-weighted moments and quantiles of the point-estimate distribution, plus standard-error and sample-size distributions.
 \item \textbf{Density plots} (Figures~\ref{fig:nhk_effects}--\ref{fig:sample_sizes}): Epanechnikov kernel densities with box-and-whisker overlays.
@@ -318,19 +321,19 @@ All tables and figures are generated from the same integrated analysis dataset s
 \label{sec:results}
 %------------------------------------------------------------------------------
 
-This section summarizes the distribution of executed estimates produced by the pipeline and relates it to workflow components. In the notation of Section~\ref{sec:framework}, our empirical object is the distribution of $\hat\theta(R,\omega)$ induced by $\pi_{\mathrm{LLM}}(\cdot\mid P,\tau)$ for a fixed realized dataset~$\omega$.  Throughout, we emphasize that this is a fixed-sample object: the dispersion reflects workflow variation (and its interaction with the realized dataset), not a sampling distribution.
+Our empirical object is the distribution of $\hat\theta(R,\omega)$ induced by $\pi_{\mathrm{LLM}}(\cdot\mid P,\tau)$ for a fixed dataset~$\omega$. This dispersion reflects variation in research choices, not sampling uncertainty.
 
 \subsection{Summary statistics}
 
-Table \ref{tab:nhk_summary} reports summary statistics for point estimates, standard errors, and sample sizes across successful executed workflows.
+Table~\ref{tab:nhk_summary} reports summary statistics for point estimates, standard errors, and sample sizes across successful executions.
 
-The pipeline generated 81 specifications in total; 76 produced valid estimates (93.8\%), with all five failures attributable to Copilot~CLI combined-mode runs that did not produce parseable output. After applying quality filters (positive standard errors and $|\hat\theta|\le 1$), the analysis sample comprises $N=61$ runs.  Across these 61 successful executions generated by three LLM providers (Codex~CLI, Devstral, and Gemini~Flash; see Table~\ref{tab:provider_comparison}), the point-estimate distribution is centered near zero (median~0.003) but dispersed, with an interquartile range from $-0.011$ to~0.043 and pronounced tails. The unweighted mean is~0.020 and the inverse-standard-error weighted mean is~0.013, while the extrema reach $-0.195$ and~0.456. This combination---a near-zero center with fat tails---is consistent with the premise of multi-analyst work: even within a single dataset and research question, defensible workflows can imply meaningfully different estimates.
+The pipeline generated 81 specifications; 76 produced valid estimates (93.8\%), with all five failures from Copilot~CLI combined-mode runs that did not yield parseable output. After quality filters (positive standard errors and $|\hat\theta|\le 1$), the analysis sample comprises $N=61$ runs from three LLM providers (Codex~CLI, Devstral, and Gemini~Flash; see Table~\ref{tab:provider_comparison}). The point-estimate distribution centers near zero (median~0.003) but is dispersed, with an IQR from $-0.011$ to~0.043 and pronounced tails. The unweighted mean is~0.020 and the inverse-SE weighted mean is~0.013; extrema reach $-0.195$ and~0.456. Even within a single dataset and research question, defensible research choices produce meaningfully different estimates.
 
-Sample sizes vary widely across workflows (mean~184{,}355; median~115{,}983; IQR from~57{,}840 to~262{,}673), reflecting heterogeneity in sample restrictions. Choices about year windows, age bounds, citizenship definitions, and immigration-timing rules can produce estimation samples that differ by an order of magnitude.
+Sample sizes vary widely (mean~184{,}355; median~115{,}983; IQR 57{,}840 to~262{,}673). Choices about year windows, age bounds, citizenship definitions, and immigration-timing rules produce estimation samples differing by an order of magnitude.
 
 \begin{table}[t]
 \centering
-\caption{Distribution of executed estimates across LLM-generated workflows}
+\caption{Distribution of executed estimates across LLM-generated research choices}
 \small
 \resizebox{\textwidth}{!}{\input{\nhkmeta/table1_summary_stats.tex}}
 \caption*{\textbf{Notes:} The sample includes successful executions with non-missing point estimates, standard errors, and sample sizes; SEs must be positive; and estimates with $|\hat\theta|>1$ are excluded. The inverse-SE weighted row uses weights $1/\max(SE, q_{0.25})$ where $q_{0.25}$ is the 25th percentile of $SE$. Standard errors are rounded for display, so very small positive values may appear as 0.000.}
@@ -340,20 +343,20 @@ Sample sizes vary widely across workflows (mean~184{,}355; median~115{,}983; IQR
 \subsection{Distributions}
 
 \noindent\textbf{Sample sizes.}
-Figure \ref{fig:sample_sizes} shows the distribution of (log) sample sizes across executed workflows. The dispersion is large, underscoring how seemingly small differences in sample-definition logic (e.g., year windows, age bounds, and eligibility timing rules) translate into large changes in the effective estimation sample.
+Figure~\ref{fig:sample_sizes} displays the distribution of log sample sizes. The wide dispersion underscores how small differences in sample-definition logic---year windows, age bounds, eligibility timing rules---translate into large changes in the effective estimation sample.
 
 \begin{figure}[t]
 \centering
 \includegraphics[width=0.9\textwidth]{figure2_sample_size_distribution.png}
 \caption{Distribution of executed sample sizes}
-\caption*{\textbf{Notes:} This figure mirrors the benchmark study’s descriptive sample-size distribution. The plot shows an Epanechnikov kernel density of $\log(n)$ across executed workflows (Scott bandwidth) with an overlaid box-and-whisker strip (median, IQR, min/max).}
+\caption*{\textbf{Notes:} Epanechnikov kernel density of $\log(n)$ across executed research choices (Scott bandwidth) with an overlaid box-and-whisker strip (median, IQR, min/max). Mirrors the benchmark study’s descriptive sample-size distribution.}
 \label{fig:sample_sizes}
 \end{figure}
 
 \noindent\textbf{Estimates and specification curve.}
-Figure \ref{fig:nhk_effects} shows the distribution of executed point estimates (unweighted and inverse-SE weighted). Figure \ref{fig:nhk_speccurve} shows a specification curve ordered by the point estimate.
+Figure~\ref{fig:nhk_effects} shows the distribution of point estimates (unweighted and inverse-SE weighted); Figure~\ref{fig:nhk_speccurve} plots a specification curve ordered by magnitude.
 
-Two patterns stand out. First, inverse-standard-error weighting leaves the center of the distribution largely unchanged relative to the unweighted density, suggesting that the central mass of estimates is not driven solely by low-precision workflows. Second, both panels are visually truncated to $[-0.1,0.1]$, but Table \ref{tab:nhk_summary} shows that a small number of runs produce substantially larger magnitudes, particularly on the positive side. These outliers are substantively important: they are precisely the kinds of results that selective reporting could emphasize if workflows are tried adaptively.
+Two patterns stand out. First, inverse-SE weighting leaves the center largely unchanged, suggesting the central mass is not driven by low-precision runs alone. Second, both panels truncate at $[-0.1,0.1]$ for visual clarity, but Table~\ref{tab:nhk_summary} reveals that a small number of runs produce substantially larger magnitudes, particularly on the positive side. These outliers matter: they are precisely the estimates that selective reporting could emphasize if research choices were tried adaptively.
 
 \begin{figure}[t]
 \centering
@@ -377,35 +380,33 @@ Two patterns stand out. First, inverse-standard-error weighting leaves the cente
 \centering
 \includegraphics[width=\textwidth]{figure3_specification_curve.png}
 \caption{Specification curve of executed DACA employment estimates}
-\caption*{\textbf{Notes:} Each point is one executed workflow, ordered by the point estimate. Vertical bars are 95\% confidence intervals computed as $\hat\theta \pm 1.96\,SE$ using each run’s reported standard error. For visual clarity, the figure omits specifications outside $[-0.1,0.15]$.}
+\caption*{\textbf{Notes:} Each point is one executed run, ordered by the point estimate. Vertical bars are 95\% confidence intervals computed as $\hat\theta \pm 1.96\,SE$ using each run’s reported standard error. For visual clarity, the figure omits specifications outside $[-0.1,0.15]$.}
 \label{fig:nhk_speccurve}
 \end{figure}
 
-\subsection{Like-for-like comparison to the benchmark multi-analyst paper}
+\subsection{Comparison to the benchmark multi-analyst study}
 
-The benchmark multi-analyst study by \citet{huntingtonklein2025sources} analyzes the same underlying causal question and reports descriptive tables and figures summarizing dispersion across human researchers. Our pipeline outputs are designed to provide like-for-like descriptive counterparts: distributions of reported effect sizes (Figures~\ref{fig:nhk_effects} and~\ref{fig:nhk_speccurve}), the distribution of sample sizes (Figure~\ref{fig:sample_sizes}), and summary statistics (Table~\ref{tab:nhk_summary}).
+\citet{huntingtonklein2025sources} study the same causal question and report dispersion across human researchers. We design our pipeline outputs as like-for-like counterparts: effect-size distributions (Figures~\ref{fig:nhk_effects} and~\ref{fig:nhk_speccurve}), sample-size distributions (Figure~\ref{fig:sample_sizes}), and summary statistics (Table~\ref{tab:nhk_summary}).
 
-The most directly comparable benchmark objects are those for ``Task~1,'' which grants substantial researcher freedom in specification and implementation. In the benchmark study's Table~3 (Task~1), the unweighted distribution has mean~0.053, median~0.030, and an interquartile range from 0.014 to 0.051 (max~0.660). In our executed LLM workflow sample, the unweighted distribution has mean~0.020, median~0.003, and an interquartile range from $-0.011$ to~0.043 (max~0.456). Sample-size dispersion is also large in both settings: the benchmark Task~1 median sample size is 179{,}960 (25th percentile 61{,}600; 75th percentile 356{,}787), while our median is 115{,}983 (25th percentile 57{,}840; 75th percentile 262{,}673).
+The most directly comparable benchmark is ``Task~1,’’ which grants substantial researcher freedom. In the benchmark’s Table~3, the unweighted Task~1 distribution has mean~0.053, median~0.030, and IQR from 0.014 to 0.051 (max~0.660). Our LLM-generated distribution has mean~0.020, median~0.003, and IQR from $-0.011$ to~0.043 (max~0.456). Sample-size dispersion is also large in both settings: the benchmark median is 179{,}960 (IQR 61{,}600--356{,}787) versus our 115{,}983 (IQR 57{,}840--262{,}673).
 
-These comparisons should be interpreted cautiously. Our distribution is computed over successful executions in our implementation environment and therefore reflects (i)~the LLM-induced workflow support under our prompt design, (ii)~selection into what can be executed successfully, and (iii)~the mix of LLM providers used. Moreover, the benchmark reports Task~1--3 objects under different constraints; our pipeline is designed to mirror the high-discretion Task~1 setting rather than the more constrained tasks.
+Three caveats apply. Our distribution reflects (i)~the LLM-induced support over research choices under our prompt design, (ii)~selection into successful execution, and (iii)~the mix of LLM providers. The benchmark reports Task~1--3 objects under different constraints; our pipeline mirrors the high-discretion Task~1 setting.
 
-Beyond these core descriptive objects, we also report method and specification diagnostics that mirror the benchmark’s emphasis on how analytic decisions map into results. Table \ref{tab:method_shares} reports shares of workflows by estimation method, weighting, and variance adjustment, and Table \ref{tab:control_forms} reports how the mean effect differs across common control-variable functional forms.
+Tables~\ref{tab:method_shares} and~\ref{tab:control_forms} report method shares and mean effects by control-variable functional form. In the benchmark, 82\% of submissions use linear regression, 22\% use no SE adjustment, and 25\% use sample weights. Our LLM-generated research choices put similar mass on linear models (68.8\% OLS or WLS), with 39.3\% using the ACS person weight and 47.5\% requesting state-clustered standard errors. Mean effects also vary with functional form: specifications that omit age yield a mean of 0.028, versus $-0.004$ with linear age controls---analogous to the benchmark’s finding that linear age controls versus age fixed effects shift the mean from 0.058 to 0.024.
 
-Benchmark Table 4 reports that 82\% of submissions use linear regression, 22\% use no standard-error adjustment, and 25\% use sample weights (with substantial heterogeneity in clustering choices). Our executed workflows put similar mass on linear models in the broad sense (68.8\% labeled OLS or WLS), but differ in distribution across categories. On the weighting margin, 39.3\% use the ACS person weight (\texttt{PERWT}) and 47.5\% request state-clustered standard errors. In the benchmark study's Table~5, mean effects vary with control functional forms (e.g., for age: mean 0.058 with linear age controls vs.\ 0.024 with age fixed effects). Our Table~\ref{tab:control_forms} shows analogous but distinct patterns: mean effects vary across functional form and inclusion, especially for specifications that omit key controls (e.g., mean 0.028 when age is not included vs.\ $-0.004$ with linear age controls).
-
-For transparency, we have chosen objects that mirror the benchmark paper's descriptive summaries: our Table~\ref{tab:nhk_summary} corresponds to their Task~1 distribution table; our Tables~\ref{tab:method_shares} and~\ref{tab:control_forms} correspond to their decision-share and functional-form summaries; and Figures~\ref{fig:sample_sizes},~\ref{fig:nhk_effects}, and~\ref{fig:nhk_speccurve} correspond to their sample-size distribution, effect-size distribution, and specification curve. We view these comparisons as validation targets: agreement in broad qualitative patterns supports the use of stochastic replication agents as a scalable approximation to multi-analyst exercises, while discrepancies are informative about differences in workflow support (what kinds of specifications are generated) and execution constraints (what kinds of specifications can be implemented successfully).
+We view these comparisons as validation targets. Agreement in broad qualitative patterns supports stochastic replication agents as a scalable approximation to multi-analyst exercises; discrepancies reveal differences in what kinds of specifications each approach generates and can execute.
 
 \subsection{Heterogeneity across LLM providers}
 
-Table~\ref{tab:provider_comparison} stratifies the point-estimate distribution by the LLM provider used in Phase~1. Three providers contributed Phase~1 specifications independently: Codex~CLI ($N=18$), Devstral ($N=20$), and Gemini~Flash ($N=10$). The remaining 13 runs use combined Phase~1+2 sessions via Copilot~CLI, where a single agent both proposes and implements the specification; these are included in all pooled analyses but are not shown as a separate row in Table~\ref{tab:provider_comparison} due to the different generation mode.
+Table~\ref{tab:provider_comparison} stratifies point estimates by the Phase~1 LLM provider. Three providers contributed independently: Codex~CLI ($N=18$), Devstral ($N=20$), and Gemini~Flash ($N=10$). The remaining 13 runs use combined Phase~1+2 sessions via Copilot~CLI; these enter all pooled analyses but are not shown separately due to the different generation mode.
 
-Despite generating specifications from different model families, the three providers produce similar mean point estimates (0.020, 0.021, and~0.017, respectively). The more informative comparison is in dispersion: Devstral specifications exhibit substantially larger standard deviation (0.133 vs.\ 0.020 for Codex and 0.031 for Gemini), suggesting that this model explores a wider---and sometimes more extreme---region of the specification space. The IQR is more comparable across providers (0.033, 0.051, 0.049), indicating that the central mass of estimates is similar but that Devstral's tails are heavier.
+The three providers produce similar mean estimates (0.020, 0.021, and 0.017). Dispersion differs more: Devstral specifications exhibit substantially larger standard deviation (0.133 vs.\ 0.020 for Codex and 0.031 for Gemini), suggesting this model explores a wider---and sometimes more extreme---region of the specification space. The IQR is more comparable across providers (0.033, 0.051, 0.049), indicating similar central mass but heavier tails for Devstral.
 
-This heterogeneity is partly driven by model capability: some Devstral-generated specifications produce conceptually reasonable but numerically degenerate workflows (e.g., point estimates near zero because the treatment indicator is nearly collinear with fixed effects, or extreme magnitudes from very small effective samples). The quality filters in Phase~3 clip these at $|\hat\theta| \le 1$, but residual variation remains.
+This heterogeneity partly reflects model capability: some Devstral specifications are defensible but numerically degenerate (e.g., treatment nearly collinear with fixed effects, or extreme magnitudes from very small effective samples). Quality filters clip at $|\hat\theta| \le 1$, but residual variation remains.
 
 \begin{table}[t]
 \centering
-\caption{Shares of executed workflows by estimation method, weighting, and variance adjustment}
+\caption{Shares of executed research choices by estimation method, weighting, and variance adjustment}
 \input{\nhkmeta/table4_method_shares.tex}
 \caption*{\textbf{Notes:} ``Other'' groups estimation methods not labeled as OLS or WLS by the Phase~3 classifier (includes Logit, difference-in-differences estimators, and unclassified methods). ``PERWT'' refers to the ACS person weight. ``Clustered (state)'' indicates cluster-robust standard errors at the state level.}
 \label{tab:method_shares}
@@ -415,7 +416,7 @@ This heterogeneity is partly driven by model capability: some Devstral-generated
 \centering
 \caption{Mean effects by functional form of common controls}
 \input{\nhkmeta/table5_control_effects.tex}
-\caption*{\textbf{Notes:} For each control variable, the table reports the mean and standard deviation of point estimates among executed workflows using that functional form. ``Fixed Effects'' indicates categorical controls (e.g., $C(\cdot)$). ``Not included'' indicates omission from the specification.}
+\caption*{\textbf{Notes:} For each control variable, the table reports the mean and standard deviation of point estimates among executed research choices using that functional form. ``Fixed Effects'' indicates categorical controls (e.g., $C(\cdot)$). ``Not included'' indicates omission from the specification.}
 \label{tab:control_forms}
 \end{table}
 
@@ -432,38 +433,38 @@ This heterogeneity is partly driven by model capability: some Devstral-generated
 \label{sec:limits}
 %------------------------------------------------------------------------------
 
-Our approach is descriptive, and its interpretation depends on the relationship between the LLM-induced workflow distribution and the set of workflows a population of human researchers would generate. Several specific concerns deserve emphasis.
+Our approach is descriptive. Its interpretation depends on the relationship between the LLM-induced distribution of research choices and the choices human researchers would make. Several concerns deserve emphasis.
 
 \paragraph{Training-data priors.}
-LLMs reflect the coding conventions and modeling patterns present in their training data. This affects which workflows are generated and how often, and can place some reasonable research designs (e.g., instrumental-variable strategies, regression discontinuity) effectively outside the model's support.
+LLMs reflect the coding conventions and modeling patterns in their training data, which affects both which research choices appear and how often. Some defensible strategies (e.g., instrumental variables, regression discontinuity) may lie effectively outside the model's support.
 
 \paragraph{Selection into successful execution.}
-Our empirical distribution is computed over runs that pass validation. Failures---caused by runtime errors, schema violations, or implausible outputs---may be correlated with workflow complexity or novelty, inducing selection. Future work should characterize these failures systematically.
+Our distribution conditions on runs that pass validation. Failures from runtime errors, schema violations, or implausible outputs may correlate with the complexity or novelty of research choices, inducing selection.
 
 \paragraph{Fixed-sample interpretation.}
-When all workflows run on the same realized dataset, the induced dispersion is not a sampling distribution. It describes heterogeneity across workflows conditional on the realized sample. Combining workflow-induced dispersion with resampling-based inference (e.g., bootstrap) is a natural extension but beyond the scope of the current exercise.
+All research choices operate on the same realized dataset, so the induced dispersion is not a sampling distribution. Combining researcher-choice variation with data resampling (e.g., bootstrap) is a natural extension but lies beyond the current exercise.
 
-\paragraph{Estimand drift.}
-Workflows can alter the implicit estimand by changing the target population, timing window, or treatment definition. We treat this as part of the object of interest and report diagnostics (sample-size dispersion, specification curve) to help readers assess comparability, but it complicates causal interpretation relative to a single fixed estimand.
+\paragraph{Estimand mismatch.}
+Research choices can alter the implicit estimand by changing the target population, timing window, or treatment definition. We treat this as part of the object of interest and report diagnostics (sample-size dispersion, specification curve), but it complicates causal interpretation relative to a single fixed estimand.
 
 \paragraph{Provider heterogeneity.}
-Different LLM providers explore different regions of the specification space (Section~\ref{sec:results}). Pooling across providers broadens coverage but introduces a source of variation that is external to any single model's induced distribution.
+Different LLM providers explore different regions of the specification space. Pooling broadens coverage but introduces variation external to any single model's induced distribution.
 
 \paragraph{Prompt sensitivity.}
-All runs use an identical prompt; we do not evaluate sensitivity to prompt wording.  Small changes in phrasing could shift the induced workflow distribution, and characterizing this sensitivity---analogous to specification-curve analysis over prompts---is an important direction for future work.
+All runs use an identical prompt; we do not evaluate sensitivity to prompt wording. Small phrasing changes could shift the induced distribution, and characterizing this sensitivity is an important direction for future work.
 
 %------------------------------------------------------------------------------
 \section{Conclusion}
 \label{sec:conclusion}
 %------------------------------------------------------------------------------
 
-This paper develops a replication-at-scale framework that treats researcher degrees of freedom as a source of estimable uncertainty and uses stochastic LLM agents to approximate the induced distribution of executed estimates.  Three contributions emerge.
+Standard errors measure sampling uncertainty but ignore the often-substantial variation that arises from defensible differences in how researchers construct samples, define variables, and specify models. This paper treats that variation as an estimable object. By running the same research prompt through stochastic LLM agents and executing each generated specification end-to-end, we produce an empirical distribution of estimates that reflects researcher-induced uncertainty. In the DACA--employment application, the resulting 61 estimates center near zero (mean 0.020, median 0.003) but span a wide range (IQR $[-0.011,\, 0.043]$; extrema $-0.195$ to 0.456), with patterns broadly consistent with the benchmark human-analyst study.
 
-First, a basic variance decomposition identity (Remark~\ref{prop:decomp}) separates total estimation variance into conventional sampling variance and a workflow-induced component, clarifying \emph{what} replication-at-scale measures.  Second, a modular three-phase software pipeline (Section~\ref{sec:software}) operationalizes the idea: a JSON-schema contract separates analytical intent from implementation, sandboxed execution guarantees independence, and structured extraction yields a machine-readable audit trail.  The architecture is open-source and generalizable to other research questions and datasets.  Third, applying the framework to the DACA--employment question studied by \citet{huntingtonklein2025sources} with $N=61$ successful runs across multiple LLM providers reveals an induced distribution centered near zero (mean $\hat\theta = 0.020$) but with substantial dispersion (IQR $[-0.011,\, 0.043]$) and fat tails.  Provider-level heterogeneity is modest in central tendency but pronounced in dispersion, highlighting the importance of multi-provider designs.
+Important limitations remain.  The induced distribution depends on the prompt, the LLM providers, and selection into successful execution. Different research choices can also target different causal parameters (estimand mismatch), so cross-run dispersion conflates variation in estimation strategy with variation in what is being estimated. The approach does not replace multi-analyst studies; it complements them by offering scalability where recruitment is infeasible.
 
-Important caveats remain.  The induced distribution is conditional on a particular prompt, a particular set of LLM providers, and selection into successful execution---all of which shape the effective support of researcher workflows.  Workflow variation can also entail estimand drift when analytical choices redefine the implicit target population or treatment.  Using repeated runs to approximate a workflow distribution is conceptually distinct from estimating sampling uncertainty unless one also resamples data.
+For empirical practice, the framework offers a diagnostic: researchers can run the pipeline on their own question and data to assess how sensitive results are to the space of defensible alternatives, flagging specifications that produce qualitatively different conclusions. The open-source pipeline makes this diagnostic reproducible.
 
-Future work can strengthen the approach along several dimensions: calibrating the stochastic workflow generator to human analyst distributions, enriching the schema contract to capture a wider set of economic modeling choices while constraining implementation artifacts, extending replication-at-scale designs to multiple datasets and research questions, and combining workflow resampling with data resampling to estimate joint uncertainty.
+Extending the approach in two directions would strengthen it most. First, calibrating the LLM-induced distribution to human analyst distributions---perhaps by fine-tuning on existing multi-analyst datasets---would sharpen the proxy's usefulness. Second, combining researcher-choice resampling with data resampling (e.g., bootstrap) would yield joint uncertainty measures that account for both sources of variation simultaneously.
 
 %------------------------------------------------------------------------------
 % References
@@ -479,7 +480,7 @@ Future work can strengthen the approach along several dimensions: calibrating th
 \section{Prompt excerpt and design}
 \label{app:prompt}
 
-This appendix reproduces the key portion of the prompt used to elicit structured workflow specifications. The original prompt also included extensive variable definitions and codebook material to support independent implementation; we omit that bulk for space and instead present the instructions that govern the required outputs and the feasible choice set.
+This appendix reproduces the key portion of the prompt used to elicit structured specifications of research choices. The original prompt also included extensive variable definitions and codebook material to support independent implementation; we omit that bulk for space and instead present the instructions that govern the required outputs and the feasible choice set.
 
 \noindent\textit{Prompt text (governing instructions and required output).}
 \begin{Verbatim}[fontsize=\small]
@@ -511,6 +512,6 @@ Rules:
 - Do NOT include any commentary outside the JSON block.
 \end{Verbatim}
 
-The prompt fixes the research question and the required output contract but allows discretion over sample restrictions, functional form, controls, fixed effects, weighting, and variance estimation. This discretion is the mechanism that generates workflow-induced dispersion across executed estimates when the prompt is held fixed and the generator is stochastic.
+The prompt fixes the research question and the required output contract but allows discretion over sample restrictions, functional form, controls, fixed effects, weighting, and variance estimation. This discretion is the mechanism that generates dispersion across executed estimates when the prompt is held fixed and the generator is stochastic.
 
 \end{document}
