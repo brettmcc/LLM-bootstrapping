@@ -1,0 +1,11 @@
+{
+  "model_specification_line": "model = sm.OLS(y, X).fit()",
+  "outcome_definition": "(empstat == 1) & (uhrswork >= 35)",
+  "sample_selection": [
+    "year >= 2013 and year <= 2016",
+    "hispan == 1 and bpl == 200",
+    "citizen == 3 and yrimmig > 0",
+    "age >= 18 and age <= 34"
+  ],
+  "treatment_definition": "(yrimmig <= 2007) & (birthyr >= 1982) & (birthyr <= 1996) & ((yrimmig - birthyr) >= 0) & ((yrimmig - birthyr) <= 15)"
+}

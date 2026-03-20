@@ -1,0 +1,11 @@
+{
+  "model_specification_line": "result = smf.wls('full_time ~ daca_eligible + UNEMP + LFPR + C(year) + C(statefip)', data=df, weights=df['perwt']).fit().get_robustcov_results(cov_type='HC1')",
+  "outcome_definition": "full_time = empstat in [1, 2] and uhrswork >= 35",
+  "sample_selection": [
+    "year.isin([2013, 2014, 2015, 2016])",
+    "hispan == 1 and bpl == 200 and citizen == 2",
+    "yrimmig <= birthyr + 15 and yrimmig <= 2007",
+    "(birthyr > 1981) or (birthyr == 1981 and birthqtr >= 3)"
+  ],
+  "treatment_definition": "daca_eligible = (birthyr > 1981 or (birthyr == 1981 and birthqtr >= 3)) and (yrimmig <= birthyr + 15) and (yrimmig <= 2007) and (citizen == 2)"
+}

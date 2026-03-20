@@ -353,13 +353,17 @@ def generate_table5(df: pd.DataFrame, output_path: Path) -> None:
 
 
 def generate_table6(df: pd.DataFrame, output_path: Path) -> None:
-    providers = ["codex-cli", "devstral-medium-latest", "gemini-3-flash-preview"]
+    provider_specs = [
+        ("codex-cli", "OpenAI Codex"),
+        ("devstral-medium-latest", "Mistral Devstral"),
+        ("gemini-3-flash-preview", "Google Gemini Flash"),
+    ]
     stats = ["N", "Mean point_est", "SD point_est", "IQR point_est"]
     rows = []
     for stat in stats:
         row = [stat]
-        for provider in providers:
-            subset = df[df["model_phase1"] == provider]
+        for provider_key, _ in provider_specs:
+            subset = df[df["model_phase1"] == provider_key]
             if subset.empty:
                 row.append("")
                 continue
@@ -376,7 +380,7 @@ def generate_table6(df: pd.DataFrame, output_path: Path) -> None:
         rows.append(row)
     write_tabular(
         output_path,
-        ["Statistic"] + providers,
+            ["Statistic"] + [label for _, label in provider_specs],
         rows,
         "@{}l r r r@{}",
     )

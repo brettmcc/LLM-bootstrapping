@@ -22,6 +22,8 @@ from pathlib import Path
 from typing import Iterable, Optional
 # These are type hints: Iterable for things you can loop over, Optional for values that might be None.
 
+from copilot_cli_utils import extract_copilot_final_content, extract_copilot_model
+
 
 # Define constants for file paths
 PROJECT = Path(__file__).resolve().parents[1]
@@ -40,6 +42,26 @@ CLI_TEMPLATE_ENV = {
     "copilot": "COPILOT_CLI_COMMAND",
     "gemini_cli": "GEMINI_CLI_COMMAND",
 }
+
+
+def write_run_metadata(
+    metadata_path: Path,
+    provider: str,
+    model_phase2: str | None,
+    requested_model: str | None,
+) -> None:
+    # Persist execution metadata for downstream aggregation.
+    payload = {
+        "phase": "phase2",
+        "cli_provider": provider,
+        "model_phase2": model_phase2 or f"{provider}-cli",
+    }
+    if requested_model:
+        payload["requested_model_phase2"] = requested_model
+    metadata_path.write_text(
+        json.dumps(payload, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
 
 
 def same_file(target: Path, candidate: Path) -> bool:
@@ -293,7 +315,11 @@ def wrap_wsl(command: list[str], distro: Optional[str]) -> list[str]:
 
 
 def build_cli_command(
-    provider: str, dangerous: bool, no_wsl: bool, wsl_distro: Optional[str]
+    provider: str,
+    dangerous: bool,
+    no_wsl: bool,
+    wsl_distro: Optional[str],
+    copilot_model: Optional[str],
 ) -> list[str]:
     # Build the CLI command for the given provider.
     if provider in CLI_TEMPLATE_ENV:
@@ -317,7 +343,17 @@ def build_cli_command(
             cmd.append("--full-auto")
         return wrap_wsl(cmd, wsl_distro) if should_use_wsl(provider, no_wsl) else cmd
     elif provider == "copilot":
-        cmd = ["copilot", "--allow-all-tools", "--allow-all-paths", "--no-ask-user"]
+        cmd = [
+            "copilot",
+            "--allow-all-tools",
+            "--allow-all-paths",
+            "--no-ask-user",
+            "--output-format",
+            "json",
+            "-s",
+        ]
+        if copilot_model:
+            cmd.extend(["--model", copilot_model])
         if dangerous:
             cmd.append("--allow-all")
         return cmd
@@ -466,6 +502,7 @@ def run_cli(
     no_wsl: bool,
     wsl_distro: Optional[str],
     max_attempts: int,
+    copilot_model: Optional[str],
 ) -> None:
     # This is the main function that runs the selected CLI for a single spec file.
     # It sets up the run directory, runs the CLI, and validates the results.
@@ -477,18 +514,8 @@ def run_cli(
     # Create the directory if it doesn't exist.
 
     metadata_path = run_dir / "run_metadata.json"
-    metadata_path.write_text(
-        json.dumps(
-            {
-                "phase": "phase2",
-                "cli_provider": provider,
-                "model_phase2": f"{provider}-cli",
-            },
-            indent=2,
-            sort_keys=True,
-        ),
-        encoding="utf-8",
-    )
+    initial_model = copilot_model if provider == "copilot" else None
+    write_run_metadata(metadata_path, provider, initial_model, copilot_model)
 
     validate_run_dir(run_dir)
     # Check that the run directory has only expected files.
@@ -511,7 +538,7 @@ def run_cli(
     base_prompt = build_prompt(spec_text, provider)
 
     # Build the command to run the selected CLI.
-    cmd = build_cli_command(provider, dangerous, no_wsl, wsl_distro)
+    cmd = build_cli_command(provider, dangerous, no_wsl, wsl_distro, copilot_model)
 
     prompt = base_prompt
     for attempt in range(1, max_attempts + 1):
@@ -534,6 +561,15 @@ def run_cli(
                     cwd=str(run_dir),
                     env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
                 )
+                resolved_model = extract_copilot_model(result.stdout)
+                if resolved_model:
+                    write_run_metadata(
+                        metadata_path,
+                        provider,
+                        resolved_model,
+                        copilot_model,
+                    )
+                cli_stdout = extract_copilot_final_content(result.stdout) or result.stdout
             else:
                 result = subprocess.run(
                     cmd,
@@ -545,11 +581,12 @@ def run_cli(
                     cwd=str(run_dir),
                     env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
                 )
+                cli_stdout = result.stdout
 
             analysis_path = run_dir / "analysis.py"
             if not analysis_path.exists():
                 reason = "analysis.py not created"
-                write_validation_failure(run_dir, reason, result.stdout, result.stderr)
+                write_validation_failure(run_dir, reason, cli_stdout, result.stderr)
                 print(f"{run_id}: missing analysis.py.")
                 if attempt >= max_attempts:
                     return
@@ -557,7 +594,7 @@ def run_cli(
                     base_prompt,
                     attempt,
                     reason,
-                    result.stdout,
+                    cli_stdout,
                     result.stderr,
                     "",
                     "",
@@ -581,7 +618,7 @@ def run_cli(
                     base_prompt,
                     attempt,
                     reason,
-                    result.stdout,
+                    cli_stdout,
                     result.stderr,
                     analysis_run.stdout,
                     analysis_run.stderr,
@@ -591,7 +628,7 @@ def run_cli(
             # Validate the extracted result.
             ok, reason = validate_result(extracted)
             if not ok:
-                write_validation_failure(run_dir, reason, result.stdout, result.stderr)
+                write_validation_failure(run_dir, reason, cli_stdout, result.stderr)
                 print(f"{run_id}: invalid output ({reason}).")
                 if attempt >= max_attempts:
                     return
@@ -599,7 +636,7 @@ def run_cli(
                     base_prompt,
                     attempt,
                     reason,
-                    result.stdout,
+                    cli_stdout,
                     result.stderr,
                     analysis_run.stdout,
                     analysis_run.stderr,
@@ -713,6 +750,12 @@ def main() -> None:
         default=None,
         help="Optional WSL distribution name (e.g., Ubuntu)",
     )
+    parser.add_argument(
+        "--copilot-model",
+        type=str,
+        default=None,
+        help="Optional Copilot CLI model override (e.g., gpt-5.4)",
+    )
     # WSL distribution selection.
     args = parser.parse_args()
     # Parse the arguments.
@@ -747,7 +790,11 @@ def main() -> None:
 
     try:
         probe_cmd = build_cli_command(
-            args.cli_provider, args.dangerous, args.no_wsl, args.wsl_distro
+            args.cli_provider,
+            args.dangerous,
+            args.no_wsl,
+            args.wsl_distro,
+            args.copilot_model,
         )
     except ValueError as exc:
         print(str(exc))
@@ -778,6 +825,7 @@ def main() -> None:
             args.no_wsl,
             args.wsl_distro,
             args.max_attempts,
+            args.copilot_model,
         )
         # Run the selected CLI for this spec.
 

@@ -1,0 +1,10 @@
+{
+  "model_specification_line": "model = smf.ols(\"full_time ~ eligible + C(year)\", data=df).fit()",
+  "outcome_definition": "full_time = (uhrswork >= 35).astype(int)",
+  "sample_selection": [
+    "2013 <= year <= 2016",
+    "hispan == 1 and bpl == 200 and yrimmig > 0",
+    "1900 <= birthyr <= 2005 and 1900 <= yrimmig <= 2016 and 0 <= yrimmig - birthyr and 0 <= uhrswork <= 80"
+  ],
+  "treatment_definition": "eligible = ((1982 <= birthyr <= 1996) and yrimmig <= 2007 and (yrimmig - birthyr) <= 15).astype(int)"
+}

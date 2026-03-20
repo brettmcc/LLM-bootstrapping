@@ -1,0 +1,10 @@
+{
+  "model_specification_line": "res = smf.wls('full_time ~ treatment + age + C(sex) + C(year) + C(statefip)', data=analysis_df, weights=analysis_df['perwt']).fit(cov_type='HC1')",
+  "outcome_definition": "(empstat == 1) & (uhrswork >= 35)",
+  "sample_selection": [
+    "ACS survey years 2013 through 2016 to focus on the post-DACA rollout",
+    "Hispanic-Mexican detailed origins (hispan == 1, hispand in {100, 102, 103, 104, 105, 106, 107}) and born in Mexico (bpl == 200)",
+    "Noncitizen respondents (citizen == 3) aged 18 to 34 to capture the target labor-market cohort"
+  ],
+  "treatment_definition": "(yrimmig <= 2007) & (birthyr >= 1982) & ((yrimmig - birthyr) >= 0) & ((yrimmig - birthyr) <= 15)"
+}

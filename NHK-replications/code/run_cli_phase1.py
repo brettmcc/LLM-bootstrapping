@@ -18,6 +18,8 @@ from pathlib import Path
 import secrets
 # secrets provides functions for generating cryptographically strong random numbers, used here for unique IDs.
 
+from copilot_cli_utils import extract_copilot_final_content, extract_copilot_model
+
 # Now define constants for file paths.
 PROJECT = Path(__file__).resolve().parents[1]
 # PROJECT is set to the parent directory of the script's directory, which is the root of the project.
@@ -65,19 +67,56 @@ def specs_dir_for(provider: str) -> Path:
     return SPECS_ROOT / provider
 
 
+def spec_metadata_path(spec_path: Path) -> Path:
+    # Store CLI metadata next to the spec without using a .json suffix.
+    return spec_path.with_suffix(".metadata")
+
+
+def write_spec_metadata(
+    metadata_path: Path,
+    provider: str,
+    model: str | None,
+    requested_model: str | None,
+) -> None:
+    # Persist provider/model details for Phase 3 aggregation.
+    payload = {
+        "cli_provider": provider,
+        "model": model or f"{provider}-cli",
+    }
+    if requested_model:
+        payload["requested_model"] = requested_model
+    metadata_path.write_text(
+        json.dumps(payload, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+
+
 def build_cli_command(
-    provider: str, output_path: Path, no_wsl: bool, wsl_distro: str | None
+    provider: str,
+    output_path: Path,
+    no_wsl: bool,
+    wsl_distro: str | None,
+    copilot_model: str | None,
 ) -> list[str]:
     # Build the CLI command for the given provider.
     if provider == "copilot":
+        model_flag = ""
+        if copilot_model:
+            escaped_model = copilot_model.replace("'", "''")
+            model_flag = f" --model '{escaped_model}'"
         if os.name == "nt":
             return [
                 "powershell",
                 "-NoProfile",
                 "-Command",
-                "$p = Get-Content -Raw -; copilot -p $p --allow-all-tools",
+                "$p = Get-Content -Raw -; "
+                f"copilot --output-format json -s --allow-all-tools{model_flag} -p $p",
             ]
-        return ["bash", "-lc", "copilot -p \"$(cat)\" --allow-all-tools"]
+        cmd = "copilot --output-format json -s --allow-all-tools"
+        if copilot_model:
+            cmd += f" --model {shlex.quote(copilot_model)}"
+        cmd += ' -p "$(cat)"'
+        return ["bash", "-lc", cmd]
     if provider == "gemini_cli":
         cmd = ["gemini", "--output-format", "json"]
         return wrap_wsl(cmd, wsl_distro) if should_use_wsl(provider, no_wsl) else cmd
@@ -159,10 +198,12 @@ def generate_spec(
     provider: str,
     no_wsl: bool,
     wsl_distro: str | None,
+    copilot_model: str | None,
 ) -> bool:
     # This function runs the selected CLI to generate a single specification.
     output_path = specs_dir_for(provider) / f"spec_{run_id}.json"
-    cmd = build_cli_command(provider, output_path, no_wsl, wsl_distro)
+    metadata_path = spec_metadata_path(output_path)
+    cmd = build_cli_command(provider, output_path, no_wsl, wsl_distro, copilot_model)
     try:
         # Try to run the command.
         result = subprocess.run(
@@ -184,7 +225,16 @@ def generate_spec(
         )
     except subprocess.TimeoutExpired:
         print("timeout")
+        if metadata_path.exists():
+            metadata_path.unlink()
         return False
+    stdout_text = result.stdout
+    resolved_model = None
+    if provider == "copilot":
+        resolved_model = extract_copilot_model(result.stdout)
+        final_content = extract_copilot_final_content(result.stdout)
+        if final_content:
+            stdout_text = final_content
     if result.returncode != 0:
         # If the command failed (non-zero exit code), handle the error.
         err = result.stderr.strip()
@@ -199,8 +249,10 @@ def generate_spec(
     if not output_path.exists() or output_path.stat().st_size == 0:
         if output_path.exists():
             output_path.unlink()
-        extracted = extract_json_object(result.stdout)
+        extracted = extract_json_object(stdout_text)
         if extracted is None:
+            if metadata_path.exists():
+                metadata_path.unlink()
             return False
         output_path.write_text(
             json.dumps(extracted, indent=2, sort_keys=True), encoding="utf-8"
@@ -211,6 +263,8 @@ def generate_spec(
     except json.JSONDecodeError:
         # If JSON is invalid, delete the file and return False.
         output_path.unlink()
+        if metadata_path.exists():
+            metadata_path.unlink()
         return False
     required = {
         # Define the required keys that the JSON must have.
@@ -222,7 +276,16 @@ def generate_spec(
     if not required.issubset(data.keys()):
         # If the JSON doesn't have all required keys, delete the file and return False.
         output_path.unlink()
+        if metadata_path.exists():
+            metadata_path.unlink()
         return False
+    if provider == "copilot":
+        write_spec_metadata(
+            metadata_path,
+            provider,
+            resolved_model or copilot_model,
+            copilot_model,
+        )
     return True
     # If all checks pass, return True.
 
@@ -264,6 +327,12 @@ def main() -> None:
         default=180,
         help="Per-run timeout in seconds",
     )
+    parser.add_argument(
+        "--copilot-model",
+        type=str,
+        default=None,
+        help="Optional Copilot CLI model override (e.g., gpt-5.4)",
+    )
     # Add argument for timeout, default 180 seconds.
     args = parser.parse_args()
     # Parse the command-line arguments.
@@ -285,6 +354,7 @@ def main() -> None:
             specs_dir_for(args.cli_provider) / "spec_dry_run.json",
             args.no_wsl,
             args.wsl_distro,
+            args.copilot_model,
         )
     except ValueError as exc:
         print(str(exc))
@@ -313,6 +383,7 @@ def main() -> None:
             args.cli_provider,
             args.no_wsl,
             args.wsl_distro,
+            args.copilot_model,
         )
         # Call generate_spec and get success status.
         print("ok" if ok else "fail")

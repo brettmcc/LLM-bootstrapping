@@ -66,6 +66,7 @@ python code/run_cli_phase1.py [options]
 |----------|-------------|
 | `--n` | Number of specs to generate (default: 10) |
 | `--cli-provider` | CLI to use: codex, copilot, gemini_cli (default: codex) |
+| `--copilot-model` | Optional Copilot model override; see Copilot Model Values below |
 | `--dry-run` | Only verify the CLI is available, then exit |
 | `--no-wsl` | Do not run Codex/Gemini via WSL on Windows |
 | `--wsl-distro` | Optional WSL distribution name (e.g., Ubuntu) |
@@ -100,6 +101,7 @@ python code/run_phase2.py [options]
 | `--force` | Re-run even if results.json exists |
 | `--dangerous` | Run Codex without sandbox (use with caution) |
 | `--cli-provider` | CLI to use: codex, copilot, gemini_cli (default: codex) |
+| `--copilot-model` | Optional Copilot model override; see Copilot Model Values below |
 | `--dry-run` | Only verify the CLI is available, then exit |
 | `--no-wsl` | Do not run Codex/Gemini via WSL on Windows |
 | `--wsl-distro` | Optional WSL distribution name |
@@ -135,6 +137,7 @@ python code/run_phase12.py [options]
 | `--no-wsl` | Do not run Codex via WSL on Windows |
 | `--wsl-distro` | Optional WSL distribution name |
 | `--codex-reasoning` | Codex reasoning level: low/medium/high/none (default: low) |
+| `--copilot-model` | Optional Copilot model override; see Copilot Model Values below |
 
 **Examples:**
 ```bash
@@ -146,6 +149,31 @@ python code/run_phase12.py --cli-provider copilot --dry-run
 python code/run_phase12.py --cli-provider codex --n 1
 python code/run_phase12.py --cli-provider copilot --n 1
 ```
+
+---
+
+## Copilot Model Values
+
+The `--copilot-model` flag currently accepts the following values on this machine, as reported by `copilot --help` for the installed GitHub Copilot CLI. This list can change when the CLI is updated.
+
+- `claude-sonnet-4.6`
+- `claude-sonnet-4.5`
+- `claude-haiku-4.5`
+- `claude-opus-4.6`
+- `claude-opus-4.6-fast`
+- `claude-opus-4.5`
+- `claude-sonnet-4`
+- `gemini-3-pro-preview`
+- `gpt-5.4`
+- `gpt-5.3-codex`
+- `gpt-5.2-codex`
+- `gpt-5.2`
+- `gpt-5.1-codex-max`
+- `gpt-5.1-codex`
+- `gpt-5.1`
+- `gpt-5.1-codex-mini`
+- `gpt-5-mini`
+- `gpt-4.1`
 
 ---
 

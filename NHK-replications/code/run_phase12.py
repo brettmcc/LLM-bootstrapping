@@ -10,11 +10,14 @@ import shlex
 import shutil
 import subprocess
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 import secrets
 from functools import lru_cache
+
+from copilot_cli_utils import extract_copilot_final_content, extract_copilot_model
 
 
 # Define constants for file paths.
@@ -40,6 +43,34 @@ CLI_TEMPLATE_ENV = {
 
 ANALYSIS_PLACEHOLDER = "# Placeholder analysis file (overwrite with implementation).\n"
 # Placeholder used to ensure analysis.py exists before Copilot runs.
+
+ATTEMPT_LOG_NAME = "attempt_log.txt"
+RATE_LIMIT_DEFAULT_WAIT_SECONDS = 65
+RATE_LIMIT_WAIT_BUFFER_SECONDS = 5
+MAX_RATE_LIMIT_RETRIES = 12
+
+
+def write_run_metadata(
+    metadata_path: Path,
+    provider: str,
+    model_name: str | None,
+    requested_model: str | None,
+) -> None:
+    # Persist phase12 metadata so Phase 3 can recover both model columns.
+    resolved_model = model_name or f"{provider}-cli"
+    payload = {
+        "phase": "phase12",
+        "cli_provider": provider,
+        "model_phase1": resolved_model,
+        "model_phase2": resolved_model,
+    }
+    if requested_model:
+        payload["requested_model_phase1"] = requested_model
+        payload["requested_model_phase2"] = requested_model
+    metadata_path.write_text(
+        json.dumps(payload, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
 
 
 def build_run_id() -> str:
@@ -181,6 +212,7 @@ def build_cli_command(
     wsl_distro: Optional[str],
     reasoning: Optional[str],
     reasoning_supported: bool,
+    copilot_model: Optional[str],
 ) -> list[str]:
     # Build the CLI command for the given provider.
     if provider in CLI_TEMPLATE_ENV:
@@ -213,7 +245,17 @@ def build_cli_command(
         )
 
     if provider == "copilot":
-        cmd = ["copilot", "--allow-all-tools", "--allow-all-paths", "--no-ask-user"]
+        cmd = [
+            "copilot",
+            "--allow-all-tools",
+            "--allow-all-paths",
+            "--no-ask-user",
+            "--output-format",
+            "json",
+            "-s",
+        ]
+        if copilot_model:
+            cmd.extend(["--model", copilot_model])
         if dangerous:
             cmd.append("--allow-all")
         return cmd
@@ -405,13 +447,65 @@ def validate_run_dir(run_dir: Path) -> None:
         "validation.txt",
         "run_analysis.bat",
         "__pycache__",
-            "run_metadata.json",
+        "run_metadata.json",
+        ATTEMPT_LOG_NAME,
     }
     unexpected = [path.name for path in run_dir.iterdir() if path.name not in allowed]
     if unexpected:
         raise RuntimeError(
             f"Run directory has unexpected files: {', '.join(sorted(unexpected))}"
         )
+
+
+def normalize_subprocess_output(value: str | bytes | None) -> str:
+    # Normalize subprocess output fields to text for logging.
+    if value is None:
+        return ""
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace")
+    return value
+
+
+def append_attempt_log(run_dir: Path, message: str) -> None:
+    # Append a timestamped line to the per-run attempt log.
+    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    with (run_dir / ATTEMPT_LOG_NAME).open("a", encoding="utf-8") as handle:
+        handle.write(f"[{timestamp}] {message}\n")
+
+
+def build_feedback(reason: str, stdout: str, stderr: str) -> str:
+    # Build a compact feedback block for the next model attempt.
+    stdout_tail = stdout[-2000:] if stdout else ""
+    stderr_tail = stderr[-2000:] if stderr else ""
+    return f"{reason}\nSTDERR:\n{stderr_tail}\nSTDOUT:\n{stdout_tail}"
+
+
+def rate_limit_wait_seconds(stdout: str, stderr: str) -> Optional[int]:
+    # Detect Copilot rate-limit responses and return a retry delay in seconds.
+    combined = "\n".join(part for part in (stdout, stderr) if part)
+    if not combined:
+        return None
+    lower = combined.lower()
+    if "rate_limit" not in lower and "rate limit" not in lower and "retry after" not in lower:
+        return None
+
+    patterns = (
+        r"(?:try again in|retry after|available in)\s*(\d+(?:\.\d+)?)\s*(seconds?|secs?|minutes?|mins?|hours?|hrs?)",
+        r"(?:wait|waiting)\s*(\d+(?:\.\d+)?)\s*(seconds?|secs?|minutes?|mins?|hours?|hrs?)",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, lower)
+        if match:
+            value = float(match.group(1))
+            unit = match.group(2)
+            multiplier = 1
+            if unit.startswith(("min", "minute")):
+                multiplier = 60
+            elif unit.startswith(("hr", "hour")):
+                multiplier = 3600
+            return max(1, math.ceil(value * multiplier) + RATE_LIMIT_WAIT_BUFFER_SECONDS)
+
+    return RATE_LIMIT_DEFAULT_WAIT_SECONDS
 
 
 def analysis_is_placeholder(path: Path) -> bool:
@@ -569,24 +663,15 @@ def run_phase12(
     reasoning: Optional[str],
     reasoning_supported: bool,
     max_attempts: int,
+    copilot_model: Optional[str],
 ) -> None:
     # Run a single Phase 1+2 execution using the selected CLI provider.
     run_dir = RUNS_ROOT / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
 
     metadata_path = run_dir / "run_metadata.json"
-    metadata_path.write_text(
-        json.dumps(
-            {
-                "phase": "phase12",
-                "cli_provider": provider,
-                "model_phase2": f"{provider}-cli",
-            },
-            indent=2,
-            sort_keys=True,
-        ),
-        encoding="utf-8",
-    )
+    initial_model = copilot_model if provider == "copilot" else None
+    write_run_metadata(metadata_path, provider, initial_model, copilot_model)
 
     validate_run_dir(run_dir)
 
@@ -599,16 +684,21 @@ def run_phase12(
     if not DOC_FILE.exists():
         raise FileNotFoundError(f"Missing documentation file: {DOC_FILE}")
 
-    delete_data_copy = ensure_data_link(DATA_FILE, run_dir / "usa_00042.dat")
+    ensure_data_link(DATA_FILE, run_dir / "usa_00042.dat")
     prompt_path: Optional[Path] = None
-    cleanup_spec_file = False
     try:
         write_layout_excerpt(run_dir / "usa_00042_layout_excerpt.do", layout_lines)
         copy_if_missing(POLICY_FILE, run_dir / "policy_labor_market_data.csv")
         copy_if_missing(DOC_FILE, run_dir / "State-Level Data Documentation.md")
 
         base_cmd = build_cli_command(
-            provider, dangerous, no_wsl, wsl_distro, reasoning, reasoning_supported
+            provider,
+            dangerous,
+            no_wsl,
+            wsl_distro,
+            reasoning,
+            reasoning_supported,
+            copilot_model,
         )
         analysis_path = run_dir / "analysis.py"
 
@@ -619,56 +709,129 @@ def run_phase12(
 
         for attempt in range(1, max_attempts + 1):
             prompt = build_prompt(prompt_text, feedback)
-            if provider == "copilot":
-                if not analysis_path.exists():
-                    analysis_path.write_text(ANALYSIS_PLACEHOLDER, encoding="utf-8")
-                prompt_path = run_dir / "prompt_phase12.txt"
-                prompt_path.write_text(prompt, encoding="utf-8")
-                prompt_stub = (
-                    "Read prompt_phase12.txt in the current directory and follow it "
-                    "exactly. Output only the required JSON object."
-                )
-                cmd = [*base_cmd, "-p", prompt_stub]
-                result = subprocess.run(
-                    cmd,
-                    capture_output=True,
-                    text=True,
-                    encoding="utf-8",
-                    timeout=timeout,
-                    cwd=str(run_dir),
-                    env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
-                )
-            else:
-                result = subprocess.run(
-                    base_cmd,
-                    input=prompt,
-                    capture_output=True,
-                    text=True,
-                    encoding="utf-8",
-                    timeout=timeout,
-                    cwd=str(run_dir),
-                    env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
-                )
+            append_attempt_log(run_dir, f"Attempt {attempt}/{max_attempts} started.")
 
-            last_stdout = result.stdout
+            result: Optional[subprocess.CompletedProcess[str]] = None
+            parsed_stdout = ""
+            raw_stdout = ""
+            rate_limit_retries = 0
+
+            while True:
+                try:
+                    if provider == "copilot":
+                        if not analysis_path.exists():
+                            analysis_path.write_text(ANALYSIS_PLACEHOLDER, encoding="utf-8")
+                        prompt_path = run_dir / "prompt_phase12.txt"
+                        prompt_path.write_text(prompt, encoding="utf-8")
+                        prompt_stub = (
+                            "Read prompt_phase12.txt in the current directory and follow it "
+                            "exactly. Output only the required JSON object."
+                        )
+                        cmd = [*base_cmd, "-p", prompt_stub]
+                        result = subprocess.run(
+                            cmd,
+                            capture_output=True,
+                            text=True,
+                            encoding="utf-8",
+                            timeout=timeout,
+                            cwd=str(run_dir),
+                            env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+                        )
+                        raw_stdout = result.stdout
+                        resolved_model = extract_copilot_model(result.stdout)
+                        if resolved_model:
+                            write_run_metadata(
+                                metadata_path,
+                                provider,
+                                resolved_model,
+                                copilot_model,
+                            )
+                        parsed_stdout = extract_copilot_final_content(result.stdout) or result.stdout
+                    else:
+                        result = subprocess.run(
+                            base_cmd,
+                            input=prompt,
+                            capture_output=True,
+                            text=True,
+                            encoding="utf-8",
+                            timeout=timeout,
+                            cwd=str(run_dir),
+                            env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+                        )
+                        raw_stdout = result.stdout
+                        parsed_stdout = result.stdout
+                except subprocess.TimeoutExpired as exc:
+                    last_reason = f"CLI timed out after {timeout}s"
+                    last_stdout = normalize_subprocess_output(exc.stdout)
+                    last_stderr = normalize_subprocess_output(exc.stderr)
+                    append_attempt_log(
+                        run_dir,
+                        f"Attempt {attempt}/{max_attempts} timed out while calling the CLI.",
+                    )
+                    print(f"{run_id}: {last_reason} (attempt {attempt}/{max_attempts}).")
+                    result = None
+                    break
+
+                last_stdout = parsed_stdout
+                last_stderr = result.stderr
+
+                wait_seconds = rate_limit_wait_seconds(raw_stdout, result.stderr)
+                if wait_seconds is None:
+                    break
+
+                rate_limit_retries += 1
+                last_reason = "CLI rate limited"
+                append_attempt_log(
+                    run_dir,
+                    (
+                        f"Attempt {attempt}/{max_attempts} hit a rate limit; waiting "
+                        f"{wait_seconds}s before retry {rate_limit_retries}/{MAX_RATE_LIMIT_RETRIES}."
+                    ),
+                )
+                if rate_limit_retries >= MAX_RATE_LIMIT_RETRIES:
+                    print(
+                        f"{run_id}: rate limited too many times "
+                        f"(attempt {attempt}/{max_attempts})."
+                    )
+                    result = None
+                    break
+
+                print(
+                    f"{run_id}: rate limited; waiting {wait_seconds}s before retrying "
+                    f"the request (attempt {attempt}/{max_attempts})."
+                )
+                time.sleep(wait_seconds)
+
+            if result is None:
+                continue
+
+            last_stdout = parsed_stdout
             last_stderr = result.stderr
 
             if not analysis_path.exists():
                 last_reason = "analysis.py not created"
-                feedback = f"{last_reason}\nSTDERR:\n{last_stderr[-2000:]}\nSTDOUT:\n{last_stdout[-2000:]}"
+                feedback = build_feedback(last_reason, last_stdout, last_stderr)
+                append_attempt_log(
+                    run_dir,
+                    f"Attempt {attempt}/{max_attempts} failed: {last_reason}.",
+                )
                 print(f"{run_id}: missing analysis.py (attempt {attempt}/{max_attempts}).")
                 continue
             if analysis_is_placeholder(analysis_path):
                 last_reason = "analysis.py not updated"
-                feedback = f"{last_reason}\nSTDERR:\n{last_stderr[-2000:]}\nSTDOUT:\n{last_stdout[-2000:]}"
+                feedback = build_feedback(last_reason, last_stdout, last_stderr)
+                append_attempt_log(
+                    run_dir,
+                    f"Attempt {attempt}/{max_attempts} failed: {last_reason}.",
+                )
                 print(f"{run_id}: analysis.py not updated (attempt {attempt}/{max_attempts}).")
                 continue
 
-            combined = extract_phase12_json(result.stdout)
+            combined = extract_phase12_json(parsed_stdout)
             if combined is None:
                 # Fall back to best-effort parsing if the combined object is missing.
-                spec_candidate = extract_spec_json(result.stdout)
-                result_candidate = extract_result_json(result.stdout)
+                spec_candidate = extract_spec_json(parsed_stdout)
+                result_candidate = extract_result_json(parsed_stdout)
                 if isinstance(spec_candidate, dict) and isinstance(result_candidate, dict):
                     combined = {"spec": spec_candidate, "results": result_candidate}
 
@@ -680,41 +843,68 @@ def run_phase12(
                 if spec_path.exists():
                     try:
                         spec = json.loads(spec_path.read_text(encoding="utf-8"))
-                        cleanup_spec_file = True
                     except json.JSONDecodeError:
                         spec = None
 
             if spec is None:
                 last_reason = "spec payload missing"
-                feedback = f"{last_reason}\nSTDERR:\n{last_stderr[-2000:]}\nSTDOUT:\n{last_stdout[-2000:]}"
+                feedback = build_feedback(last_reason, last_stdout, last_stderr)
+                append_attempt_log(
+                    run_dir,
+                    f"Attempt {attempt}/{max_attempts} failed: {last_reason}.",
+                )
                 print(f"{run_id}: invalid output (spec missing) (attempt {attempt}/{max_attempts}).")
                 continue
 
             ok, reason = validate_spec(spec)
             if not ok:
                 last_reason = reason
-                feedback = f"Invalid spec: {reason}\nSTDERR:\n{last_stderr[-2000:]}\nSTDOUT:\n{last_stdout[-2000:]}"
+                feedback = build_feedback(f"Invalid spec: {reason}", last_stdout, last_stderr)
+                append_attempt_log(
+                    run_dir,
+                    f"Attempt {attempt}/{max_attempts} failed: invalid spec ({reason}).",
+                )
                 print(f"{run_id}: invalid spec ({reason}) (attempt {attempt}/{max_attempts}).")
                 continue
 
+            run_spec_path = run_dir / "spec.json"
+            run_spec_path.write_text(
+                json.dumps(spec, indent=2, sort_keys=True), encoding="utf-8"
+            )
             specs_dir_for(provider).mkdir(parents=True, exist_ok=True)
             spec_path = specs_dir_for(provider) / f"spec_{run_id}.json"
             spec_path.write_text(
                 json.dumps(spec, indent=2, sort_keys=True), encoding="utf-8"
             )
+            append_attempt_log(
+                run_dir,
+                f"Attempt {attempt}/{max_attempts} produced a valid spec.",
+            )
 
             if provider == "copilot":
                 # Execute analysis.py ourselves to avoid Copilot's tool runner.
                 python_cmd = python_executable()
-                analysis_run = subprocess.run(
-                    [python_cmd, "analysis.py"],
-                    capture_output=True,
-                    text=True,
-                    encoding="utf-8",
-                    timeout=timeout,
-                    cwd=str(run_dir),
-                    env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
-                )
+                try:
+                    analysis_run = subprocess.run(
+                        [python_cmd, "analysis.py"],
+                        capture_output=True,
+                        text=True,
+                        encoding="utf-8",
+                        timeout=timeout,
+                        cwd=str(run_dir),
+                        env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+                    )
+                except subprocess.TimeoutExpired as exc:
+                    last_reason = f"analysis.py timed out after {timeout}s"
+                    last_stdout = normalize_subprocess_output(exc.stdout)
+                    last_stderr = normalize_subprocess_output(exc.stderr)
+                    feedback = build_feedback(last_reason, last_stdout, last_stderr)
+                    append_attempt_log(
+                        run_dir,
+                        f"Attempt {attempt}/{max_attempts} failed: {last_reason}.",
+                    )
+                    print(f"{run_id}: {last_reason} (attempt {attempt}/{max_attempts}).")
+                    continue
                 extracted = extract_result_json(analysis_run.stdout)
                 if extracted is None:
                     extracted = parse_result_from_text(analysis_run.stdout)
@@ -722,8 +912,10 @@ def run_phase12(
                     last_reason = "unable to extract JSON"
                     last_stdout = analysis_run.stdout
                     last_stderr = analysis_run.stderr
-                    feedback = (
-                        f"{last_reason}\nSTDERR:\n{last_stderr[-2000:]}\nSTDOUT:\n{last_stdout[-2000:]}"
+                    feedback = build_feedback(last_reason, last_stdout, last_stderr)
+                    append_attempt_log(
+                        run_dir,
+                        f"Attempt {attempt}/{max_attempts} failed: {last_reason}.",
                     )
                     print(
                         f"{run_id}: invalid output (no JSON) (attempt {attempt}/{max_attempts})."
@@ -734,7 +926,11 @@ def run_phase12(
                 results = combined.get("results") if isinstance(combined, dict) else None
                 if not isinstance(results, dict):
                     last_reason = "results payload missing"
-                    feedback = f"{last_reason}\nSTDERR:\n{last_stderr[-2000:]}\nSTDOUT:\n{last_stdout[-2000:]}"
+                    feedback = build_feedback(last_reason, last_stdout, last_stderr)
+                    append_attempt_log(
+                        run_dir,
+                        f"Attempt {attempt}/{max_attempts} failed: {last_reason}.",
+                    )
                     print(
                         f"{run_id}: invalid output (results missing) (attempt {attempt}/{max_attempts})."
                     )
@@ -743,7 +939,11 @@ def run_phase12(
             ok, reason = validate_result(results)
             if not ok:
                 last_reason = reason
-                feedback = f"Invalid results: {reason}\nSTDERR:\n{last_stderr[-2000:]}\nSTDOUT:\n{last_stdout[-2000:]}"
+                feedback = build_feedback(f"Invalid results: {reason}", last_stdout, last_stderr)
+                append_attempt_log(
+                    run_dir,
+                    f"Attempt {attempt}/{max_attempts} failed: invalid results ({reason}).",
+                )
                 print(
                     f"{run_id}: invalid output ({reason}) (attempt {attempt}/{max_attempts})."
                 )
@@ -756,20 +956,18 @@ def run_phase12(
             validation_path = run_dir / "validation.txt"
             if validation_path.exists():
                 validation_path.unlink()
+            append_attempt_log(run_dir, f"Attempt {attempt}/{max_attempts} succeeded.")
             print(f"{run_id}: ok")
             return
 
         write_validation_failure(run_dir, last_reason, last_stdout, last_stderr)
+        append_attempt_log(run_dir, f"Run failed after {max_attempts} attempts: {last_reason}.")
         print(f"{run_id}: failed after {max_attempts} attempts ({last_reason}).")
     finally:
         # Always remove the run-local data file when done.
         remove_run_data(run_dir / "usa_00042.dat")
         if prompt_path is not None and prompt_path.exists():
             prompt_path.unlink()
-        if cleanup_spec_file:
-            spec_path = run_dir / "spec.json"
-            if spec_path.exists():
-                spec_path.unlink()
 
 
 def main() -> None:
@@ -835,6 +1033,12 @@ def main() -> None:
         default=15,
         help="Maximum attempts per run to recover from errors",
     )
+    parser.add_argument(
+        "--copilot-model",
+        type=str,
+        default=None,
+        help="Optional Copilot CLI model override (e.g., gpt-5.4)",
+    )
     args = parser.parse_args()
 
     if not PROMPT_PATH.exists():
@@ -862,6 +1066,7 @@ def main() -> None:
             args.wsl_distro,
             reasoning,
             reasoning_supported,
+            args.copilot_model,
         )
     except ValueError as exc:
         print(str(exc))
@@ -898,6 +1103,7 @@ def main() -> None:
             reasoning,
             reasoning_supported,
             args.max_attempts,
+            args.copilot_model,
         )
 
 

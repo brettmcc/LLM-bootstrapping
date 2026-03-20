@@ -220,6 +220,17 @@ def read_run_metadata(run_dirs: list[Path]) -> dict[str, Any]:
     return {}
 
 
+def read_spec_metadata(spec_path: Path) -> dict[str, Any]:
+    # Load CLI metadata stored next to a spec file, if present.
+    metadata_path = spec_path.with_suffix(".metadata")
+    if not metadata_path.exists():
+        return {}
+    try:
+        return json.loads(metadata_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {}
+
+
 def build_metadata_index(log_paths: list[Path]) -> dict[str, list[dict[str, Any]]]:
     # Build a mapping from normalized spec JSON to a list of metadata dicts.
     mapping: dict[str, list[dict[str, Any]]] = {}
@@ -328,6 +339,9 @@ def main() -> None:
             metadata = {}
             if spec_key in metadata_index and metadata_index[spec_key]:
                 metadata = metadata_index[spec_key].pop(0)
+            sidecar_metadata = read_spec_metadata(spec_path)
+            for key, value in sidecar_metadata.items():
+                metadata.setdefault(key, value)
 
             # Determine provider name from directory structure.
             provider = spec_path.parent.name
@@ -343,7 +357,7 @@ def main() -> None:
             random_seed = metadata.get("random_seed", "")
             temperature = metadata.get("temperature", "")
             prompt_variant = metadata.get("prompt_variant", "")
-            model_phase1 = metadata.get("model", "")
+            model_phase1 = metadata.get("model", "") or metadata.get("model_phase1", "")
             if not model_phase1:
                 # For CLI specs, mark the provider explicitly.
                 model_phase1 = f"{provider}-cli"
@@ -370,6 +384,12 @@ def main() -> None:
             if is_phase12:
                 run_dirs.insert(0, phase12_root / run_id)
             run_metadata = read_run_metadata(run_dirs)
+            if is_phase12 and model_phase1 == f"{provider}-cli":
+                model_phase1 = (
+                    run_metadata.get("model_phase1", "")
+                    or run_metadata.get("model_phase2", "")
+                    or model_phase1
+                )
             model_phase2 = args.phase2_model or run_metadata.get("model_phase2", "")
             if not model_phase2 and is_phase12:
                 model_phase2 = f"{provider}-cli"

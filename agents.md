@@ -1,11 +1,3 @@
-# LLM-Bootstrap: Agents and Architecture Overview
-
-## Project Vision
-
-This project develops a novel econometric framework for characterizing **researcher-induced parameter uncertainty** using Large Language Models (LLMs) as stochastic replication agents. The core insight is that LLM stochasticity, typically seen as a limitation, can be leveraged as a feature—providing a computationally tractable way to explore the vast space of researcher choices.
-
----
-
 ## Implementation Notes
 
 ### LLM Requirements
@@ -17,9 +9,11 @@ This project develops a novel econometric framework for characterizing **researc
 ## Organization
 - see [NHK-replications/nhk_organization.md](NHK-replications/nhk_organization.md) for details on the LLM-replication validation pipeline
 - delete temporary helper files created during the agentic flow; only keep files emerging from the agent's work that are to be used going forward.
-- Use the virtual environment located at: ~\.venvs\NHK-replications\ for all Python tasks. Run .venvs\NHK-replications\Scripts\python.exe instead of python on the command line.
-- update NHK-replications/requirements.txt whenever new packages are added
 - code should seamlessly run on various machines. Therefore, avoid hardcoding directory references whenever possible
+
+### Python
+- When invoking Python, use the virtual environment located offsite at `C:\Users\Brett\.venvs\NHK-replications\`. Activate the venv w/ `& "C:\Users\Brett\.venvs\NHK-replications\Scripts\Activate.ps1"`. DO NOT TRY TO SET UP A VENV LOCALLY.
+- Use `uv add <package_name>` to add Python dependencies. Do not use `pip`.
 
 ## Guidelines
 - test programs you've written before claiming to be done

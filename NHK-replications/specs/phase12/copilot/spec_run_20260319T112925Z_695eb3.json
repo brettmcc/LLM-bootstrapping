@@ -1,0 +1,14 @@
+{
+  "model_specification_line": "model = smf.wls(\"fulltime ~ eligible + C(year) + C(statefip)\", data=df, weights=df[\"perwt\"])",
+  "outcome_definition": "((labforce == 2) & (uhrswork >= 35)).astype(int)",
+  "sample_selection": [
+    "year >= 2013 and year <= 2016",
+    "hispan == 1",
+    "bpl == 200",
+    "citizen == 3",
+    "perwt > 0",
+    "yrimmig > 0",
+    "uhrswork between 1 and 98"
+  ],
+  "treatment_definition": "(((yrimmig - birthyr) >= 0) & ((yrimmig - birthyr) <= 15) & (yrimmig <= 2007) & ((2012 - birthyr) <= 30)).astype(int)"
+}
