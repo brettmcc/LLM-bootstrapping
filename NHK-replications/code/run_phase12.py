@@ -508,6 +508,22 @@ def rate_limit_wait_seconds(stdout: str, stderr: str) -> Optional[int]:
     return RATE_LIMIT_DEFAULT_WAIT_SECONDS
 
 
+def detect_fatal_cli_error(stdout: str, stderr: str) -> Optional[str]:
+    # Detect fatal CLI errors that make retrying pointless (e.g. invalid model name).
+    # Returns the error message if a fatal error is detected, None otherwise.
+    combined = "\n".join(part for part in (stdout, stderr) if part)
+    if not combined:
+        return None
+    # Copilot CLI emits: Error: Model "X" from --model flag is not available.
+    model_err = re.search(
+        r'Error:\s*Model\s+"[^"]+"\s+from\s+--model\s+flag\s+is\s+not\s+available',
+        combined,
+    )
+    if model_err:
+        return model_err.group(0)
+    return None
+
+
 def analysis_is_placeholder(path: Path) -> bool:
     # Check whether analysis.py still contains only the placeholder content.
     if not path.exists():
@@ -807,6 +823,13 @@ def run_phase12(
 
             last_stdout = parsed_stdout
             last_stderr = result.stderr
+
+            # Abort immediately on fatal CLI errors (e.g. invalid model name).
+            fatal_msg = detect_fatal_cli_error(raw_stdout, result.stderr)
+            if fatal_msg:
+                write_validation_failure(run_dir, fatal_msg, last_stdout, last_stderr)
+                append_attempt_log(run_dir, f"Fatal CLI error: {fatal_msg}")
+                raise SystemExit(f"{run_id}: fatal CLI error — {fatal_msg}")
 
             if not analysis_path.exists():
                 last_reason = "analysis.py not created"

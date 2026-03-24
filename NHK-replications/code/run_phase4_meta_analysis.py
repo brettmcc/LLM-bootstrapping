@@ -99,6 +99,16 @@ def classify_estimation_method(value: str) -> str:
     return "Other"
 
 
+def provider_display_name(value: str) -> str:
+    mapping = {
+        "gpt-5.1-codex-mini": "GPT 5.1 Codex Mini",
+        "codex-cli": "OpenAI Codex CLI",
+        "devstral-medium-latest": "Mistral Devstral Medium",
+        "gemini-3-flash-preview": "Google Gemini 3 Flash",
+    }
+    return mapping.get(value, value)
+
+
 def format_float(value: float, decimals: int = 3) -> str:
     return f"{value:.{decimals}f}"
 
@@ -353,11 +363,19 @@ def generate_table5(df: pd.DataFrame, output_path: Path) -> None:
 
 
 def generate_table6(df: pd.DataFrame, output_path: Path) -> None:
-    provider_specs = [
-        ("codex-cli", "OpenAI Codex"),
-        ("devstral-medium-latest", "Mistral Devstral"),
-        ("gemini-3-flash-preview", "Google Gemini Flash"),
+    preferred_order = [
+        "gpt-5.1-codex-mini",
+        "codex-cli",
+        "devstral-medium-latest",
+        "gemini-3-flash-preview",
     ]
+    observed = [value for value in df["model_phase1"].dropna().unique().tolist() if value]
+    provider_specs = [(value, provider_display_name(value)) for value in preferred_order if value in observed]
+    provider_specs.extend(
+        (value, provider_display_name(value))
+        for value in sorted(observed)
+        if value not in {provider for provider, _ in provider_specs}
+    )
     stats = ["N", "Mean point_est", "SD point_est", "IQR point_est"]
     rows = []
     for stat in stats:
@@ -380,9 +398,9 @@ def generate_table6(df: pd.DataFrame, output_path: Path) -> None:
         rows.append(row)
     write_tabular(
         output_path,
-            ["Statistic"] + [label for _, label in provider_specs],
+        ["Statistic"] + [label for _, label in provider_specs],
         rows,
-        "@{}l r r r@{}",
+        "@{}l" + " r" * len(provider_specs) + "@{}",
     )
 
 

@@ -231,6 +231,16 @@ def read_spec_metadata(spec_path: Path) -> dict[str, Any]:
         return {}
 
 
+def canonicalize_model_label(label: str, provider: str) -> str:
+    # Treat legacy GitHub Copilot labels as GPT 5.1 Codex Mini for consistency.
+    normalized = label.strip()
+    if not normalized:
+        return ""
+    if normalized == "copilot-cli" or (provider == "copilot" and normalized == f"{provider}-cli"):
+        return "gpt-5.1-codex-mini"
+    return normalized
+
+
 def build_metadata_index(log_paths: list[Path]) -> dict[str, list[dict[str, Any]]]:
     # Build a mapping from normalized spec JSON to a list of metadata dicts.
     mapping: dict[str, list[dict[str, Any]]] = {}
@@ -357,10 +367,11 @@ def main() -> None:
             random_seed = metadata.get("random_seed", "")
             temperature = metadata.get("temperature", "")
             prompt_variant = metadata.get("prompt_variant", "")
+            provider_fallback = f"{provider}-cli"
             model_phase1 = metadata.get("model", "") or metadata.get("model_phase1", "")
             if not model_phase1:
                 # For CLI specs, mark the provider explicitly.
-                model_phase1 = f"{provider}-cli"
+                model_phase1 = provider_fallback
 
             # Pull spec fields.
             sample_selection = spec_data.get("sample_selection", [])
@@ -384,15 +395,17 @@ def main() -> None:
             if is_phase12:
                 run_dirs.insert(0, phase12_root / run_id)
             run_metadata = read_run_metadata(run_dirs)
-            if is_phase12 and model_phase1 == f"{provider}-cli":
+            if is_phase12 and model_phase1 == provider_fallback:
                 model_phase1 = (
                     run_metadata.get("model_phase1", "")
                     or run_metadata.get("model_phase2", "")
                     or model_phase1
                 )
+            model_phase1 = canonicalize_model_label(model_phase1, provider)
             model_phase2 = args.phase2_model or run_metadata.get("model_phase2", "")
             if not model_phase2 and is_phase12:
-                model_phase2 = f"{provider}-cli"
+                model_phase2 = provider_fallback
+            model_phase2 = canonicalize_model_label(model_phase2, provider)
             results, status = read_results(run_dirs)
             point_est = ""
             standard_error = ""

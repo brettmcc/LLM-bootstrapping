@@ -1,0 +1,19 @@
+{
+  "model_specification_line": "model = sm.WLS(y, sm.add_constant(sample['daca_eligible'], has_constant='add'), weights=sample['perwt'])",
+  "outcome_definition": "full_time = (uhrswork >= 35).astype(int)",
+  "sample_selection": [
+    "year.between(2013, 2016)",
+    "hispan == 1",
+    "bpl == 200",
+    "citizen == 3",
+    "age.between(18, 40)",
+    "perwt > 0",
+    "yrimmig >= 1900",
+    "yrimmig <= year",
+    "birthyr >= 1970",
+    "birthyr <= 2005",
+    "arrival_age >= 0",
+    "arrival_age <= 40"
+  ],
+  "treatment_definition": "daca_eligible = ((arrival_age <= 15) & (birthyr >= 1982) & (yrimmig <= 2007)).astype(int)"
+}
