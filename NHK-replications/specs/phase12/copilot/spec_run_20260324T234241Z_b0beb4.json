@@ -1,0 +1,13 @@
+{
+  "model_specification_line": "model = smf.wls(\"full_time ~ daca_elig + age + C(statefip) + C(year)\", data=df, weights=df[\"perwt\"])",
+  "outcome_definition": "full_time = (empstat in [1, 2]) & (uhrswork >= 35)",
+  "sample_selection": [
+    "year >= 2013 and year <= 2016",
+    "hispan == 1 and hispand in {100, 102, 103, 104, 105, 106, 107}",
+    "bpl == 200",
+    "18 <= age <= 35",
+    "yrimmig > 0 and (yrimmig - birthyr) >= 0",
+    "perwt > 0"
+  ],
+  "treatment_definition": "daca_elig = (birthyr >= 1982) & (yrimmig <= 2007) & ((yrimmig - birthyr) < 16)"
+}

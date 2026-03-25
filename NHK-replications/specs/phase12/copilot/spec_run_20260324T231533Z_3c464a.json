@@ -1,0 +1,11 @@
+{
+  "model_specification_line": "smf.wls('full_time ~ daca_eligible + age + C(year) + C(statefip)', data=df, weights=df['perwt']).fit(cov_type='HC3')",
+  "outcome_definition": "full_time = (max(min(uhrswork, 97), 0) >= 35)",
+  "sample_selection": [
+    "year between 2013 and 2016 inclusive",
+    "hispan == 1 (Mexican origin) and bpl == 200 (born in Mexico)",
+    "age between 18 and 35 with yrimmig > 0 and perwt > 0 after scaling",
+    "non-missing statefip"
+  ],
+  "treatment_definition": "daca_eligible = (1982 <= birthyr <= 1997) & (yrimmig <= 2007) & ((yrimmig - birthyr) between 0 and 15)"
+}

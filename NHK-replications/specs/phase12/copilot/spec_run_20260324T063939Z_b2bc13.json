@@ -1,0 +1,13 @@
+{
+  "model_specification_line": "model = sm.OLS(full_time, sm.add_constant(daca_eligible.astype(float))).fit(cov_type=\"HC1\")",
+  "outcome_definition": "(wrklstwk == 1) & (uhrswork >= 35)",
+  "sample_selection": [
+    "2013 <= year <= 2016",
+    "hispan == 1",
+    "bpl == 200",
+    "1982 <= birthyr <= 2004",
+    "yrimmig > 0",
+    "wrklstwk.notnull() and uhrswork.notnull()"
+  ],
+  "treatment_definition": "(yrimmig <= 2007) & ((yrimmig - birthyr) <= 15) & (birthyr >= 1992)"
+}

@@ -1,0 +1,12 @@
+{
+  "model_specification_line": "model = sm.WLS(df['full_time'], X, weights=df['perwt'])",
+  "outcome_definition": "full_time = (empstat == 1) & (uhrswork >= 35)",
+  "sample_selection": [
+    "year.isin([2013, 2014, 2015, 2016])",
+    "18 <= age <= 34",
+    "hispand in {100, 102, 103, 104, 105, 106, 107}",
+    "bpld == 20000",
+    "citizen in {3, 4, 5}"
+  ],
+  "treatment_definition": "daca_eligible = (1900 <= yrimmig <= 2007) & (1982 <= birthyr <= 1997) & (yrimmig >= birthyr) & ((yrimmig - birthyr) < 16)"
+}

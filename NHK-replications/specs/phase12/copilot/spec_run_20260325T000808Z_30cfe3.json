@@ -1,0 +1,11 @@
+{
+  "model_specification_line": "result = sm.WLS(df[\"full_time\"], sm.add_constant(X), weights=df[\"perwt\"]).fit()",
+  "outcome_definition": "uhrswork values between 1 and 98 treated as usual hours; outcome = hours >= 35",
+  "sample_selection": [
+    "ACS years 2013-2016",
+    "Hispanic-Mexican detailed origin codes {100, 102, 103, 104, 105, 106, 107} and birthplace code 200 (Mexico)",
+    "Noncitizens (citizen == 2) aged 18-34 with positive person weights",
+    "Birth year >= 1982, arrival year <= 2007, and age at arrival < 16"
+  ],
+  "treatment_definition": "(birthyr >= 1982) & (yrimmig <= 2007) & ((yrimmig - birthyr) < 16)"
+}

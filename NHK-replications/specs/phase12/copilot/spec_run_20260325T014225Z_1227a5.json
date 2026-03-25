@@ -1,0 +1,13 @@
+{
+  "model_specification_line": "model = sm.WLS(endog, exog, weights=sample['perwt']).fit()",
+  "outcome_definition": "((df['empstat'] == 1) & (df['uhrswork'] >= 35)).astype(float)",
+  "sample_selection": [
+    "df['year'].between(2013, 2016)",
+    "df['hispan'] == 1",
+    "df['bpl'] == 200",
+    "df['citizen'].isin({2, 3})",
+    "df['yrimmig'].between(1900, 2007) and df['age'].between(18, 34)",
+    "df['age_at_arrival'] >= 0 (with age_at_arrival = df['yrimmig'] - df['birthyr'])"
+  ],
+  "treatment_definition": "(df['yrimmig'] <= 2007) & (df['age_at_arrival'] <= 15) & (df['birthyr'] >= 1982)"
+}

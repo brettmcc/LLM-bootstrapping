@@ -1,0 +1,12 @@
+{
+  "model_specification_line": "model = sm.WLS(df[\"full_time\"], X, weights=df[\"perwt\"]).fit(cov_type=\"HC1\")",
+  "outcome_definition": "full_time = (empstat == 1) and (uhrswork >= 35)",
+  "sample_selection": [
+    "year between 2006 and 2016 (all ACS waves that span DACA implementation)",
+    "hispan == 1 and bpl == 200 (Mexican-origin, Mexico-born respondents)",
+    "birthyr between 1975 and 2004 and yrimmig <= 2007 (spans a range around the DACA cohort while ensuring arrival before 2007)",
+    "yrimmig - birthyr between 0 and 15 (arrived before turning 16)",
+    "perwt > 0, statefip between 1 and 56, empstat in {1, 2, 3}, and uhrswork >= 0 (valid weights and employment data)"
+  ],
+  "treatment_definition": "daca_eligible = (birthyr between 1982 and 1996) and (yrimmig <= 2007) and ((yrimmig - birthyr) <= 15)"
+}

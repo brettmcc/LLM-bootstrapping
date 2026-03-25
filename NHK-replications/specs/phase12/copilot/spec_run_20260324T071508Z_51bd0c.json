@@ -1,0 +1,12 @@
+{
+  "model_specification_line": "smf.wls('full_time ~ daca_eligible + C(year)', data=df, weights=df['perwt']).fit(cov_type='HC1')",
+  "outcome_definition": "full_time = df['uhrswork'].between(35, 89).astype(float)",
+  "sample_selection": [
+    "year between 2013 and 2016 (samples 201301, 201401, 201501, 201601)",
+    "Mexican origin (hispan == 1 and birthplace code 200)",
+    "Non-citizen Mexican-born adults age 18-35 with valid weights (citizen == 3, age between 18 and 35, perwt > 0)",
+    "Immigrated by 2007 with arrival age <= 15 (yrimmig between 1900 and 2007 and yrimmig - birthyr <= 15)",
+    "Valid work hours recorded (uhrswork between 0 and 89)"
+  ],
+  "treatment_definition": "daca_eligible = (df['birthyr'].between(1982, 1996) & (df['yrimmig'] <= 2007) & ((df['yrimmig'] - df['birthyr']) <= 15)).astype(float)"
+}

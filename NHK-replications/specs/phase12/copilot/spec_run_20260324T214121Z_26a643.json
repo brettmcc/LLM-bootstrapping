@@ -1,0 +1,11 @@
+{
+  "model_specification_line": "smf.wls(\"full_time ~ daca_eligible + C(year)\", data=df, weights=df[\"perwt\"])",
+  "outcome_definition": "(empstat == 1) & (wrklstwk == 1) & (uhrswork >= 35)",
+  "sample_selection": [
+    "year between 2013 and 2016 (inclusive)",
+    "hispan == 1 (Mexican origin) and birthplace bpl == 200 (Mexico)",
+    "age between 18 and 35 and non-citizen status (citizen in {3, 4, 5})",
+    "reported year of immigration that is not later than the survey year"
+  ],
+  "treatment_definition": "((birthyr > 1981) | (birthyr == 1981 & birthqtr >= 3)) & (yrimmig <= 2007) & ((yrimmig - birthyr) <= 15)"
+}

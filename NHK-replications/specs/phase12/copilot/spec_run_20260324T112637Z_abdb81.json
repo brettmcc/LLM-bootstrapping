@@ -1,0 +1,11 @@
+{
+  "model_specification_line": "results = sm.WLS(df[\"full_time\"], exog, weights=df[\"perwt\"]).fit()",
+  "outcome_definition": "full_time = (uhrswork >= 35).astype(float)",
+  "sample_selection": [
+    "year between 2013 and 2016",
+    "hispand in {100, 102, 103, 104, 105, 106, 107} (Mexican) and birthplace Mexico (bpl = 200) with citizen code 3",
+    "yrimmig between 1 and 2007, positive person weight, and usual hours between 0 and 99",
+    "birth quarter 1\u20134, birth year between 1974 and 1994, and age at arrival (yrimmig - birthyr) under 16"
+  ],
+  "treatment_definition": "treatment = ((birthyr + (birthqtr - 1) * 0.25 > 1981.4583333333333) & ((yrimmig - birthyr) < 16)).astype(float)"
+}

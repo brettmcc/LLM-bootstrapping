@@ -1,0 +1,11 @@
+{
+  "model_specification_line": "result = smf.wls(\"full_time ~ eligible + C(year)\", data=df, weights=df[\"perwt\"]).fit()",
+  "outcome_definition": "full_time = (empstat == 1) & (uhrswork >= 35)",
+  "sample_selection": [
+    "year between 2013 and 2016",
+    "general Hispanic origin code hispan == 1 (Mexican ancestry)",
+    "Mexican birthplace code bpl == 200",
+    "perwt > 0, birthyr between 1981 and 1997, arrival_age >= 0"
+  ],
+  "treatment_definition": "eligible = (birthyr between 1981 and 1997) & (arrival_age <= 15) & (yrimmig <= 2007)"
+}

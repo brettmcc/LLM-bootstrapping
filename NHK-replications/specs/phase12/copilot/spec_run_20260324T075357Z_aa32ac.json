@@ -1,0 +1,12 @@
+{
+  "model_specification_line": "smf.wls('full_time ~ treatment + C(year) + C(statefip)', data=df, weights=df['perwt']).fit(cov_type='HC3')",
+  "outcome_definition": "full_time = (uhrswork between 35 and 80 treated as True, else False)",
+  "sample_selection": [
+    "year between 2013 and 2016",
+    "hispand detailed codes capture Mexican origin",
+    "born in Mexico (bpl == 200)",
+    "age between 18 and 35",
+    "perwt > 0"
+  ],
+  "treatment_definition": "arrival before 2007, arrival age below 16, birth year >= 1981"
+}

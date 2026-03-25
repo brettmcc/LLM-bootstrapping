@@ -1,0 +1,12 @@
+{
+  "model_specification_line": "model = sm.WLS(df[\"full_time\"], X, weights=df[\"perwt\"]).fit()",
+  "outcome_definition": "(wrklstwk == 1) & (uhrswork >= 35)",
+  "sample_selection": [
+    "year between 2013 and 2016 inclusive",
+    "hispan == 1 (Mexican origin) and bpl == 200 (birthplace Mexico)",
+    "citizen == 3 (non-citizen) and yrimmig > 0 (foreign-born) with perwt > 0",
+    "age between 18 and 35 inclusive",
+    "non-missing birthyr, yrimmig, and uhrswork records"
+  ],
+  "treatment_definition": "(yrimmig - birthyr <= 15) & (yrimmig <= 2007) & (birthyr >= 1982)"
+}

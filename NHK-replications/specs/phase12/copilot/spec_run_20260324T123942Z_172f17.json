@@ -1,0 +1,15 @@
+{
+  "model_specification_line": "model = smf.wls(\"full_time_employed ~ eligible_daca + C(year)\", data=df, weights=df[\"perwt\"])",
+  "outcome_definition": "full_time_employed = (empstat in [1, 2] and uhrswork >= 35)",
+  "sample_selection": [
+    "year between 2013 and 2016",
+    "hispan == 1 (Mexican origin)",
+    "bpl == 200 (born in Mexico)",
+    "citizen == 2 (noncitizen)",
+    "yearimmig <= 2012",
+    "birthyr between 1976 and 1998",
+    "yrimmig >= birthyr",
+    "perwt > 0"
+  ],
+  "treatment_definition": "eligible_daca = (yrimmig <= 2007 and yrimmig >= birthyr and yrimmig - birthyr < 16 and birthyr >= 1982)"
+}
