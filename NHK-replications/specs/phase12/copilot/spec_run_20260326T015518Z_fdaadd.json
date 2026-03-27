@@ -1,0 +1,10 @@
+{
+  "model_specification_line": "smf.wls(\"full_time ~ DACA_eligible + C(statefip) + C(year)\", data=df, weights=df[\"perwt\"])",
+  "outcome_definition": "full_time = (empstat == 1) and (uhrswork >= 35)",
+  "sample_selection": [
+    "year >= 2013 and year <= 2016 (post-DACA years)",
+    "hispan == 1 and bpl == 200 and citizen == 3 (Mexican-born noncitizen population)",
+    "birthyr between 1980 and 1999 with birthqtr 1-4 and yrimmig > 0 (DACA-age immigrant cohort with positive weights)"
+  ],
+  "treatment_definition": "DACA_eligible = ((birthyr > 1981) or (birthyr == 1981 and birthqtr >= 3)) and (yrimmig <= birthyr + 15) and (yrimmig <= 2007) and (citizen == 3)"
+}

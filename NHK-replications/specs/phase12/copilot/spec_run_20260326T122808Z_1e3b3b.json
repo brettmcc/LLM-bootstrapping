@@ -1,0 +1,11 @@
+{
+  "model_specification_line": "results = sm.WLS(outcome, design, weights=weights).fit(cov_type=\"HC1\")",
+  "outcome_definition": "full_time = ((empstat == 1) & (uhsrwork_cleaned >= 35)).astype(int) where uhrswork_cleaned = uhrswork.where(uhsrwork.between(1, 98), 0)",
+  "sample_selection": [
+    "year between 2013 and 2016 with perwt > 0",
+    "age between 18 and 39",
+    "hispan == 1 and hispand in {100, 102, 103, 104, 105, 106, 107}",
+    "bpl == 200 (Mexico) and yrimmig > 0"
+  ],
+  "treatment_definition": "eligible = age_eligible & arrived_by_2007 & arrived_before_16 where age_eligible = birthyr.between(1982, 1996), arrived_by_2007 = yrimmig <= 2007, arrived_before_16 = (yrimmig - birthyr).between(0, 15)"
+}

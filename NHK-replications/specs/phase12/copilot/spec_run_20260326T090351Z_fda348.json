@@ -1,0 +1,10 @@
+{
+  "model_specification_line": "sm.WLS(df['full_time_emp'], sm.add_constant(pd.concat([df[['daca_post','daca_eligible','post','age_centered','age_centered_sq','year_centered']], pd.get_dummies(df['statefip'], prefix='state', drop_first=True)], axis=1).astype(float)), weights=df['perwt']).fit()",
+  "outcome_definition": "(empstat == 1) & (35 <= uhrswork <= 98)",
+  "sample_selection": [
+    "year between 2006 and 2016, hispan == 1, bpl == 200, birthyr between 1981 and 1997, age between 15 and 40, yrimmig >= 1900, perwt > 0",
+    "Mexico-born respondents who arrived before age 16 (yrimmig - birthyr <= 15) and before 2007",
+    "Full-time employment measured as empstat == 1 and usual hours between 35 and 98"
+  ],
+  "treatment_definition": "(yrimmig - birthyr <= 15) & (yrimmig <= 2007)"
+}

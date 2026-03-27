@@ -22,7 +22,12 @@ from pathlib import Path
 from typing import Iterable, Optional
 # These are type hints: Iterable for things you can loop over, Optional for values that might be None.
 
-from copilot_cli_utils import extract_copilot_final_content, extract_copilot_model
+from copilot_cli_utils import (
+    build_copilot_command,
+    detect_copilot_cli_fatal_error,
+    extract_copilot_final_content,
+    extract_copilot_model,
+)
 
 
 # Define constants for file paths
@@ -343,15 +348,14 @@ def build_cli_command(
             cmd.append("--full-auto")
         return wrap_wsl(cmd, wsl_distro) if should_use_wsl(provider, no_wsl) else cmd
     elif provider == "copilot":
-        cmd = [
-            "copilot",
+        cmd = build_copilot_command([
             "--allow-all-tools",
             "--allow-all-paths",
             "--no-ask-user",
             "--output-format",
             "json",
             "-s",
-        ]
+        ])
         if copilot_model:
             cmd.extend(["--model", copilot_model])
         if dangerous:
@@ -369,6 +373,8 @@ def build_version_command(
     provider: str, no_wsl: bool, wsl_distro: Optional[str]
 ) -> list[str]:
     # Build a provider-appropriate version check command.
+    if provider == "copilot":
+        return build_copilot_command(["--version"])
     cmd = [provider, "--version"]
     return wrap_wsl(cmd, wsl_distro) if should_use_wsl(provider, no_wsl) else cmd
 
@@ -570,6 +576,10 @@ def run_cli(
                         copilot_model,
                     )
                 cli_stdout = extract_copilot_final_content(result.stdout) or result.stdout
+                fatal_error = detect_copilot_cli_fatal_error(result.stdout, result.stderr)
+                if fatal_error:
+                    write_validation_failure(run_dir, fatal_error, cli_stdout, result.stderr)
+                    raise SystemExit(f"{run_id}: fatal CLI error — {fatal_error}")
             else:
                 result = subprocess.run(
                     cmd,

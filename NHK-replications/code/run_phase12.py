@@ -17,7 +17,12 @@ from typing import Optional
 import secrets
 from functools import lru_cache
 
-from copilot_cli_utils import extract_copilot_final_content, extract_copilot_model
+from copilot_cli_utils import (
+    build_copilot_command,
+    detect_copilot_cli_fatal_error,
+    extract_copilot_final_content,
+    extract_copilot_model,
+)
 
 
 # Define constants for file paths.
@@ -155,6 +160,8 @@ def to_wsl_path(path: Path, no_wsl: bool, wsl_distro: Optional[str]) -> str:
 
 def build_version_command(provider: str, no_wsl: bool, wsl_distro: Optional[str]) -> list[str]:
     # Build a provider-appropriate version check command.
+    if provider == "copilot":
+        return build_copilot_command(["--version"])
     cmd = [provider, "--version"]
     return wrap_wsl(cmd, wsl_distro) if should_use_wsl(provider, no_wsl, wsl_distro) else cmd
 
@@ -245,15 +252,14 @@ def build_cli_command(
         )
 
     if provider == "copilot":
-        cmd = [
-            "copilot",
+        cmd = build_copilot_command([
             "--allow-all-tools",
             "--allow-all-paths",
             "--no-ask-user",
             "--output-format",
             "json",
             "-s",
-        ]
+        ])
         if copilot_model:
             cmd.extend(["--model", copilot_model])
         if dangerous:
@@ -511,16 +517,9 @@ def rate_limit_wait_seconds(stdout: str, stderr: str) -> Optional[int]:
 def detect_fatal_cli_error(stdout: str, stderr: str) -> Optional[str]:
     # Detect fatal CLI errors that make retrying pointless (e.g. invalid model name).
     # Returns the error message if a fatal error is detected, None otherwise.
-    combined = "\n".join(part for part in (stdout, stderr) if part)
-    if not combined:
-        return None
-    # Copilot CLI emits: Error: Model "X" from --model flag is not available.
-    model_err = re.search(
-        r'Error:\s*Model\s+"[^"]+"\s+from\s+--model\s+flag\s+is\s+not\s+available',
-        combined,
-    )
-    if model_err:
-        return model_err.group(0)
+    fatal = detect_copilot_cli_fatal_error(stdout, stderr)
+    if fatal:
+        return fatal
     return None
 
 

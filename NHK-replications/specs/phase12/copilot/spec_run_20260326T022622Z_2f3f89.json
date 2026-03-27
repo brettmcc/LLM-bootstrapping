@@ -1,0 +1,10 @@
+{
+  "model_specification_line": "model = sm.OLS(dataset['full_time_share'], sm.add_constant(dataset[['daca_policy_cohort', 'year']])).fit()",
+  "outcome_definition": "full_time_share = 1 - (UNEMP / 100) to proxy for the share of the Hispanic-leaning adult labor force employed full-time",
+  "sample_selection": [
+    "All state-year observations from policy_labor_market_data.csv for 2013-2016 with observed LFPR, UNEMP, and a recorded DRIVERSLICENSES indicator",
+    "This keeps states that reported the relevant labor-market outcomes and allowed us to track policy variation during the early DACA period",
+    "Because the dataset covers the full panel of U.S. states, the analytic sample includes states that did and did not extend undocumented driver licenses"
+  ],
+  "treatment_definition": "daca_policy_cohort = (DRIVERSLICENSES == 1) taken as a proxy for state-level expansions that mirror DACA's labor-authorization goals"
+}

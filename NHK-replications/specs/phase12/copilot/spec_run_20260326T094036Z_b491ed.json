@@ -1,0 +1,10 @@
+{
+  "model_specification_line": "clustered = smf.wls('full_time ~ daca_eligible + C(year) + C(statefip)', data=sample, weights=sample['perwt']).fit().get_robustcov_results(cov_type='cluster', groups=sample['statefip'])",
+  "outcome_definition": "full_time = ((empstat in {1, 2}) and (wrklstwk == 1) and (uhrswork >= 35))",
+  "sample_selection": [
+    "year between 2013 and 2016 inclusive",
+    "hispan == 1 (general Mexican Hispanic origin)",
+    "bpl == 200 (born in Mexico)"
+  ],
+  "treatment_definition": "daca_eligible = (1982 <= birthyr <= 1997) and (yrimmig <= 2007) and ((yrimmig - birthyr) <= 15)"
+}

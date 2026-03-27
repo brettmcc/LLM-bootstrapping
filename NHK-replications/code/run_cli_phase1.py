@@ -18,7 +18,11 @@ from pathlib import Path
 import secrets
 # secrets provides functions for generating cryptographically strong random numbers, used here for unique IDs.
 
-from copilot_cli_utils import extract_copilot_final_content, extract_copilot_model
+from copilot_cli_utils import (
+    build_copilot_command,
+    extract_copilot_final_content,
+    extract_copilot_model,
+)
 
 # Now define constants for file paths.
 PROJECT = Path(__file__).resolve().parents[1]
@@ -150,6 +154,8 @@ def build_version_command(
     provider: str, no_wsl: bool, wsl_distro: str | None
 ) -> list[str]:
     # Build a provider-appropriate version check command.
+    if provider == "copilot":
+        return build_copilot_command(["--version"])
     binary = "gemini" if provider == "gemini_cli" else provider
     cmd = [binary, "--version"]
     return wrap_wsl(cmd, wsl_distro) if should_use_wsl(provider, no_wsl) else cmd

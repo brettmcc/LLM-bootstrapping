@@ -1,0 +1,10 @@
+{
+  "model_specification_line": "robust_result = model.fit().get_robustcov_results(cov_type='HC1')",
+  "outcome_definition": "full_time = (uhrswork >= 35) using usual hours worked per week",
+  "sample_selection": [
+    "year between 2013 and 2016 to cover the post-DACA window of interest",
+    "Mexico-born Hispanics (bpl == 200, hispan == 1, hispand between 100 and 199) to isolate ethnic Mexicans",
+    "Valid birth and immigration years (1900\u20131994 for birthyr, 1900\u20132012 for yrimmig) with positive person weights so that age-at-arrival can be computed"
+  ],
+  "treatment_definition": "daca_eligible = (age_at_arrival < 16) & (birthyr >= 1982) & (yrimmig <= 2007)"
+}

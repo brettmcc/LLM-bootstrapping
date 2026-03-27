@@ -1,0 +1,10 @@
+{
+  "model_specification_line": "beta = np.linalg.solve(xtwx, xtwy)",
+  "outcome_definition": "(empstat == 1) & (uhrswork >= 35)",
+  "sample_selection": [
+    "year in [2013, 2014, 2015, 2016]",
+    "hispan == 1 and bpl == 200 (Mexican origin and Mexico birthplace); age 18-64 with perwt > 0",
+    "valid yrimmig (1900-2016) and birthyr (>1900) needed for eligibility coding"
+  ],
+  "treatment_definition": "yrimmig > 0 and yrimmig <= 2007 and birthyr >= 1982 and (yrimmig - birthyr) < 16"
+}
