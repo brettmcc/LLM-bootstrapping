@@ -39,9 +39,15 @@ def contains_term(terms: Iterable[str], needle: str) -> bool:
     return any(needle_upper in term.upper() for term in terms)
 
 
+def normalized_upper(value: object) -> str:
+    if pd.isna(value):
+        return ""
+    return str(value).strip().upper()
+
+
 def detect_age_form(control_terms: list[str], fixed_terms: list[str]) -> str:
     if contains_term(fixed_terms, "C(AGE)"):
-        return "Indicators"
+        return "Fixed effects"
     control_upper = " ".join(control_terms).upper()
     if "AGE**2" in control_upper or "I(AGE**2)".upper() in control_upper or "AGE^2" in control_upper:
         return "Quadratic"
@@ -52,7 +58,7 @@ def detect_age_form(control_terms: list[str], fixed_terms: list[str]) -> str:
 
 def detect_binary_fe(control_terms: list[str], fixed_terms: list[str], var: str) -> str:
     if contains_term(fixed_terms, f"C({var})"):
-        return "Fixed Effects"
+        return "Fixed effects"
     return "Not included"
 
 
@@ -89,13 +95,36 @@ def classify_se_adjustment(value: str) -> str:
     return "Other"
 
 
-def classify_estimation_method(value: str) -> str:
-    if not isinstance(value, str) or not value.strip():
-        return "Other"
-    upper = value.upper()
-    if upper == "OLS":
+def classify_estimation_method(model_type: object, model_specification_line: object, sample_weighting: object) -> str:
+    model_upper = normalized_upper(model_type)
+    line_upper = normalized_upper(model_specification_line)
+    weighting_upper = normalized_upper(sample_weighting)
+    has_weights = bool(weighting_upper) and weighting_upper != "NONE"
+
+    if model_upper == "LOGIT" or "LOGIT" in line_upper:
+        return "Logit"
+    if model_upper == "WLS":
+        return "WLS"
+    if model_upper == "OLS":
         return "OLS"
-    if upper == "WLS":
+
+    if "SM.WLS" in line_upper or "SMF.WLS" in line_upper or "WLS(" in line_upper:
+        return "WLS"
+    if "XTWX" in line_upper or ".FIT(WEIGHTS=" in line_upper or "WEIGHTS=" in line_upper:
+        return "WLS"
+
+    if "SM.OLS" in line_upper or "SMF.OLS" in line_upper or "OLS(" in line_upper:
+        return "OLS"
+    if model_upper == "ADD_CONSTANT":
+        return "OLS"
+
+    # Closed-form linear estimators should still be grouped with linear models.
+    if "POINT_ESTIMATE =" in line_upper or "TREATED_RATE" in line_upper or "CONTROL_RATE" in line_upper:
+        return "WLS" if has_weights else "OLS"
+    if "XTX_INV" in line_upper or "LSTS" in line_upper or "GET_ROBUSTCOV_RESULTS" in line_upper:
+        return "WLS" if has_weights else "OLS"
+
+    if has_weights:
         return "WLS"
     return "Other"
 
@@ -286,19 +315,32 @@ def generate_table1(df: pd.DataFrame, output_path: Path) -> None:
 
 def generate_table4(df: pd.DataFrame, output_path: Path) -> None:
     df = df.copy()
-    df["estimation_method"] = df["model_type"].apply(classify_estimation_method)
+    df["estimation_method"] = [
+        classify_estimation_method(model_type, spec_line, sample_weighting)
+        for model_type, spec_line, sample_weighting in zip(
+            df["model_type"],
+            df["model_specification_line"],
+            df["sample_weighting"],
+        )
+    ]
     df["weighting"] = df["sample_weighting"].apply(classify_weighting)
     df["se_adjustment_group"] = df["se_adjustment"].apply(classify_se_adjustment)
     rows = []
     total = len(df)
     sections = [
-        ("Estimation Method", "estimation_method"),
-        ("Sample Weighting", "weighting"),
-        ("SE Adjustment", "se_adjustment_group"),
+        ("Estimation Method", "estimation_method", ["OLS", "WLS", "Logit", "Other"]),
+        ("Sample Weighting", "weighting", None),
+        ("SE Adjustment", "se_adjustment_group", None),
     ]
-    for section, col in sections:
+    for section, col, preferred_order in sections:
         counts = df[col].value_counts().sort_index()
-        for idx, (choice, count) in enumerate(counts.items()):
+        ordered_items: list[tuple[str, int]] = []
+        if preferred_order is not None:
+            ordered_items.extend((choice, counts[choice]) for choice in preferred_order if choice in counts)
+            ordered_items.extend((choice, count) for choice, count in counts.items() if choice not in preferred_order)
+        else:
+            ordered_items = list(counts.items())
+        for idx, (choice, count) in enumerate(ordered_items):
             label = section if idx == 0 else ""
             share = 100 * count / total if total else 0
             rows.append([label, choice, format_int(count), format_float(share, 1)])

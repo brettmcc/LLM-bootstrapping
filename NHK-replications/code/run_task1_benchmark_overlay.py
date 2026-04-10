@@ -73,7 +73,9 @@ ROUND1_EFFECT_LABEL_PATTERNS = [
     re.compile(r"(?i)^daca$"),
     re.compile(r"(?i)^daca.*apply$"),
     re.compile(r"(?i)^daca[_ ]?eligible$"),
+    re.compile(r"(?i)^daca\s*(?:×|x|\*)\s*eligible$"),
     re.compile(r"(?i)^eligible_daca$"),
+    re.compile(r"(?i)^eligible\s*(?:×|x|\*)\s*daca$"),
     re.compile(r"(?i)^did$"),
     re.compile(r"(?i)^att$"),
     re.compile(r"(?i)^treat\d(?:×|x|\*)post$"),
@@ -337,7 +339,8 @@ def line_matches_any(line: str, patterns: list[re.Pattern[str]]) -> bool:
     """Check whether a stripped line matches any label pattern."""
 
     stripped = line.strip()
-    return any(pattern.match(stripped) for pattern in patterns)
+    left_cell = stripped.split("|", maxsplit=1)[0].strip()
+    return any(pattern.match(left_cell) for pattern in patterns) or any(pattern.match(stripped) for pattern in patterns)
 
 
 def find_nearest_panel(lines: list[str], start_index: int) -> str | None:
@@ -437,7 +440,7 @@ def candidate_from_table_set(table_set: TableCandidateSet) -> tuple[Candidate | 
     effect_value = table_set.values[effect_index]
     if 1 < abs(effect_value) <= 100:
         effect_value = effect_value / 100.0
-    if abs(effect_value) > 1:
+    if effect_value < -0.1 or effect_value > 0.7:
         return None, None, None
 
     effect_candidate = Candidate(
@@ -633,7 +636,7 @@ def convert_effect_units(
 ) -> float:
     """Normalize narrative effect values onto the same 0-1 scale as the paper tables."""
 
-    if unit_text and ("percentage point" in unit_text.lower() or unit_text.lower() == "pp" or unit_text == "%"):
+    if unit_text and ("percentage point" in unit_text.lower() or "percent" in unit_text.lower() or unit_text.lower() == "pp" or unit_text == "%"):
         decimal_places = 0
         if raw_value_text is not None and "." in raw_value_text:
             decimal_places = len(raw_value_text.split(".", maxsplit=1)[1])
@@ -652,7 +655,7 @@ def add_effect_candidates(flat_text: str, lines: list[str]) -> list[Candidate]:
     narrative_patterns = [
         (
             re.compile(
-                r"(?i)(?:my preferred(?: estimates?| specification)?|preferred specification|estimated impact|I find that|I found that|we find that|we found that|results suggest|results indicate)[^.\n]{0,200}?(increased|raised|decreased|reduced|lowered)[^.\n]{0,120}?by\s*([+-]?[0-9]*\.?[0-9]+)\s*(percentage points?|pp)"
+                r"(?i)(?:my preferred(?: estimates?| specification)?|preferred specification|estimated impact|I find that|I found that|we find that|we found that|results suggest|results indicate)[^.\n]{0,200}?(increased|raised|decreased|reduced|lowered)[^.\n]{0,120}?(?:by|in)\s*([+-]?[0-9]*\.?[0-9]+)\s*(percent(?:age)? points?|pp|%)"
             ),
             100,
             "preferred_narrative_pp",
@@ -671,7 +674,7 @@ def add_effect_candidates(flat_text: str, lines: list[str]) -> list[Candidate]:
             (None, 1, 2),
         ),
         (
-            re.compile(r"(?i)(increased|raised|decreased|reduced|lowered)[^.\n]{0,120}?by\s*([+-]?[0-9]*\.?[0-9]+)\s*(percentage points?|pp)"),
+            re.compile(r"(?i)(increased|raised|decreased|reduced|lowered)[^.\n]{0,120}?(?:by|in)\s*([+-]?[0-9]*\.?[0-9]+)\s*(percent(?:age)? points?|pp|%)"),
             70,
             "generic_narrative_pp",
             (1, 2, 3),
@@ -711,6 +714,8 @@ def add_effect_candidates(flat_text: str, lines: list[str]) -> list[Candidate]:
             direction_text = match.group(direction_group) if direction_group is not None else None
             unit_text = match.group(unit_group) if unit_group is not None else None
             value = convert_effect_units(raw_value, unit_text, direction_text, raw_value_text=raw_value_text)
+            if value < -0.1 or value > 0.7:
+                continue
             candidates.append(
                 Candidate(
                     value=value,
@@ -729,7 +734,7 @@ def add_effect_candidates(flat_text: str, lines: list[str]) -> list[Candidate]:
             if raw_value is None:
                 continue
             value = convert_effect_units(float(raw_value), None, None)
-            if abs(value) > 1:
+            if value < -0.1 or value > 0.7:
                 continue
             candidates.append(Candidate(value=value, score=score, method=method, excerpt=line.strip()))
 

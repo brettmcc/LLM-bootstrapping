@@ -50,7 +50,7 @@
 \newcommand{\nhkmeta}{../NHK-replications/meta_analysis}
 \graphicspath{{../NHK-replications/meta_analysis/}}
 
-\title{Researcher-Induced Estimation Uncertainty at Scale\\Using AI Agents}
+\title{Researcher-Induced Estimation Uncertainty at Scale\\Using Agentic AI}
 
 \author{
 Brett A. McCully\\ \small Collegio Carlo Alberto
@@ -62,7 +62,7 @@ Brett A. McCully\\ \small Collegio Carlo Alberto
 \maketitle
 
 \begin{abstract}
-Reported standard errors capture sampling uncertainty conditional on one set of researcher decisions, but defensible alternatives in sample construction and specification can shift estimates substantially. I use repeated, independent AI-agent runs, implemented with large language models (LLMs), as stochastic replication agents that receive the same prompt and dataset but generate different research choices. Applying the method to the immigration policy--employment question studied by \citet{huntingtonklein2025sources}, AI agents generate 139 specifications with an interquartile range of $[-0.042,\, 0.046]$. The results support AI agents as scalable proxies for multi-analyst designs that characterize researcher-induced estimation uncertainty.
+Reported standard errors capture sampling uncertainty conditional on one set of researcher decisions, but defensible alternatives in sample construction and specification can shift estimates substantially. I use repeated, independent AI-agent runs, implemented with large language models (LLMs), as stochastic replicators that receive the same prompt and dataset but generate different research choices. Applying the method to the immigration policy--employment question studied by \citet{huntingtonklein2025sources}, AI agents generate 139 specifications with an interquartile range of $[-0.042,\, 0.046]$. The results support AI agents as scalable proxies for multi-analyst designs that characterize researcher-induced estimation uncertainty.
 
 \medskip
 \noindent \textbf{Keywords:} Researcher degrees of freedom, replication, specification uncertainty, AI agents
@@ -195,9 +195,7 @@ Across Task~1 submissions, the point-estimate distribution in \citet{huntingtonk
 Importantly for my purposes, \citet{huntingtonklein2025sources} have publicized the instructions and codebook used for the exercise. Their instructions direct authors to download whichever variables they deem necessary from specific ACS extracts on IPUMS. To streamline the AI-agent workflow and to curb the pressure on the IPUMS API, I instead make available to the AI agents a large extract with a wide range of potentially relevant variables. I also obtain a set of state policy variables and an associated codebook from the \citet{huntingtonklein2025sources} public repository and make it available to all AI-agent runs.
 
 \subsection{Summary statistics and distributions}
-The final analytic sample contains 139 AI agent executions with recoverable specifications, numeric results, and positive standard errors.
-
-The raw GitHub Copilot CLI archive contains 177 session directories.\footnote{Of these, 29 never preserve a recoverable specification and therefore cannot enter the analysis. Common causes include the session terminating before the agent completed its work---due to connection timeouts, authentication failures, or platform-imposed token limits---rather than substantive analytic failures.} The remaining 148 sessions preserve a machine-readable specification, of which 125 come from GPT 5.1 Codex Mini and 23 from GPT 5.4.
+The final analytic sample contains 139 AI agent runs.\footnote{I have 177 attempted runs. Of these, 29 never preserve a recoverable specification and therefore cannot enter the analysis. Common causes include the session terminating before the agent completed its work---due to connection timeouts, authentication failures, or platform-imposed token limits---rather than substantive analytic failures.} The remaining 148 sessions preserve a machine-readable specification, of which 125 come from GPT 5.1 Codex Mini and 23 from GPT 5.4.
 
 Among those 148 sessions, five produce specifications that are implementable but yield extreme or degenerate samples: three collapse to samples with no treatment variation, one retains no observations after filtering, and one hangs during execution without returning numeric output. This leaves 143 numeric estimates. Four of those are degenerate zero-effect, zero-standard-error outputs, so the final analytic sample used below contains $N=139$ runs with recoverable specifications and positive standard errors.
 
@@ -263,13 +261,13 @@ The most directly comparable benchmark is Huntington-Klein et al.'s ``Task~1,'' 
 
 Two caveats apply. The distribution here reflects (i)~the AI-agent-induced support over research choices under the prompt design and command-line execution environment and (ii)~selection into saved specifications and successful execution. The benchmark reports Task~1--3 objects under different constraints; the pipeline here mirrors the high-discretion Task~1 setting.
 
-Tables~\ref{tab:method_shares} and~\ref{tab:control_forms} report method shares and mean effects by control-variable functional form. In the benchmark, 82\% of submissions use linear regression, 22\% use no SE adjustment, and 25\% use sample weights. The pooled AI agent sample places even more mass on weighted linear models: 93.5\% of retained runs use OLS or WLS, 74.1\% use the ACS person weight, 38.1\% request robust HC standard errors, and 14.4\% request state-clustered standard errors. Mean effects also move with control structure: specifications including year fixed effects average 0.012 versus 0.000 without them, and specifications including state fixed effects average 0.022 versus $-0.003$ without them. Linear age controls are associated with more positive estimates (0.038) than specifications omitting age entirely ($-0.006$), although age controls still appear in a minority of retained runs. This is directionally consistent with the broader finding of \cite{huntingtonklein2025sources} that routine modeling choices materially affect estimates.
+Tables~\ref{tab:method_shares} and~\ref{tab:control_forms} report method shares and mean effects by control-variable functional form. In the benchmark, 82\% of submissions use linear regression, 22\% use no SE adjustment, and 25\% use sample weights. The pooled AI agent sample places even more mass on linear models: 98.6\% of retained runs classify as OLS or WLS, 74.1\% use the ACS person weight, 38.1\% use robust standard errors, and 14.4\% state-clustered standard errors. Mean effects also move with control structure: specifications including year fixed effects average 0.012 versus 0.000 without them, and specifications including state fixed effects average 0.022 versus $-0.003$ without them. Linear age controls are associated with more positive estimates (0.038) than specifications omitting age entirely ($-0.006$), although age controls still appear in a minority of retained runs. This is directionally consistent with the broader finding of \cite{huntingtonklein2025sources} that routine modeling choices materially affect estimates.
 
 \begin{table}[!htbp]
 \centering
 \caption{Shares of executed research choices by estimation method, weighting, and variance adjustment}
 \input{\nhkmeta/table4_method_shares.tex}
-\caption*{\textbf{Notes:} ``Other'' groups retained runs not labeled as OLS or WLS by the Phase~3 classifier. In practice, this category consists of logit models, one OLS regression written in nonstandard syntax, and hand-coded estimators such as treated-versus-control mean differences or matrix-based weighted least squares. ``PERWT'' refers to the ACS person weight. ``Clustered (state)'' indicates cluster-robust standard errors at the state level.}
+\caption*{\textbf{Notes:} Estimation methods are classified from the estimator code itself, including common closed-form implementations of linear regression. Logit is the only retained non-linear estimation method. ``PERWT'' refers to the ACS person weight. ``Clustered (state)'' indicates cluster-robust standard errors at the state level.}
 \label{tab:method_shares}
 \end{table}
 \FloatBarrier
@@ -278,7 +276,7 @@ Tables~\ref{tab:method_shares} and~\ref{tab:control_forms} report method shares 
 \centering
 \caption{Mean effects by functional form of common controls}
 \input{\nhkmeta/table5_control_effects.tex}
-\caption*{\textbf{Notes:} For each control variable, the table reports the mean and standard deviation of point estimates among executed research choices using that functional form. ``Indicators'' means the specification includes a full set of category dummies for that variable rather than a linear term. ``Included'' denotes year or state fixed effects. ``Not included'' denotes omission from the specification.}
+\caption*{\textbf{Notes:} For each control variable, the table reports the mean and standard deviation of point estimates among executed research choices using that functional form.}
 \label{tab:control_forms}
 \end{table}
 \FloatBarrier
@@ -287,13 +285,13 @@ I view these comparisons as validation targets. Agreement in broad qualitative p
 
 \subsection{Heterogeneity}
 
-There is substantial variation across specifications. Table~\ref{tab:method_shares} shows that AI agents disproportionately choose weighted linear models: 76.3\% of retained runs use WLS, 17.3\% use OLS, and only 6.5\% fall into a residual ``Other'' category. That category is not one coherent alternative estimator. Among the nine retained runs it contains, two are logit specifications, one is an OLS regression written in nonstandard syntax that the parser does not label as OLS, and the remaining six are hand-coded estimators such as treated-versus-control mean differences or matrix-based weighted least-squares calculations. The broader pattern is therefore not a large shift away from linear models, but a small tail of idiosyncratic implementations. This preference for WLS exceeds that exhibited by the benchmark human sample.
+There is substantial variation across specifications. Table~\ref{tab:method_shares} shows that AI agents disproportionately choose linear models: 78.4\% of retained runs use WLS, 20.1\% use OLS, and only 1.4\% use Logit. The main contrast with the benchmark human sample is therefore the strong tilt toward WLS, and away from nonlinear estimators.
 
 Table~\ref{tab:control_forms} shows that even within this narrower design space, routine specification choices continue to move estimates. Year fixed effects shift the mean from 0.000 to 0.012, state fixed effects shift it from $-0.003$ to 0.022, and linear age controls shift it from $-0.006$ to 0.038.
 
 \subsection{Differences between GPT 5.1 Codex Mini and GPT 5.4}
 
-Table~\ref{tab:provider_comparison} compares the two GPT models used. OpenAI documents GPT-5.4 as its flagship model for complex reasoning and coding, with a 1.05 million-token context window, whereas GPT-5.1 Codex Mini is a smaller, cheaper, less-capable Codex model with a 400{,}000-token context window \citep{openai2026gpt54, openai2025gpt51codexmini}. The provider does not publish a clean decomposition of why the models differ, but one likely margin is post-training. Post-training refers to the stage after broad pretraining when a model is further tuned on demonstrations, rankings, and reinforcement-learning objectives so that it better follows instructions and solves target tasks \citep{ouyang2022instructgpt}. Differences in capacity, context length, and post-training emphasis can therefore show up as differences in planning, tool use, and error recovery in an end-to-end empirical workflow. In this application, GPT 5.4 better matches the benchmark human Task~1 sample: its retained estimates are closer to the benchmark's positive center, and its specifications more often use the weighted regressions, fixed effects, and clustered standard errors common in the human submissions.
+Table~\ref{tab:provider_comparison} compares the two GPT models used. OpenAI documents GPT-5.4 as its flagship model for complex reasoning and coding, with a 1.05 million-token context window, whereas GPT-5.1 Codex Mini is a smaller, cheaper, less-capable Codex model with a 400{,}000-token context window \citep{openai2026gpt54, openai2025gpt51codexmini}. Beyond context window size, the models likely differ in their post-training. Post-training refers to the stage after broad pretraining when a model is further tuned on demonstrations, rankings, and reinforcement-learning objectives so that it better follows instructions and solves target tasks \citep{ouyang2022instructgpt}. Differences in capacity, context length, and post-training emphasis can therefore show up as differences in planning, tool use, and error recovery in the empirical application. In this context, GPT 5.4 better matches the benchmark human Task~1 sample: its retained estimates are closer to the benchmark's positive center, and its specifications more often use the weighted regressions, fixed effects, and clustered standard errors common in the human submissions.
 
 The GPT 5.1 Codex Mini sample remains centered near zero: across 116 retained runs, the mean estimate is $-0.002$, the median is $-0.003$, and the IQR is $[-0.045,\,0.030]$. The 23 retained GPT 5.4 runs are notably more positive: the mean is 0.048, the median is 0.052, and even the 25th percentile remains positive at 0.031. Every retained GPT 5.4 run uses WLS and the ACS person weight, roughly 70\% request state-clustered standard errors, 83\% include year fixed effects, and 74\% include state fixed effects. By contrast, GPT 5.1 Codex Mini explores a broader design space with much less clustering and many more unweighted or non-fixed-effects specifications.
 
@@ -416,7 +414,7 @@ This appendix provides technical detail on the four-stage workflow summarized in
 
 \end{tikzpicture}
 \caption{Replication-at-scale pipeline: algorithm and architecture}
-\caption*{\textbf{Notes:} The top panel states the core algorithm; color annotations map each step to the pipeline phase below. The bottom panel compresses the workflow into three visual blocks: Phase~1 generates a structured specification via a stochastic LLM call, Phase~2 executes each specification in an isolated sandbox, and the final block summarizes downstream aggregation and meta-analysis. In the workflow used here, that final block corresponds to Phase~3 aggregation into \texttt{runs\_complete.csv} followed by Phase~4 production of the manuscript tables and figures. Only the AI agent's stochastic research choices vary across runs.}
+\caption*{\textbf{Notes:} The top panel states the core algorithm; color annotations map each step to the pipeline phase below. The bottom panel compresses the workflow into three visual blocks: Phase~1 generates a structured specification via a stochastic LLM call, Phase~2 executes each specification in an isolated sandbox, and the final block summarizes downstream aggregation and meta-analysis. In the workflow used here, that final block corresponds to Phase~3 aggregation into \texttt{runs\_complete.csv} and production of the manuscript tables and figures. Only the AI agent's stochastic research choices vary across runs.}
 \label{fig:flowchart}
 \end{figure}
 
@@ -452,14 +450,14 @@ A combined mode allows a single agent session to both propose and implement a sp
 
 Phase~3 aggregates the full session archive, not just the subset that already has clean final outputs. Each archived session receives a specification-status label (recoverable JSON specification versus missing specification) and an execution-status label (successful result, validation failure, interrupted run with no results file, or degenerate numeric output with non-positive standard error). For sessions with recoverable specifications, the aggregator then infers derived metadata from \texttt{model\_specification\_line} using regular-expression classifiers:
 \begin{itemize}
-\item \textbf{Model type}: OLS, WLS, Logit, or Other, from the estimator function name.
+\item \textbf{Model type}: OLS, WLS, or Logit, inferred from estimator function names, explicit weights, and common closed-form implementations of linear regression.
 \item \textbf{Controls and fixed effects}: parsed from the formula's right-hand side, distinguishing continuous regressors from categorical (\texttt{C(...)}) terms.
 \item \textbf{Sample weighting}: detected from \texttt{weights=} arguments (typically the ACS person weight \texttt{PERWT}).
 \item \textbf{SE adjustment}: classified as clustered (state), heteroskedasticity-robust (HC), or none, from \texttt{cov\_type} and \texttt{cov\_kwds} arguments.
 \end{itemize}
 This classification operates on structured text (Python code), avoiding reliance on self-reported AI-agent metadata. The paper's quantitative analysis then keeps only sessions with recoverable specifications and \texttt{execution\_status = success}.
 
-Phase~4 produces:
+The reporting step produces:
 \begin{itemize}
 \item \textbf{Summary statistics} (Table~\ref{tab:nhk_summary}): Unweighted and inverse-SE-weighted moments and quantiles of the point-estimate distribution, plus standard-error and sample-size distributions.
 \item \textbf{Density plots} (Figures~\ref{fig:nhk_effects}--\ref{fig:sample_sizes}): Epanechnikov kernel densities with box-and-whisker overlays.
