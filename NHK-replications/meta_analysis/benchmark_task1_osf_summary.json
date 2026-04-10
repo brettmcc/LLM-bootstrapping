@@ -1,0 +1,45 @@
+{
+  "benchmark_total_documents": 422,
+  "benchmark_unique_researchers": 157,
+  "benchmark_effect_extracted_documents": 68,
+  "benchmark_sample_extracted_documents": 30,
+  "benchmark_effect_rows_used_in_overlay": 31,
+  "benchmark_sample_rows_used_in_overlay": 11,
+  "benchmark_effect_summary": {
+    "n": 31,
+    "mean": 0.05520491935483871,
+    "p25": 0.021,
+    "median": 0.037000000000000005,
+    "p75": 0.058,
+    "min": 0.006,
+    "max": 0.2997525
+  },
+  "benchmark_sample_summary": {
+    "n": 11,
+    "mean": 1298390.0,
+    "p25": 160719.5,
+    "median": 214530.0,
+    "p75": 453090.5,
+    "min": 13036.0,
+    "max": 8634190.0
+  },
+  "llm_rows_used": 139,
+  "llm_effect_summary": {
+    "n": 139,
+    "mean": 0.005894663960060634,
+    "p25": -0.041791205153696095,
+    "median": 0.0039937925307575,
+    "p75": 0.04635583582856155,
+    "min": -0.3959054251685865,
+    "max": 0.3321855781628279
+  },
+  "llm_sample_summary": {
+    "n": 139,
+    "mean": 105957.0,
+    "p25": 53231.5,
+    "median": 82264.0,
+    "p75": 125521.0,
+    "min": 204.0,
+    "max": 521998.0
+  }
+}

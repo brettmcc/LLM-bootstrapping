@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import math
 import re
 from datetime import datetime
 from pathlib import Path
@@ -97,23 +98,35 @@ def parse_formula(model_spec: str) -> tuple[Optional[str], list[str]]:
 def infer_model_type(model_spec: str) -> str:
     # Infer model type from the specification line.
     lower = model_spec.lower()
+    mapping = {
+        "ols": "OLS",
+        "wls": "WLS",
+        "gls": "GLS",
+        "glsar": "GLSAR",
+        "logit": "Logit",
+        "probit": "Probit",
+        "mnlogit": "MNLogit",
+        "glm": "GLM",
+        "poisson": "Poisson",
+        "neg_bin": "NegBin",
+    }
     # Check for common statsmodels formula methods.
     match = re.search(r"smf\.([a-z_]+)", lower)
     if match:
         name = match.group(1)
-        mapping = {
-            "ols": "OLS",
-            "wls": "WLS",
-            "gls": "GLS",
-            "glsar": "GLSAR",
-            "logit": "Logit",
-            "probit": "Probit",
-            "mnlogit": "MNLogit",
-            "glm": "GLM",
-            "poisson": "Poisson",
-            "neg_bin": "NegBin",
-        }
         return mapping.get(name, name.upper())
+    # Many Copilot runs use the non-formula statsmodels API instead.
+    match = re.search(r"\bsm\.([a-z_]+)\s*\(", lower)
+    if match:
+        name = match.group(1)
+        return mapping.get(name, name.upper())
+    # Fall back to common direct linear-regression implementations.
+    if "linearregression(" in lower:
+        return "WLS" if "sample_weight" in lower else "OLS"
+    if "weighted_ols" in lower:
+        return "WLS"
+    if "lstsq" in lower:
+        return "OLS"
     # Check for linearmodels-style panel estimators.
     if "panelols" in lower:
         return "PanelOLS"
@@ -153,9 +166,12 @@ def infer_controls(terms: list[str]) -> list[str]:
 
 def infer_sample_weighting(model_spec: str) -> str:
     # Attempt to extract weights=... from the model specification line.
-    match = re.search(r"weights\s*=\s*([^,\)]+)", model_spec)
+    match = re.search(r"(?:sample_)?weights?\s*=\s*([^,\)]+)", model_spec)
     if match:
         return match.group(1).strip()
+    lower = model_spec.lower()
+    if "perwt" in lower and ("weighted_ols" in lower or "sample_weight" in lower):
+        return "perwt"
     if ".wls(" in model_spec or "wls(" in model_spec:
         return "wls"
     return ""
@@ -182,6 +198,26 @@ def infer_se_adjustment(model_spec: str) -> str:
     return ""
 
 
+def validate_results_payload(data: dict[str, Any]) -> str:
+    # Validate the results payload and classify degenerate outputs separately.
+    required = {"point_estimate", "standard_error", "sample_size"}
+    if not required.issubset(data.keys()):
+        return "invalid_results"
+    try:
+        point_estimate = float(data["point_estimate"])
+        standard_error = float(data["standard_error"])
+        sample_size = float(data["sample_size"])
+    except (TypeError, ValueError):
+        return "invalid_results"
+    if not all(math.isfinite(value) for value in (point_estimate, standard_error, sample_size)):
+        return "invalid_results"
+    if sample_size <= 0:
+        return "invalid_results"
+    if standard_error <= 0:
+        return "nonpositive_se"
+    return "success"
+
+
 def read_results(run_dirs: list[Path]) -> tuple[Optional[dict[str, Any]], str]:
     # Load results.json and validate required keys, searching run directories in order.
     for run_dir in run_dirs:
@@ -192,10 +228,10 @@ def read_results(run_dirs: list[Path]) -> tuple[Optional[dict[str, Any]], str]:
             data = json.loads(results_path.read_text(encoding="utf-8"))
         except json.JSONDecodeError:
             return None, "invalid_results"
-        required = {"point_estimate", "standard_error", "sample_size"}
-        if not required.issubset(data.keys()):
-            return None, "invalid_results"
-        return data, "success"
+        status = validate_results_payload(data)
+        if status == "invalid_results":
+            return None, status
+        return data, status
 
     # No results.json found in any candidate directory; compute status.
     for run_dir in run_dirs:
@@ -236,6 +272,7 @@ def canonicalize_model_label(label: str, provider: str) -> str:
     normalized = label.strip()
     if not normalized:
         return ""
+    normalized = normalized.replace("gpt-5.1-codex.mini", "gpt-5.1-codex-mini")
     if normalized == "copilot-cli" or (provider == "copilot" and normalized == f"{provider}-cli"):
         return "gpt-5.1-codex-mini"
     return normalized
@@ -267,6 +304,54 @@ def load_spec_files(spec_root: Path, providers: list[str]) -> list[Path]:
         if subdir.is_dir():
             files.extend(sorted(subdir.rglob("*.json")))
     return files
+
+
+def provider_filter_parts(provider: str) -> list[str]:
+    return [part for part in provider.replace("\\", "/").split("/") if part]
+
+
+def include_phase12_run(run_dir: Path, providers: list[str]) -> bool:
+    # Mirror provider filtering for archived phase12 run directories.
+    if not providers:
+        return True
+    metadata = read_run_metadata([run_dir])
+    cli_provider = str(metadata.get("cli_provider", "")).strip()
+    for provider in providers:
+        parts = provider_filter_parts(provider)
+        if not parts:
+            continue
+        if parts[0] == "phase12":
+            if len(parts) == 1:
+                return True
+            if cli_provider and parts[1] == cli_provider:
+                return True
+        elif cli_provider and parts[-1] == cli_provider:
+            return True
+    return False
+
+
+def load_phase12_run_dirs(phase12_root: Path, providers: list[str]) -> dict[str, Path]:
+    # Collect archived phase12 run directories that match the provider filter.
+    runs: dict[str, Path] = {}
+    if not phase12_root.exists():
+        return runs
+    for run_dir in sorted(phase12_root.iterdir()):
+        if not run_dir.is_dir():
+            continue
+        if include_phase12_run(run_dir, providers):
+            runs[run_dir.name] = run_dir
+    return runs
+
+
+def read_spec_from_run_dir(run_dir: Path) -> Optional[dict[str, Any]]:
+    # Load the spec saved inside a phase12 run directory, if present.
+    spec_path = run_dir / "spec.json"
+    if not spec_path.exists():
+        return None
+    try:
+        return json.loads(spec_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return None
 
 
 def main() -> None:
@@ -309,8 +394,14 @@ def main() -> None:
 
     # Collect spec files.
     spec_files = load_spec_files(spec_root, args.spec_provider)
-    if not spec_files:
-        print("No spec files found.")
+    phase12_run_dirs = load_phase12_run_dirs(phase12_root, args.spec_provider)
+    spec_paths_by_run_id: dict[str, Path] = {}
+    for spec_path in spec_files:
+        run_id = spec_path.stem.replace("spec_", "")
+        spec_paths_by_run_id.setdefault(run_id, spec_path)
+    candidate_run_ids = sorted(set(spec_paths_by_run_id) | set(phase12_run_dirs))
+    if not candidate_run_ids:
+        print("No archived specs or runs found.")
         return
 
     # Define output columns in the required order.
@@ -322,6 +413,7 @@ def main() -> None:
         "model_phase2",
         "temperature",
         "prompt_variant",
+        "spec_status",
         "sample_selection",
         "outcome_definition",
         "treatment_definition",
@@ -341,22 +433,45 @@ def main() -> None:
     with args.output.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
         writer.writeheader()
-        for spec_path in spec_files:
-            spec_data = json.loads(spec_path.read_text(encoding="utf-8"))
-            spec_key = normalize_spec(spec_data)
+        for run_id in candidate_run_ids:
+            spec_path = spec_paths_by_run_id.get(run_id)
+            phase12_run_dir = phase12_run_dirs.get(run_id)
+            is_phase12 = phase12_run_dir is not None or (
+                spec_path is not None and any(parent.name == "phase12" for parent in spec_path.parents)
+            )
+            run_dirs: list[Path] = []
+            if is_phase12:
+                run_dirs.append(phase12_root / run_id)
+            base_run_dir = executions_root / run_id
+            if not is_phase12 or base_run_dir.exists():
+                run_dirs.append(base_run_dir)
+            deduped_run_dirs: list[Path] = []
+            for run_dir in run_dirs:
+                if run_dir not in deduped_run_dirs:
+                    deduped_run_dirs.append(run_dir)
+            run_dirs = deduped_run_dirs
 
-            # Pop matching metadata if available.
-            metadata = {}
-            if spec_key in metadata_index and metadata_index[spec_key]:
-                metadata = metadata_index[spec_key].pop(0)
-            sidecar_metadata = read_spec_metadata(spec_path)
-            for key, value in sidecar_metadata.items():
-                metadata.setdefault(key, value)
-
-            # Determine provider name from directory structure.
-            provider = spec_path.parent.name
-            # Derive run_id from filename.
-            run_id = spec_path.stem.replace("spec_", "")
+            run_metadata = read_run_metadata(run_dirs)
+            provider = str(run_metadata.get("cli_provider", "")).strip()
+            metadata: dict[str, Any] = {}
+            spec_data: Optional[dict[str, Any]] = None
+            if spec_path is not None:
+                spec_data = json.loads(spec_path.read_text(encoding="utf-8"))
+                spec_key = normalize_spec(spec_data)
+                if spec_key in metadata_index and metadata_index[spec_key]:
+                    metadata = metadata_index[spec_key].pop(0)
+                sidecar_metadata = read_spec_metadata(spec_path)
+                for key, value in sidecar_metadata.items():
+                    metadata.setdefault(key, value)
+                if not provider:
+                    provider = spec_path.parent.name
+            elif phase12_run_dir is not None:
+                spec_data = read_spec_from_run_dir(phase12_run_dir)
+                if spec_data is not None:
+                    spec_key = normalize_spec(spec_data)
+                    if spec_key in metadata_index and metadata_index[spec_key]:
+                        metadata = metadata_index[spec_key].pop(0)
+            spec_status = "available" if spec_data is not None else "missing_spec"
 
             # Fill metadata fields with best-available data.
             run_id_value = run_id
@@ -364,46 +479,56 @@ def main() -> None:
             if not run_datetime:
                 inferred_dt = parse_datetime_from_run_id(run_id)
                 run_datetime = inferred_dt or ""
-            random_seed = metadata.get("random_seed", "")
-            temperature = metadata.get("temperature", "")
-            prompt_variant = metadata.get("prompt_variant", "")
-            provider_fallback = f"{provider}-cli"
-            model_phase1 = metadata.get("model", "") or metadata.get("model_phase1", "")
-            if not model_phase1:
+            random_seed = metadata.get("random_seed", "") or run_metadata.get("random_seed", "")
+            temperature = metadata.get("temperature", "") or run_metadata.get("temperature", "")
+            prompt_variant = metadata.get("prompt_variant", "") or run_metadata.get("prompt_variant", "")
+            provider_fallback = f"{provider}-cli" if provider else ""
+            model_phase1 = (
+                metadata.get("model", "")
+                or metadata.get("model_phase1", "")
+                or run_metadata.get("model_phase1", "")
+                or run_metadata.get("requested_model_phase1", "")
+            )
+            if not model_phase1 and provider_fallback:
                 # For CLI specs, mark the provider explicitly.
                 model_phase1 = provider_fallback
 
             # Pull spec fields.
-            sample_selection = spec_data.get("sample_selection", [])
-            if isinstance(sample_selection, list):
-                sample_selection = " | ".join(str(item) for item in sample_selection)
-            outcome_definition = spec_data.get("outcome_definition", "")
-            treatment_definition = spec_data.get("treatment_definition", "")
-            model_spec = spec_data.get("model_specification_line", "")
+            sample_selection = ""
+            outcome_definition = ""
+            treatment_definition = ""
+            model_spec = ""
+            if spec_data is not None:
+                sample_selection = spec_data.get("sample_selection", [])
+                if isinstance(sample_selection, list):
+                    sample_selection = " | ".join(str(item) for item in sample_selection)
+                outcome_definition = spec_data.get("outcome_definition", "")
+                treatment_definition = spec_data.get("treatment_definition", "")
+                model_spec = spec_data.get("model_specification_line", "")
 
             # Impute derived fields.
-            model_type = infer_model_type(model_spec)
+            model_type = infer_model_type(model_spec) if model_spec else ""
             _, rhs_terms = parse_formula(model_spec)
-            control_variables = " | ".join(infer_controls(rhs_terms))
-            fixed_effects = " | ".join(infer_fixed_effects(rhs_terms, model_spec))
-            sample_weighting = infer_sample_weighting(model_spec)
-            se_adjustment = infer_se_adjustment(model_spec)
+            control_variables = " | ".join(infer_controls(rhs_terms)) if model_spec else ""
+            fixed_effects = " | ".join(infer_fixed_effects(rhs_terms, model_spec)) if model_spec else ""
+            sample_weighting = infer_sample_weighting(model_spec) if model_spec else ""
+            se_adjustment = infer_se_adjustment(model_spec) if model_spec else ""
 
             # Load execution results (Phase 2 or Phase 1+2).
-            is_phase12 = any(parent.name == "phase12" for parent in spec_path.parents)
-            run_dirs = [executions_root / run_id]
-            if is_phase12:
-                run_dirs.insert(0, phase12_root / run_id)
-            run_metadata = read_run_metadata(run_dirs)
             if is_phase12 and model_phase1 == provider_fallback:
                 model_phase1 = (
                     run_metadata.get("model_phase1", "")
+                    or run_metadata.get("requested_model_phase1", "")
                     or run_metadata.get("model_phase2", "")
                     or model_phase1
                 )
             model_phase1 = canonicalize_model_label(model_phase1, provider)
-            model_phase2 = args.phase2_model or run_metadata.get("model_phase2", "")
-            if not model_phase2 and is_phase12:
+            model_phase2 = (
+                args.phase2_model
+                or run_metadata.get("model_phase2", "")
+                or run_metadata.get("requested_model_phase2", "")
+            )
+            if not model_phase2 and is_phase12 and provider_fallback:
                 model_phase2 = provider_fallback
             model_phase2 = canonicalize_model_label(model_phase2, provider)
             results, status = read_results(run_dirs)
@@ -425,6 +550,7 @@ def main() -> None:
                     "model_phase2": model_phase2,
                     "temperature": temperature,
                     "prompt_variant": prompt_variant,
+                    "spec_status": spec_status,
                     "sample_selection": sample_selection,
                     "outcome_definition": outcome_definition,
                     "treatment_definition": treatment_definition,

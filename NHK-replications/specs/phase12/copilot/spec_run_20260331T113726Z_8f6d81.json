@@ -1,0 +1,16 @@
+{
+  "model_specification_line": "model = smf.wls(\"full_time ~ daca_eligible * post + C(age_2012) + C(year) + C(statefip) + C(sex) + C(educ) + UNEMP + LFPR\", data=analysis_df, weights=analysis_df[\"perwt\"]).fit(cov_type=\"cluster\", cov_kwds={\"groups\": analysis_df[\"statefip\"]})",
+  "outcome_definition": "((analysis_df['empstat'] == 1) & (analysis_df['uhrswork'] >= 35)).astype(int)",
+  "sample_selection": [
+    "2006 <= year <= 2016 and year != 2012",
+    "hispan == 1",
+    "bpl == 200",
+    "citizen == 3",
+    "yrimmig > 0 and yrimmig <= 2007",
+    "arrival_age < 16, where arrival_age = yrimmig - (year - age)",
+    "24 <= age_2012 <= 36, where age_2012 = age - (year - 2012)",
+    "age >= 18",
+    "statefip matched to policy_labor_market_data.csv"
+  ],
+  "treatment_definition": "(analysis_df['age_2012'] < 31).astype(int)"
+}

@@ -1,0 +1,15 @@
+{
+  "model_specification_line": "model = smf.wls(\"full_time ~ eligible * post + age + I(age ** 2) + C(statefip) + C(year) + UNEMP + DRIVERSLICENSES + EVERIFY\", data=analysis_df, weights=analysis_df[\"perwt\"]).fit(cov_type=\"HC1\")",
+  "outcome_definition": "((empstat == 1) & (uhrswork >= 35)).astype(int)",
+  "sample_selection": [
+    "(year >= 2006) & (year <= 2016) & (year != 2012)",
+    "(hispan == 1) & (bpl == 200)",
+    "citizen == 3",
+    "(yrimmig <= birthyr + 15) & (yrimmig <= 2007)",
+    "(birthyr >= 1979) & (birthyr <= 1986)",
+    "(statefip >= 1) & (statefip <= 56)",
+    "empstat.isin([1, 2, 3])",
+    "(uhrswork >= 0) & (uhrswork <= 99)"
+  ],
+  "treatment_definition": "((yrimmig <= birthyr + 15) & (yrimmig <= 2007) & ((2012 - birthyr) < 31)).astype(int)"
+}

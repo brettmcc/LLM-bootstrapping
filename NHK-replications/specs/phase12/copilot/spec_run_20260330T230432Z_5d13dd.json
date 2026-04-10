@@ -1,0 +1,12 @@
+{
+  "model_specification_line": "model = sm.WLS(df[\"full_time\"], X, weights=df[\"perwt\"])",
+  "outcome_definition": "((empstat.isin([1, 2])) & (uhrswork >= 35)).astype(float)",
+  "sample_selection": [
+    "2013 <= year <= 2016",
+    "hispan == 1 and bpl == 200",
+    "1982 <= birthyr <= 1996 and 1 <= yrimmig <= 2012",
+    "perwt > 0 and 0 <= uhrswork <= 96",
+    "yrimmig - birthyr >= 0"
+  ],
+  "treatment_definition": "((yrimmig <= 2007) & ((yrimmig - birthyr) <= 15)).astype(int)"
+}

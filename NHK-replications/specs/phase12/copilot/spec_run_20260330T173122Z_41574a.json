@@ -1,0 +1,13 @@
+{
+  "model_specification_line": "model = smf.wls(\"full_time ~ DACA_eligible + C(year) + C(statefip)\", data=df, weights=df[\"weight\"]).fit(cov_type=\"cluster\", cov_kwds={\"groups\": df[\"statefip\"]})",
+  "outcome_definition": "(labforce == 1) and (wrklstwk == 1) and (uhrswork >= 35)",
+  "sample_selection": [
+    "year between 2013 and 2016 inclusive",
+    "hispan == 1 and hispand in {100, 102, 103, 104, 105, 106, 107}",
+    "bpl == 200 (Mexico birthplace)",
+    "age between 18 and 35",
+    "citizen == 3 (noncitizen status code indicating undocumented/noncitizen)",
+    "yrimmig > 0"
+  ],
+  "treatment_definition": "1981 <= birthyr <= 1997 and (yrimmig - birthyr) <= 15 and yrimmig <= 2007"
+}

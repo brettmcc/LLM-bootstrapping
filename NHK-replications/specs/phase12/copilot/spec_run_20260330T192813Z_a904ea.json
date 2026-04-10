@@ -1,0 +1,9 @@
+{
+  "model_specification_line": "smf.wls('full_time ~ eligible * post + age + UNEMP + C(year) + C(statefip)', data=df, weights=df['perwt'], missing='drop').fit()",
+  "outcome_definition": "full_time = (empstat in {1, 2}) and usual hours worked (uhrswork) >= 35.",
+  "sample_selection": [
+    "ACS years 2009-2016, ages 18-40, Mexican-born Hispanics (bpl=200 and hispan=1) with positive person weights and reported immigration years.",
+    "Restricted to respondents with a reasonable age-at-arrival, so that the eligible cohort can be contrasted with counterparts who arrived later or were born outside the DACA age window."
+  ],
+  "treatment_definition": "eligible = birthyr in [1982, 1996], yrimmig <= 2007, and arrival age (yrimmig - birthyr) <= 15 (approximate DACA criteria)."
+}

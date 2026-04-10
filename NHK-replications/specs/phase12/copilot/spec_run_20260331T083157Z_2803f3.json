@@ -1,0 +1,18 @@
+{
+  "model_specification_line": "model = smf.wls(formula=MODEL_FORMULA, data=df, weights=df[\"perwt\"]).fit(cov_type=\"cluster\", cov_kwds={\"groups\": df[\"statefip\"]})",
+  "outcome_definition": "((df[\"empstat\"] == 1) & (df[\"uhrswork\"] >= 35)).astype(int)",
+  "sample_selection": [
+    "year >= 2009 and year <= 2016 and year != 2012",
+    "bpl == 200",
+    "hispan == 1",
+    "citizen == 3",
+    "yrimmig > 0 and yrimmig <= 2007",
+    "school == 1",
+    "18 <= age <= 40",
+    "birthyr > 0 and birthqtr in {1, 2, 3, 4}",
+    "sex in {1, 2}",
+    "empstat != 9 and uhrswork != 99",
+    "state-year successfully merged to policy_labor_market_data.csv"
+  ],
+  "treatment_definition": "(((df[\"yrimmig\"] - df[\"birthyr\"]) <= 15) & ((df[\"birthyr\"] > 1981) | ((df[\"birthyr\"] == 1981) & (df[\"birthqtr\"] >= 3))) & (df[\"yrimmig\"] <= 2007) & (df[\"citizen\"] == 3)).astype(int)"
+}

@@ -1,0 +1,16 @@
+{
+  "model_specification_line": "beta, se = weighted_lstsq(y, X, weights)",
+  "outcome_definition": "(df['empstat'] == 1) & (df['uhrswork'] >= 35)",
+  "sample_selection": [
+    "year >= 2013 and year <= 2016",
+    "perwt > 0",
+    "statefip between 1 and 99",
+    "age between 17 and 35",
+    "birthyr between 1900 and 2015",
+    "yrimmig between 1900 and 2016",
+    "hispan == 1 (ethnically Mexican Hispanic)",
+    "bpl == 200 (born in Mexico)",
+    "citizen == 3 (noncitizen)"
+  ],
+  "treatment_definition": "(df['yrimmig'] <= 2007) & ((df['yrimmig'] - df['birthyr']) >= 0) & ((df['yrimmig'] - df['birthyr']) < 16) & ((2012 - df['birthyr']) >= 16) & ((2012 - df['birthyr']) < 31)"
+}

@@ -1,0 +1,12 @@
+{
+  "model_specification_line": "results = smf.wls('full_time ~ treatment + age + I(age**2) + LFPR + UNEMP + C(year) + C(statefip)', data=df, weights=df['perwt']).fit(cov_type='HC1')",
+  "outcome_definition": "(empstat in [1, 2]) and (uhrswork >= 35)",
+  "sample_selection": [
+    "year in [2013, 2014, 2015, 2016]",
+    "birthplace == 200 (Mexico), hispanic codes \u2208 {100,102,103,104,105,106,107}, and citizen == 3",
+    "age between 18 and 35 with non-missing birthyr, yrimmig, empstat, uhrswork, and perwt > 0",
+    "yrimmig between 1990 and 2007 so the cohort arrived before the June 2007 cutoff",
+    "0 <= age_at_arrival <= 40 to stay within plausible arrival ages for this adult cohort"
+  ],
+  "treatment_definition": "(age_at_arrival <= 15) and (birthyr >= 1982) and (yrimmig <= 2007)"
+}

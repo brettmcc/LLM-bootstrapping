@@ -1,0 +1,43 @@
+{
+  "benchmark_total_files": 20,
+  "benchmark_effect_extracted": 7,
+  "benchmark_sample_extracted": 4,
+  "benchmark_rows_used_in_overlay": 2,
+  "benchmark_effect_summary": {
+    "n": 2,
+    "mean": 0.0165,
+    "p25": 0.014750000000000001,
+    "median": 0.0165,
+    "p75": 0.018250000000000002,
+    "min": 0.013000000000000001,
+    "max": 0.02
+  },
+  "benchmark_sample_summary": {
+    "n": 2,
+    "mean": 386793.0,
+    "p25": 362417.5,
+    "median": 386793.0,
+    "p75": 411168.5,
+    "min": 338042.0,
+    "max": 435544.0
+  },
+  "llm_rows_used": 139,
+  "llm_effect_summary": {
+    "n": 139,
+    "mean": 0.005894663960060634,
+    "p25": -0.041791205153696095,
+    "median": 0.0039937925307575,
+    "p75": 0.04635583582856155,
+    "min": -0.3959054251685865,
+    "max": 0.3321855781628279
+  },
+  "llm_sample_summary": {
+    "n": 139,
+    "mean": 105957.0,
+    "p25": 53231.5,
+    "median": 82264.0,
+    "p75": 125521.0,
+    "min": 204.0,
+    "max": 521998.0
+  }
+}

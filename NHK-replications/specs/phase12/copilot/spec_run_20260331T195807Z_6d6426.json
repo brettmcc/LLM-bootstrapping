@@ -1,0 +1,17 @@
+{
+  "model_specification_line": "beta, se = fit_weighted_ols_cluster(analysis_df, outcome=\"full_time\", treatment=\"treat\", post=\"post\", controls=[\"UNEMP\", \"LFPR\"], fixed_effects=[\"statefip\", \"year\", \"age\"], weight_col=\"perwt\", cluster_col=\"statefip\")",
+  "outcome_definition": "((empstat == 1) & uhrswork.between(35, 98)).astype(int)",
+  "sample_selection": [
+    "(year >= 2006) & (year <= 2016) & (year != 2012)",
+    "hispand == 100",
+    "bpl == 200",
+    "citizen == 3",
+    "(yrimmig > 0) & (yrimmig <= 2007)",
+    "birthyr >= 1982",
+    "age.between(18, 35)",
+    "school != 2",
+    "age_at_arrival.between(0, 22)",
+    "((empstat != 1) | uhrswork.between(1, 98))"
+  ],
+  "treatment_definition": "((age_at_arrival <= 15) & (birthyr >= 1982) & (yrimmig <= 2007) & (citizen == 3)).astype(int)"
+}

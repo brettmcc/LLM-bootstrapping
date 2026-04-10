@@ -14,6 +14,8 @@ import pandas as pd
 def load_and_filter_data(csv_path: Path, verbose: bool = False) -> pd.DataFrame:
     df = pd.read_csv(csv_path)
     initial_n = len(df)
+    if "spec_status" in df.columns:
+        df = df[df["spec_status"] == "available"].copy()
     df = df[df["execution_status"] == "success"].copy()
     df["point_est"] = pd.to_numeric(df["point_est"], errors="coerce")
     df["SE"] = pd.to_numeric(df["SE"], errors="coerce")
@@ -21,7 +23,6 @@ def load_and_filter_data(csv_path: Path, verbose: bool = False) -> pd.DataFrame:
     df = df.dropna(subset=["point_est", "SE", "sample_size"])
     df = df[df["SE"] > 0]
     df = df[df["sample_size"] > 0]
-    df = df[df["point_est"].abs() <= 1]
     if verbose:
         print(f"Loaded {initial_n} rows, retained {len(df)} after filtering.")
     return df
@@ -102,6 +103,7 @@ def classify_estimation_method(value: str) -> str:
 def provider_display_name(value: str) -> str:
     mapping = {
         "gpt-5.1-codex-mini": "GPT 5.1 Codex Mini",
+        "gpt-5.4": "GPT 5.4",
         "codex-cli": "OpenAI Codex CLI",
         "devstral-medium-latest": "Mistral Devstral Medium",
         "gemini-3-flash-preview": "Google Gemini 3 Flash",
@@ -342,11 +344,13 @@ def generate_table5(df: pd.DataFrame, output_path: Path) -> None:
     ]
     for section, col, order in sections:
         counts = total_df[col].value_counts()
+        label_written = False
         for idx, choice in enumerate(order):
             if choice not in counts:
                 continue
             subset = total_df[total_df[col] == choice]
-            label = section if idx == 0 else ""
+            label = section if not label_written else ""
+            label_written = True
             rows.append([
                 label,
                 choice,

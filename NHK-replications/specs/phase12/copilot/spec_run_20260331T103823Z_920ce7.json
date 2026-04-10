@@ -1,0 +1,17 @@
+{
+  "model_specification_line": "model = smf.wls(\"full_time_employed ~ daca_eligible + treatment + C(year) + C(statefip) + age_on_june_15_2012 + I(age_on_june_15_2012 ** 2) + female + in_school + hs_or_more + UNEMP + EVERIFY + DRIVERSLICENSES\", data=analysis_df, weights=analysis_df[\"perwt\"]).fit(cov_type=\"cluster\", cov_kwds={\"groups\": analysis_df[\"statefip\"]})",
+  "outcome_definition": "((df[\"empstat\"] == 1) & (df[\"uhrswork\"] >= 35)).astype(int)",
+  "sample_selection": [
+    "df[\"year\"].between(2008, 2016) & (df[\"year\"] != 2012)",
+    "df[\"statefip\"].isin(valid_states)",
+    "df[\"hispan\"] == 1",
+    "df[\"bpl\"] == 200",
+    "df[\"citizen\"] == 3",
+    "df[\"yrimmig\"].between(1900, 2007)",
+    "(df[\"yrimmig\"] - df[\"birthyr\"]) < 16",
+    "df[\"birthyr\"].between(1979, 1984)",
+    "df[\"birthqtr\"].isin([1, 2, 3, 4])",
+    "(df[\"school\"] == 2) | (df[\"educd\"] >= 62)"
+  ],
+  "treatment_definition": "((df[\"year\"] >= 2013).astype(int) * (((df[\"birthyr\"] > 1981) | ((df[\"birthyr\"] == 1981) & (df[\"birthqtr\"] >= 3))).astype(int)))"
+}

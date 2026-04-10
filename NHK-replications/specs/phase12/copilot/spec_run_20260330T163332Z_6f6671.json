@@ -1,0 +1,13 @@
+{
+  "model_specification_line": "model = sm.WLS(df[\"full_time\"], design, weights=df[\"perwt\"]).fit(cov_type=\"HC1\")",
+  "outcome_definition": "((empstat == 1) & (uhrswork >= 35)).astype(float)",
+  "sample_selection": [
+    "2006 <= year <= 2016",
+    "hispan == 1 and bpl == 200 (Mexican origin)",
+    "citizen == 3 (non-citizen)",
+    "18 <= age <= 35 and 1977 <= birthyr <= 1996",
+    "yrimmig <= birthyr + 15 and yrimmig <= 2007 (arrived before June 15, 2007)",
+    "perwt > 0, statefip between 1 and 99, and empstat observed"
+  ],
+  "treatment_definition": "((birthyr >= 1982) & (birthyr <= 1996) & (yrimmig <= birthyr + 15) & (yrimmig <= 2007)).astype(int)"
+}

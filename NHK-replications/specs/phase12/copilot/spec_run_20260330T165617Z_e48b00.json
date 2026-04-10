@@ -1,0 +1,13 @@
+{
+  "model_specification_line": "model = smf.ols(\"full_time ~ treatment + C(year)\", data=df, weights=df[\"perwt\"])",
+  "outcome_definition": "(empstat == 1) & (uhrswork >= 35)",
+  "sample_selection": [
+    "year between 2013 and 2016",
+    "hispand in {100, 102, 103, 104, 105, 106, 107} to capture Mexican-origin Hispanic respondents",
+    "birthplace code bpl == 200 (Mexico)",
+    "citizen status in {2, 3} to focus on non-citizens or non-reported respondents",
+    "age between 18 and 40 in each survey year",
+    "non-missing immigration year (yrimmig > 0)"
+  ],
+  "treatment_definition": "(yrimmig <= 2007) & ((yrimmig - birthyr) <= 15) & (birthyr >= 1981)"
+}

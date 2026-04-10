@@ -1,0 +1,13 @@
+{
+  "model_specification_line": "results = smf.wls(formula=\"full_time_employed ~ daca_eligible * post_daca + age_june2012 + I(age_june2012 ** 2) + C(sex) + C(year) + C(statefip) + UNEMP + LFPR + DRIVERSLICENSES + INSTATETUITION + STATEFINANCIALAID + HIGHEREDBAN + EVERIFY + LIMITEVERIFY + OMNIBUS + TASK287G + JAIL287G + SECURECOMMUNITIES\", data=analysis_df, weights=analysis_df[\"perwt\"]).fit(cov_type=\"cluster\", cov_kwds={\"groups\": analysis_df[\"statefip\"]})",
+  "outcome_definition": "((analysis_df[\"empstat\"] == 1) & (analysis_df[\"uhrswork\"] >= 35)).astype(int)",
+  "sample_selection": [
+    "Keep ACS observations from 2008-2011 and 2013-2016 only; exclude 2012 because DACA was implemented mid-year.",
+    "Restrict to ethnically Mexican Hispanic Mexican-born respondents (hispan == 1 and bpl == 200).",
+    "Restrict to foreign-born noncitizens who proxy for lacking lawful status (citizen in [3, 4, 5]).",
+    "Keep household residents only (gq in [1, 2, 5]).",
+    "Approximate DACA childhood-arrival and continuous-residence requirements with yrimmig <= birthyr + 15 and yrimmig <= 2007.",
+    "Restrict to birth cohorts 1979-1984 with observed birth quarter to compare cohorts close to the June 15, 1981 age-eligibility cutoff."
+  ],
+  "treatment_definition": "(((analysis_df[\"birthyr\"] > 1981) | ((analysis_df[\"birthyr\"] == 1981) & analysis_df[\"birthqtr\"].isin([3, 4]))) & (analysis_df[\"yrimmig\"] <= 2007) & (analysis_df[\"yrimmig\"] <= analysis_df[\"birthyr\"] + 15) & analysis_df[\"citizen\"].isin([3, 4, 5])).astype(int)"
+}

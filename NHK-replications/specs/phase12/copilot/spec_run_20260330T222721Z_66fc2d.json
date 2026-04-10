@@ -1,0 +1,11 @@
+{
+  "model_specification_line": "model = smf.wls('full_time ~ treatment + C(year) + birthyr', data=analysis_df, weights=analysis_df['perwt']).fit(cov_type='HC3')",
+  "outcome_definition": "full_time = (uhrswork >= 35) & (uhrswork <= 96)",
+  "sample_selection": [
+    "year between 2013 and 2016",
+    "hispan == 1 (Mexican) and bpl == 200 (Mexico-born), citizen == 2 (non-citizen)",
+    "yrimmig between 1900 and 2007, age between 18 and 45, perwt > 0 to focus on working-age migrants",
+    "arrival_age (yrimmig - birthyr) must be non-missing and between 0 and 60 so we can classify DACA eligibility"
+  ],
+  "treatment_definition": "treatment = (birthyr between 1982 and 1997) & (arrival_age <= 15)"
+}

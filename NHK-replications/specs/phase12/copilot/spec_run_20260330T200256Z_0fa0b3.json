@@ -1,0 +1,16 @@
+{
+  "model_specification_line": "model = smf.wls(formula, data=sample, weights=sample['perwt'])",
+  "outcome_definition": "(uhrswork >= 35).astype(int)",
+  "sample_selection": [
+    "year between 2013 and 2016",
+    "hispan == 1 (Mexican origin)",
+    "bpl == 200 (born in Mexico)",
+    "citizen == 3 (noncitizen)",
+    "sex in [1,2]",
+    "age between 16 and 45",
+    "birthyr between 1975 and 2000",
+    "yrimmig between 1900 and 2012",
+    "perwt > 0, uhrswork observed, and arrival_age = yrimmig - birthyr >= 0"
+  ],
+  "treatment_definition": "((birthyr >= 1981) & (birthyr <= 1997) & (yrimmig <= 2007) & ((yrimmig - birthyr) < 16)).astype(int)"
+}
