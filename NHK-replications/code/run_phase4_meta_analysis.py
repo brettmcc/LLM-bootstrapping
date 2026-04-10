@@ -41,18 +41,18 @@ def contains_term(terms: Iterable[str], needle: str) -> bool:
 
 def detect_age_form(control_terms: list[str], fixed_terms: list[str]) -> str:
     if contains_term(fixed_terms, "C(AGE)"):
-        return "Fixed Effects C(AGE)"
+        return "Indicators"
     control_upper = " ".join(control_terms).upper()
     if "AGE**2" in control_upper or "I(AGE**2)".upper() in control_upper or "AGE^2" in control_upper:
-        return "Quadratic (AGE + AGE^2)"
+        return "Quadratic"
     if contains_term(control_terms, "AGE"):
-        return "Linear (AGE)"
+        return "Linear"
     return "Not included"
 
 
 def detect_binary_fe(control_terms: list[str], fixed_terms: list[str], var: str) -> str:
     if contains_term(fixed_terms, f"C({var})"):
-        return f"Fixed Effects C({var})"
+        return "Fixed Effects"
     return "Not included"
 
 
@@ -332,27 +332,24 @@ def generate_table5(df: pd.DataFrame, output_path: Path) -> None:
     ]
     sections = [
         ("Age", "age_form", [
-            "Linear (AGE)",
-            "Quadratic (AGE + AGE^2)",
-            "Fixed Effects C(AGE)",
+            "Linear",
+            "Quadratic",
+            "Fixed effects",
             "Not included",
         ]),
-        ("Sex", "sex_form", ["Fixed Effects C(SEX)", "Not included"]),
-        ("Education", "educ_form", ["Fixed Effects C(EDUC)", "Not included"]),
+        ("Sex", "sex_form", ["Fixed effects", "Not included"]),
+        ("Education", "educ_form", ["Fixed effects", "Not included"]),
         ("Year FE", "year_fe", ["Included", "Not included"]),
         ("State FE", "state_fe", ["Included", "Not included"]),
     ]
     for section, col, order in sections:
         counts = total_df[col].value_counts()
-        label_written = False
-        for idx, choice in enumerate(order):
+        for choice in order:
             if choice not in counts:
                 continue
             subset = total_df[total_df[col] == choice]
-            label = section if not label_written else ""
-            label_written = True
             rows.append([
-                label,
+                section,
                 choice,
                 format_int(len(subset)),
                 format_float(subset["point_est"].mean()),

@@ -48,6 +48,46 @@ NEGATIVE_EFFECT_WORDS = {"decrease", "decreased", "decreases", "reduce", "reduce
 GROUPED_COUNT_BODY = r"(?:[0-9]{1,3}(?:,[0-9]{3})+|[0-9]{1,3}(?:\.[0-9]{3})+|[0-9]{1,3}(?: [0-9]{3})+|[0-9]{3,})"
 TEXT_DOCUMENT_EXTENSIONS = {".txt", ".md", ".rmd", ".qmd"}
 SUPPORTED_DOCUMENT_EXTENSIONS = {".pdf", ".docx", ".html"} | TEXT_DOCUMENT_EXTENSIONS
+ROUND1_EXPLANATION_BUCKET = "round1_explanation"
+TASK1_SUBMISSION_BUCKET = "task1_submission"
+ROUND1_RESEARCHER_ID_PATTERNS = [
+    re.compile(r"(?i)(?:researcher|participant)\s*id\s*[:#]?\s*(?P<id>\d{1,6})"),
+    re.compile(r"(?i)\bcode\s*[:#]?\s*(?P<id>\d{1,6})\b"),
+    re.compile(r"(?i)^\s*id\s*[:#]?\s*(?P<id>\d{1,6})\b", re.MULTILINE),
+]
+PREFERRED_COLUMN_PATTERNS = [
+    re.compile(r"(?i)preferred (?:estimate|estimates|specification)[^.\n]{0,200}?column\s*(?P<column>\d+)(?:\s*in\s*panel\s*(?P<panel>[a-z]))?"),
+    re.compile(r"(?i)preferred (?:estimate|estimates|specification)[^.\n]{0,200}?panel\s*(?P<panel>[a-z])[^.\n]{0,120}?column\s*(?P<column>\d+)"),
+    re.compile(r"(?i)preferred (?:estimate|estimates|specification)[^.\n]{0,200}?\((?P<column>\d+)\)"),
+]
+ROUND1_EFFECT_LABEL_PATTERNS = [
+    re.compile(r"(?i)^intent-to-treat\s+effect$"),
+    re.compile(r"(?i)^intent-to-treat\s+effects$"),
+    re.compile(r"(?i)^treatment$"),
+    re.compile(r"(?i)^eligible(?:\s*[_x\-*]\s*post|\*post|\s+post)$"),
+    re.compile(r"(?i)^eligible[_ ]?post$"),
+    re.compile(r"(?i)^eligible\*post$"),
+    re.compile(r"(?i)^eligible×post$"),
+    re.compile(r"(?i)^.{0,80}eligible.{0,40}(?:post|after|2012).*$"),
+    re.compile(r"(?i)^daca eligibility$"),
+    re.compile(r"(?i)^daca$"),
+    re.compile(r"(?i)^daca.*apply$"),
+    re.compile(r"(?i)^daca[_ ]?eligible$"),
+    re.compile(r"(?i)^eligible_daca$"),
+    re.compile(r"(?i)^did$"),
+    re.compile(r"(?i)^att$"),
+    re.compile(r"(?i)^treat\d(?:×|x|\*)post$"),
+    re.compile(r"(?i)^treated\s*(?:×|x|\*)\s*post$"),
+    re.compile(r"(?i)^post\s*(?:×|x|\*)\s*treated$"),
+    re.compile(r"(?i)^treatment\s*x\s*post(?:-?2012)?$"),
+    re.compile(r"(?i)^daca_eligible$"),
+]
+ROUND1_SAMPLE_LABEL_PATTERNS = [
+    re.compile(r"(?i)^no\.?\s*observations$"),
+    re.compile(r"(?i)^observations$"),
+    re.compile(r"(?i)^obs\.?$"),
+    re.compile(r"(?i)^n$"),
+]
 
 
 @dataclass(frozen=True)
@@ -58,6 +98,29 @@ class Candidate:
     score: int
     method: str
     excerpt: str
+    model_note: str = ""
+
+
+@dataclass(frozen=True)
+class TableCandidateSet:
+    """One coefficient row plus nearby SE and sample-size rows from a benchmark table."""
+
+    values: list[float]
+    ses: list[float]
+    sample_sizes: list[int]
+    label: str
+    excerpt: str
+    preferred_column: int | None = None
+    preferred_panel: str | None = None
+
+
+def normalize_researcher_id(raw_value: str) -> str:
+    """Standardize short numeric researcher IDs while preserving longer custom codes."""
+
+    cleaned = raw_value.strip()
+    if cleaned.isdigit() and len(cleaned) <= 3:
+        return cleaned.zfill(3)
+    return cleaned
 
 
 class HTMLTextExtractor(HTMLParser):
@@ -200,16 +263,251 @@ def extract_document_text(file_name: str, blob: bytes) -> str:
     raise ValueError(f"Unsupported benchmark document format: {file_name}")
 
 
-def parse_researcher_id(file_name: str, materialized_path: str = "") -> str:
+def parse_researcher_id(file_name: str, materialized_path: str = "", text: str = "") -> str:
     """Use the numeric stem of the file name as the public researcher identifier."""
 
     path_match = re.search(r"/Submitted Replications/(\d+)/", materialized_path)
     if path_match is not None:
-        return path_match.group(1)
+        return normalize_researcher_id(path_match.group(1))
+    if text:
+        for pattern in ROUND1_RESEARCHER_ID_PATTERNS:
+            match = pattern.search(text)
+            if match is not None:
+                raw_id = match.group("id")
+                if raw_id is not None:
+                    return normalize_researcher_id(raw_id)
     match = re.search(r"(\d+)", Path(file_name).stem)
     if match is None:
         return Path(file_name).stem
-    return match.group(1)
+    return normalize_researcher_id(match.group(1))
+
+
+def is_numericish_line(line: str) -> bool:
+    """Identify lines that mostly contain numeric cells from a rendered table."""
+
+    cleaned = line.strip()
+    if not cleaned:
+        return False
+    if re.search(r"[A-Za-z]{4,}", cleaned):
+        return False
+    return bool(re.search(r"[0-9]", cleaned))
+
+
+def extract_decimal_tokens(line: str) -> list[float]:
+    """Parse coefficient-like decimals from a table line while ignoring grouped counts."""
+
+    values: list[float] = []
+    for token in re.findall(r"[+-]?(?:\d*\.\d+|\d+\.\d*)(?:\*+)?|[+-]?\.\d+(?:\*+)?", line):
+        normalized = token.replace("*", "")
+        try:
+            values.append(float(normalized))
+        except ValueError:
+            continue
+    return values
+
+
+def extract_se_tokens(line: str) -> list[float]:
+    """Parse parenthesized standard-error values from a table line."""
+
+    values: list[float] = []
+    for token in re.findall(r"\(([+-]?(?:\d*\.\d+|\d+\.\d*|\.\d+|\d+\.\d+[eE][+-]?\d+|\d+(?:\.\d+)?[eE][+-]?\d+))\)", line):
+        try:
+            values.append(float(token))
+        except ValueError:
+            continue
+    return values
+
+
+def find_preferred_column_reference(text: str) -> tuple[int | None, str | None, str]:
+    """Extract explicit preferred-model references such as 'column 3 in panel A'."""
+
+    for pattern in PREFERRED_COLUMN_PATTERNS:
+        match = pattern.search(text)
+        if match is None:
+            continue
+        column_text = match.group("column")
+        panel_text = match.groupdict().get("panel")
+        if column_text is None:
+            continue
+        return int(column_text), panel_text.upper() if panel_text else None, capture_excerpt(text, match.start(), match.end())
+    return None, None, ""
+
+
+def line_matches_any(line: str, patterns: list[re.Pattern[str]]) -> bool:
+    """Check whether a stripped line matches any label pattern."""
+
+    stripped = line.strip()
+    return any(pattern.match(stripped) for pattern in patterns)
+
+
+def find_nearest_panel(lines: list[str], start_index: int) -> str | None:
+    """Look backwards from a table row to see whether it sits under Panel A/B labels."""
+
+    for index in range(start_index, max(-1, start_index - 12), -1):
+        match = re.search(r"(?i)\bpanel\s+([a-z])\b", lines[index])
+        if match is not None:
+            return match.group(1).upper()
+    return None
+
+
+def build_table_candidate_sets(text: str, lines: list[str]) -> list[TableCandidateSet]:
+    """Extract coefficient rows plus nearby SE and N rows from standardized Round 1 tables."""
+
+    preferred_column, preferred_panel, preferred_excerpt = find_preferred_column_reference(text)
+    candidate_sets: list[TableCandidateSet] = []
+    for index, line in enumerate(lines):
+        if not line_matches_any(line, ROUND1_EFFECT_LABEL_PATTERNS):
+            continue
+
+        values = extract_decimal_tokens(line)
+        ses: list[float] = []
+        sample_sizes: list[int] = []
+        block_lines = [line.strip()]
+        current_index = index + 1
+
+        while current_index < len(lines):
+            current_line = lines[current_index].strip()
+            if not current_line:
+                current_index += 1
+                continue
+            if line_matches_any(current_line, ROUND1_EFFECT_LABEL_PATTERNS) and current_index != index + 1:
+                break
+            if current_line.lower().startswith("table ") and current_index != index + 1:
+                break
+            block_lines.append(current_line)
+            if line_matches_any(current_line, ROUND1_SAMPLE_LABEL_PATTERNS):
+                sample_sizes.extend(int(value) for value in re.findall(rf"{GROUPED_COUNT_BODY}", current_line) if value)
+                current_index += 1
+                while current_index < len(lines) and is_numericish_line(lines[current_index]):
+                    sample_line = lines[current_index].strip()
+                    block_lines.append(sample_line)
+                    for raw_value in re.findall(rf"{GROUPED_COUNT_BODY}", sample_line):
+                        sample_sizes.append(parse_grouped_number(raw_value))
+                    current_index += 1
+                break
+            if current_line.startswith("(") and ")" in current_line:
+                ses.extend(extract_se_tokens(current_line))
+            elif is_numericish_line(current_line):
+                values.extend(extract_decimal_tokens(current_line))
+            current_index += 1
+
+        if not values:
+            continue
+        candidate_sets.append(
+            TableCandidateSet(
+                values=values,
+                ses=ses,
+                sample_sizes=sample_sizes,
+                label=line.strip(),
+                excerpt=" | ".join(block_lines[:10]),
+                preferred_column=preferred_column,
+                preferred_panel=preferred_panel or find_nearest_panel(lines, index),
+            )
+        )
+
+    if preferred_excerpt and candidate_sets:
+        boosted_sets: list[TableCandidateSet] = []
+        for candidate_set in candidate_sets:
+            boosted_sets.append(
+                TableCandidateSet(
+                    values=candidate_set.values,
+                    ses=candidate_set.ses,
+                    sample_sizes=candidate_set.sample_sizes,
+                    label=candidate_set.label,
+                    excerpt=f"{preferred_excerpt} || {candidate_set.excerpt}",
+                    preferred_column=candidate_set.preferred_column,
+                    preferred_panel=candidate_set.preferred_panel,
+                )
+            )
+        return boosted_sets
+    return candidate_sets
+
+
+def candidate_from_table_set(table_set: TableCandidateSet) -> tuple[Candidate | None, Candidate | None, Candidate | None]:
+    """Choose effect, SE, and N from one table block using any explicit preferred-column cue."""
+
+    effect_index = 0
+    model_note_parts: list[str] = []
+    if table_set.preferred_panel:
+        model_note_parts.append(f"panel_{table_set.preferred_panel.lower()}")
+    if table_set.preferred_column is not None:
+        effect_index = max(0, min(table_set.preferred_column - 1, len(table_set.values) - 1))
+        model_note_parts.append(f"col_{table_set.preferred_column}")
+
+    effect_value = table_set.values[effect_index]
+    if 1 < abs(effect_value) <= 100:
+        effect_value = effect_value / 100.0
+    if abs(effect_value) > 1:
+        return None, None, None
+
+    effect_candidate = Candidate(
+        value=effect_value,
+        score=88 if table_set.preferred_column is not None else 76,
+        method="round1_table_effect",
+        excerpt=table_set.excerpt,
+        model_note=" ".join(model_note_parts),
+    )
+    se_candidate = None
+    if table_set.ses:
+        se_index = max(0, min(effect_index, len(table_set.ses) - 1))
+        se_value = table_set.ses[se_index]
+        if 0.6 < abs(se_value) <= 100:
+            se_value = se_value / 100.0
+        if abs(se_value) <= 0.6:
+            se_candidate = Candidate(
+                value=se_value,
+                score=86 if table_set.preferred_column is not None else 74,
+                method="round1_table_se",
+                excerpt=table_set.excerpt,
+                model_note=" ".join(model_note_parts),
+            )
+    sample_candidate = None
+    if table_set.sample_sizes:
+        sample_index = max(0, min(effect_index, len(table_set.sample_sizes) - 1))
+        sample_candidate = Candidate(
+            value=float(table_set.sample_sizes[sample_index]),
+            score=86 if table_set.preferred_column is not None else 74,
+            method="round1_table_sample",
+            excerpt=table_set.excerpt,
+            model_note=" ".join(model_note_parts),
+        )
+    return effect_candidate, se_candidate, sample_candidate
+
+
+def add_round1_effect_candidates(text: str, lines: list[str]) -> list[Candidate]:
+    """Extract preferred effect candidates from standardized Round 1 explanation tables."""
+
+    candidates: list[Candidate] = []
+    for table_set in build_table_candidate_sets(text, lines):
+        effect_candidate, _, _ = candidate_from_table_set(table_set)
+        if effect_candidate is None:
+            continue
+        candidates.append(effect_candidate)
+    return candidates
+
+
+def add_round1_se_candidates(text: str, lines: list[str]) -> list[Candidate]:
+    """Extract standard-error candidates from standardized Round 1 explanation tables."""
+
+    candidates: list[Candidate] = []
+    for table_set in build_table_candidate_sets(text, lines):
+        _, se_candidate, _ = candidate_from_table_set(table_set)
+        if se_candidate is None:
+            continue
+        candidates.append(se_candidate)
+    return candidates
+
+
+def add_round1_sample_candidates(text: str, lines: list[str]) -> list[Candidate]:
+    """Extract sample-size candidates from standardized Round 1 explanation tables."""
+
+    candidates: list[Candidate] = []
+    for table_set in build_table_candidate_sets(text, lines):
+        _, _, sample_candidate = candidate_from_table_set(table_set)
+        if sample_candidate is None:
+            continue
+        candidates.append(sample_candidate)
+    return candidates
 
 
 def parse_grouped_number(raw_value: str) -> int:
@@ -249,6 +547,9 @@ def add_sample_candidates(flat_text: str, lines: list[str]) -> list[Candidate]:
         (re.compile(rf"(?i)with a total N of\s*(?P<count>{GROUPED_COUNT_BODY})"), 95, "total_n"),
         (re.compile(rf"(?i)analytic sample(?: comprises| includes| contains| of)?\s*(?P<count>{GROUPED_COUNT_BODY})"), 90, "analytic_sample"),
         (re.compile(rf"(?i)(?:found|use|used|using|with)?[^.\n]{{0,40}}?sample of\s*(?P<count>{GROUPED_COUNT_BODY})\s*(?:individuals|observations|people|cases)"), 85, "sample_of_individuals"),
+        (re.compile(rf"(?i)number of observations is\s*(?P<count>{GROUPED_COUNT_BODY})"), 90, "number_of_observations_is"),
+        (re.compile(rf"(?i)\bN\s*=\s*(?P<count>{GROUPED_COUNT_BODY})\b"), 92, "n_equals"),
+        (re.compile(rf"(?i)\bN\s*of\s*(?P<count>{GROUPED_COUNT_BODY})\b"), 88, "n_of"),
     ]
 
     for line in lines:
@@ -280,6 +581,46 @@ def add_sample_candidates(flat_text: str, lines: list[str]) -> list[Candidate]:
                     excerpt=capture_excerpt(flat_text, match.start(), match.end()),
                 )
             )
+
+    return candidates
+
+
+def add_se_candidates(flat_text: str, lines: list[str]) -> list[Candidate]:
+    """Collect plausible standard errors for the preferred benchmark effect."""
+
+    candidates: list[Candidate] = []
+    narrative_patterns = [
+        (re.compile(r"(?i)\bse\s*(?:=|of)?\s*([+-]?[0-9]*\.?[0-9]+)"), 92, "se_narrative"),
+        (re.compile(r"(?i)standard errors?[^.\n]{0,40}?\(([+-]?[0-9]*\.?[0-9]+)\)"), 82, "standard_error_parenthetical"),
+    ]
+    line_patterns = [
+        (re.compile(r"^\(([+-]?[0-9]*\.?[0-9]+)\)$"), 65, "parenthetical_se"),
+    ]
+
+    for pattern, score, method in narrative_patterns:
+        for match in pattern.finditer(flat_text):
+            raw_value = match.group(1)
+            if raw_value is None:
+                continue
+            try:
+                value = float(raw_value)
+            except ValueError:
+                continue
+            candidates.append(Candidate(value=value, score=score, method=method, excerpt=capture_excerpt(flat_text, match.start(), match.end())))
+
+    for line in lines:
+        for pattern, score, method in line_patterns:
+            match = pattern.search(line.strip())
+            if match is None:
+                continue
+            raw_value = match.group(1)
+            if raw_value is None:
+                continue
+            try:
+                value = float(raw_value)
+            except ValueError:
+                continue
+            candidates.append(Candidate(value=value, score=score, method=method, excerpt=line.strip()))
 
     return candidates
 
@@ -335,6 +676,24 @@ def add_effect_candidates(flat_text: str, lines: list[str]) -> list[Candidate]:
             "generic_narrative_pp",
             (1, 2, 3),
         ),
+        (
+            re.compile(r"(?i)(?:point estimate|preferred estimate|preferred estimation|preferred results?|preferred model|main specification|our preferred estimation|effect is estimated to be|estimated magnitude)[^.\n]{0,160}?([+-]?[0-9]*\.?[0-9]+)\s*(percentage points?|percent(?:age)?|%)"),
+            90,
+            "generic_effect_units",
+            (None, 1, 2),
+        ),
+        (
+            re.compile(r"(?i)(?:effect|coefficient)[^.\n]{0,120}?(?:is|=)\s*(?:estimated to be|about|roughly|around)?\s*([+-]?[0-9]*\.?[0-9]+)\s*(percentage points?|percent(?:age)?|%)"),
+            82,
+            "effect_is_units",
+            (None, 1, 2),
+        ),
+        (
+            re.compile(r"(?i)probability of (?:full-time employment|working full[- ]time|being employed full-time)[^.\n]{0,120}?([+-]?[0-9]*\.?[0-9]+)\s*(percent(?:age)? points?|%)"),
+            84,
+            "probability_change_units",
+            (None, 1, 2),
+        ),
     ]
 
     line_patterns = [
@@ -346,6 +705,8 @@ def add_effect_candidates(flat_text: str, lines: list[str]) -> list[Candidate]:
         for match in pattern.finditer(flat_text):
             direction_group, value_group, unit_group = groups
             raw_value_text = match.group(value_group)
+            if raw_value_text is None:
+                continue
             raw_value = float(raw_value_text)
             direction_text = match.group(direction_group) if direction_group is not None else None
             unit_text = match.group(unit_group) if unit_group is not None else None
@@ -388,6 +749,7 @@ def list_benchmark_documents(api_url: str, max_files: int | None = None) -> list
     """Traverse the public OSF tree and keep only Task 1 narrative/result documents."""
 
     documents: list[dict[str, str]] = []
+    seen_documents: set[tuple[str, str]] = set()
     queue: deque[str] = deque([api_url])
     seen: set[str] = set()
 
@@ -420,6 +782,10 @@ def list_benchmark_documents(api_url: str, max_files: int | None = None) -> list
                 if not source_bucket:
                     continue
 
+                document_key = (name, item["links"]["download"])
+                if document_key in seen_documents:
+                    continue
+                seen_documents.add(document_key)
                 documents.append(
                     {
                         "file_name": name,
@@ -453,11 +819,25 @@ def extract_benchmark_rows(api_url: str, max_files: int | None = None, verbose: 
         try:
             blob = fetch_bytes(download_url)
             text = extract_document_text(name, blob)
+            researcher_id = parse_researcher_id(name, materialized_path, text)
             lines = [line.strip() for line in text.splitlines() if line.strip()]
             flat_text = re.sub(r"\s+", " ", text)
             is_daca_relevant = bool(re.search(r"(?i)\bDACA\b|Deferred Action for Childhood Arrivals", text))
-            effect_candidate = choose_candidate(add_effect_candidates(flat_text, lines)) if is_daca_relevant else None
-            sample_candidate = choose_candidate(add_sample_candidates(flat_text, lines)) if is_daca_relevant else None
+            effect_candidates: list[Candidate] = []
+            se_candidates: list[Candidate] = []
+            sample_candidates: list[Candidate] = []
+            if is_daca_relevant:
+                effect_candidates.extend(add_effect_candidates(flat_text, lines))
+                sample_candidates.extend(add_sample_candidates(flat_text, lines))
+                se_candidates.extend(add_se_candidates(flat_text, lines))
+                if source_bucket == ROUND1_EXPLANATION_BUCKET:
+                    effect_candidates.extend(add_round1_effect_candidates(text, lines))
+                    se_candidates.extend(add_round1_se_candidates(text, lines))
+                    sample_candidates.extend(add_round1_sample_candidates(text, lines))
+
+            effect_candidate = choose_candidate(effect_candidates) if is_daca_relevant else None
+            se_candidate = choose_candidate(se_candidates) if is_daca_relevant else None
+            sample_candidate = choose_candidate(sample_candidates) if is_daca_relevant else None
             row = {
                 "researcher_id": researcher_id,
                 "file_name": name,
@@ -470,10 +850,17 @@ def extract_benchmark_rows(api_url: str, max_files: int | None = None, verbose: 
                 "effect_score": effect_candidate.score if effect_candidate is not None else np.nan,
                 "effect_method": effect_candidate.method if effect_candidate is not None else "",
                 "effect_excerpt": effect_candidate.excerpt if effect_candidate is not None else "",
+                "effect_model_note": effect_candidate.model_note if effect_candidate is not None else "",
+                "standard_error": se_candidate.value if se_candidate is not None else np.nan,
+                "se_score": se_candidate.score if se_candidate is not None else np.nan,
+                "se_method": se_candidate.method if se_candidate is not None else "",
+                "se_excerpt": se_candidate.excerpt if se_candidate is not None else "",
+                "se_model_note": se_candidate.model_note if se_candidate is not None else "",
                 "sample_size": int(sample_candidate.value) if sample_candidate is not None else np.nan,
                 "sample_score": sample_candidate.score if sample_candidate is not None else np.nan,
                 "sample_method": sample_candidate.method if sample_candidate is not None else "",
                 "sample_excerpt": sample_candidate.excerpt if sample_candidate is not None else "",
+                "sample_model_note": sample_candidate.model_note if sample_candidate is not None else "",
                 "error": "",
             }
         except Exception as exc:  # noqa: BLE001 - keep the audit trail even when one file fails.
@@ -489,10 +876,17 @@ def extract_benchmark_rows(api_url: str, max_files: int | None = None, verbose: 
                 "effect_score": np.nan,
                 "effect_method": "",
                 "effect_excerpt": "",
+                "effect_model_note": "",
+                "standard_error": np.nan,
+                "se_score": np.nan,
+                "se_method": "",
+                "se_excerpt": "",
+                "se_model_note": "",
                 "sample_size": np.nan,
                 "sample_score": np.nan,
                 "sample_method": "",
                 "sample_excerpt": "",
+                "sample_model_note": "",
                 "error": str(exc),
             }
         rows.append(row)
@@ -521,7 +915,7 @@ def collapse_to_researcher_level(document_df: pd.DataFrame) -> pd.DataFrame:
     """Keep the best available effect and sample extraction for each researcher."""
 
     rows: list[dict[str, object]] = []
-    source_rank = {"task1_submission": 1, "round1_explanation": 0}
+    source_rank = {ROUND1_EXPLANATION_BUCKET: 2, TASK1_SUBMISSION_BUCKET: 1}
     format_rank = {"pdf": 3, "docx": 2, "html": 2, "txt": 1, "md": 0, "rmd": 0, "qmd": 0}
 
     for researcher_id, group in document_df.groupby("researcher_id", dropna=False):
@@ -533,12 +927,17 @@ def collapse_to_researcher_level(document_df: pd.DataFrame) -> pd.DataFrame:
             by=["effect_score", "_source_rank", "_format_rank"],
             ascending=[False, False, False],
         )
+        se_group = group[group["standard_error"].notna()].sort_values(
+            by=["se_score", "_source_rank", "_format_rank"],
+            ascending=[False, False, False],
+        )
         sample_group = group[group["sample_size"].notna()].sort_values(
             by=["sample_score", "_source_rank", "_format_rank"],
             ascending=[False, False, False],
         )
 
         best_effect = effect_group.iloc[0] if not effect_group.empty else None
+        best_se = se_group.iloc[0] if not se_group.empty else None
         best_sample = sample_group.iloc[0] if not sample_group.empty else None
 
         rows.append(
@@ -551,6 +950,15 @@ def collapse_to_researcher_level(document_df: pd.DataFrame) -> pd.DataFrame:
                 "effect_source_bucket": best_effect["source_bucket"] if best_effect is not None else "",
                 "effect_materialized_path": best_effect["materialized_path"] if best_effect is not None else "",
                 "effect_excerpt": best_effect["effect_excerpt"] if best_effect is not None else "",
+                "effect_model_note": best_effect["effect_model_note"] if best_effect is not None else "",
+                "standard_error": best_se["standard_error"] if best_se is not None else np.nan,
+                "se_score": best_se["se_score"] if best_se is not None else np.nan,
+                "se_method": best_se["se_method"] if best_se is not None else "",
+                "se_file_name": best_se["file_name"] if best_se is not None else "",
+                "se_source_bucket": best_se["source_bucket"] if best_se is not None else "",
+                "se_materialized_path": best_se["materialized_path"] if best_se is not None else "",
+                "se_excerpt": best_se["se_excerpt"] if best_se is not None else "",
+                "se_model_note": best_se["se_model_note"] if best_se is not None else "",
                 "sample_size": best_sample["sample_size"] if best_sample is not None else np.nan,
                 "sample_score": best_sample["sample_score"] if best_sample is not None else np.nan,
                 "sample_method": best_sample["sample_method"] if best_sample is not None else "",
@@ -558,6 +966,7 @@ def collapse_to_researcher_level(document_df: pd.DataFrame) -> pd.DataFrame:
                 "sample_source_bucket": best_sample["source_bucket"] if best_sample is not None else "",
                 "sample_materialized_path": best_sample["materialized_path"] if best_sample is not None else "",
                 "sample_excerpt": best_sample["sample_excerpt"] if best_sample is not None else "",
+                "sample_model_note": best_sample["sample_model_note"] if best_sample is not None else "",
             }
         )
 
