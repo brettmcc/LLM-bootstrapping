@@ -208,7 +208,7 @@ Table~\ref{tab:nhk_summary} reports summary statistics for point estimates, stan
 \caption{Distribution of executed estimates across LLM-generated research choices}
 \small
 \resizebox{\textwidth}{!}{\input{\nhkmeta/table1_summary_stats.tex}}
-\caption*{\textbf{Notes:} The sample includes runs with recoverable specifications and \texttt{execution\_status = success}; this excludes validation failures, interrupted runs with no results file, and degenerate outputs with non-positive standard errors. The inverse-SE weighted row uses weights $1/\max(SE, q_{0.25})$ where $q_{0.25}$ is the 25th percentile of $SE$. Standard errors are rounded for display, so very small positive values may appear as 0.000.}
+\caption*{\textbf{Notes:} The sample includes runs with recoverable specifications; this excludes validation failures, interrupted runs with no results file, and degenerate outputs with non-positive standard errors. The inverse-SE weighted row uses weights $1/\max(SE, q_{0.25})$ where $q_{0.25}$ is the 25th percentile of $SE$. Standard errors are rounded for display, so very small positive values may appear as 0.000.}
 \label{tab:nhk_summary}
 \end{table}
 
