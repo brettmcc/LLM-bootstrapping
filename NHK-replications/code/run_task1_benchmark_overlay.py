@@ -11,11 +11,20 @@ This script does two things in one reproducible pass:
 The extraction is intentionally conservative. When a document does not contain
 an effect or sample size in a pattern we can parse defensibly, the row is kept
 in the audit CSV with missing values rather than forcing a brittle guess.
+
+The public OSF submission documents are not identical to the internal survey
+responses summarized in the benchmark paper's Table 3. As a result, the OSF
+reconstruction is useful for transparent benchmarking and document audit trails,
+but it does not fully reproduce the paper's respondent counts for every metric.
+To keep the exact published reference values alongside the reconstruction, this
+script also writes a separate Task 1 Table 3 reference CSV transcribed from the
+benchmark paper itself.
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import io
 import json
 import os
@@ -29,6 +38,7 @@ from collections import deque
 from dataclasses import dataclass
 from html.parser import HTMLParser
 from pathlib import Path
+from urllib.parse import urlparse
 from xml.etree import ElementTree as ET
 
 import fitz  # PyMuPDF
@@ -46,10 +56,38 @@ SUBMITTED_REPLICATIONS_API_URL = (
 
 NEGATIVE_EFFECT_WORDS = {"decrease", "decreased", "decreases", "reduce", "reduced", "reduces", "lower", "lowered", "lowers"}
 GROUPED_COUNT_BODY = r"(?:[0-9]{1,3}(?:,[0-9]{3})+|[0-9]{1,3}(?:\.[0-9]{3})+|[0-9]{1,3}(?: [0-9]{3})+|[0-9]{3,})"
-TEXT_DOCUMENT_EXTENSIONS = {".txt", ".md", ".rmd", ".qmd"}
+TEXT_DOCUMENT_EXTENSIONS = {".txt", ".md", ".rmd", ".qmd", ".tex", ".log"}
 SUPPORTED_DOCUMENT_EXTENSIONS = {".pdf", ".docx", ".html"} | TEXT_DOCUMENT_EXTENSIONS
 ROUND1_EXPLANATION_BUCKET = "round1_explanation"
 TASK1_SUBMISSION_BUCKET = "task1_submission"
+OSF_RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
+DEFAULT_OSF_CACHE_DIR = Path(tempfile.gettempdir()) / "nhk-replications" / "benchmark_task1_osf_cache"
+BENCHMARK_TASK1_TABLE3_TARGETS = {
+    "effect_unweighted": {"n": 145, "mean": 0.053, "sd": 0.095, "min": -0.049, "p25": 0.014, "median": 0.030, "p75": 0.051, "max": 0.660},
+    "effect_weighted": {"n": 138, "mean": 0.044, "sd": 0.092, "min": -0.049, "p25": 0.012, "median": 0.026, "p75": 0.043, "max": 0.660},
+    "standard_error": {"n": 139, "mean": 0.019, "sd": 0.055, "min": 0.000, "p25": 0.005, "median": 0.007, "p75": 0.013, "max": 0.460},
+    "sample_size": {"n": 145, "mean": 828_318, "sd": 3_056_037, "min": 681, "p25": 61_600, "median": 179_960, "p75": 356_787, "max": 29_536_580},
+    "treated_group_size": {"n": 141, "mean": 96_395, "sd": 648_493, "min": 270, "p25": 17_950, "median": 34_435, "p75": 52_581, "max": 7_727_201},
+}
+BENCHMARK_TASK1_TABLE3_LABELS = {
+    "effect_unweighted": "Effect Size (Unweighted)",
+    "effect_weighted": "Effect Size (Weighted)",
+    "standard_error": "Standard Error",
+    "sample_size": "Sample Size",
+    "treated_group_size": "Treated-Group Size",
+}
+OSF_EXCLUDED_PATH_PATTERNS = [
+    re.compile(r"(?i)/0-references/"),
+    re.compile(r"(?i)/references?/"),
+]
+OSF_EXCLUDED_FILE_PATTERNS = [
+    re.compile(r"(?i)^readme(?:\.[^.]+)?$"),
+    re.compile(r"(?i)^research task(?:\.[^.]+)?$"),
+    re.compile(r"(?i)^state level data documentation(?:\.[^.]+)?$"),
+    re.compile(r"(?i)^default\.txt$"),
+    re.compile(r"(?i)^test\.txt$"),
+    re.compile(r"(?i)^usa_\d+\.cbk(?:\.txt)?$"),
+]
 ROUND1_RESEARCHER_ID_PATTERNS = [
     re.compile(r"(?i)(?:researcher|participant)\s*id\s*[:#]?\s*(?P<id>\d{1,6})"),
     re.compile(r"(?i)\bcode\s*[:#]?\s*(?P<id>\d{1,6})\b"),
@@ -90,6 +128,12 @@ ROUND1_SAMPLE_LABEL_PATTERNS = [
     re.compile(r"(?i)^obs\.?$"),
     re.compile(r"(?i)^n$"),
 ]
+TREATED_GROUP_LABEL_PATTERNS = [
+    re.compile(r"(?i)^treated(?:-group)?(?: size| observations?)?$"),
+    re.compile(r"(?i)^daca[- ]?eligible(?: sample| size| observations?)?$"),
+    re.compile(r"(?i)^eligible(?: sample| size| observations?)?$"),
+    re.compile(r"(?i)^treated$"),
+]
 
 
 @dataclass(frozen=True)
@@ -123,6 +167,18 @@ def normalize_researcher_id(raw_value: str) -> str:
     if cleaned.isdigit() and len(cleaned) <= 3:
         return cleaned.zfill(3)
     return cleaned
+
+
+def should_skip_document(file_name: str, materialized_path: str) -> bool:
+    """Exclude obvious support/reference files that are not benchmark result documents."""
+
+    lower_name = file_name.lower()
+    lower_path = materialized_path.lower()
+    if any(pattern.search(lower_path) for pattern in OSF_EXCLUDED_PATH_PATTERNS):
+        return True
+    if any(pattern.match(lower_name) for pattern in OSF_EXCLUDED_FILE_PATTERNS):
+        return True
+    return False
 
 
 class HTMLTextExtractor(HTMLParser):
@@ -165,15 +221,41 @@ def configure_matplotlib_cache() -> None:
     os.environ["MPLCONFIGDIR"] = str(mpl_tmp)
 
 
-def fetch_bytes(url: str, timeout: int = 120, attempts: int = 6) -> bytes:
+def get_cache_path(url: str, cache_dir: Path) -> Path:
+    """Create a stable cache file name for one downloaded URL."""
+
+    parsed_url = urlparse(url)
+    suffix = ".json" if parsed_url.netloc == "api.osf.io" else (Path(parsed_url.path).suffix or ".bin")
+    digest = hashlib.sha256(url.encode("utf-8")).hexdigest()
+    return cache_dir / f"{digest}{suffix}"
+
+
+def fetch_bytes(url: str, timeout: int = 120, attempts: int = 10, cache_dir: Path | None = DEFAULT_OSF_CACHE_DIR) -> bytes:
     """Download a URL with retries because the public OSF API is occasionally flaky."""
+
+    cache_path: Path | None = None
+    if cache_dir is not None:
+        cache_path = get_cache_path(url, cache_dir)
+        if cache_path.exists():
+            return cache_path.read_bytes()
 
     last_error: Exception | None = None
     for attempt in range(attempts):
         try:
             request = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
             with urllib.request.urlopen(request, timeout=timeout) as response:
-                return response.read()
+                payload = response.read()
+            if cache_path is not None:
+                cache_path.parent.mkdir(parents=True, exist_ok=True)
+                cache_path.write_bytes(payload)
+            return payload
+        except urllib.error.HTTPError as exc:
+            last_error = exc
+            if exc.code not in OSF_RETRYABLE_STATUS_CODES:
+                raise
+            retry_after_header = exc.headers.get("Retry-After")
+            retry_after_seconds = int(retry_after_header) if retry_after_header and retry_after_header.isdigit() else 0
+            time.sleep(max(retry_after_seconds, min(60, 2 ** attempt)))
         except Exception as exc:  # noqa: BLE001 - we want one retry path for OSF errors.
             last_error = exc
             time.sleep(1 + attempt)
@@ -182,10 +264,10 @@ def fetch_bytes(url: str, timeout: int = 120, attempts: int = 6) -> bytes:
     raise last_error
 
 
-def fetch_json(url: str, timeout: int = 120, attempts: int = 6) -> dict:
+def fetch_json(url: str, timeout: int = 120, attempts: int = 10, cache_dir: Path | None = DEFAULT_OSF_CACHE_DIR) -> dict:
     """Fetch and decode JSON using the same retry behavior as file downloads."""
 
-    return json.loads(fetch_bytes(url, timeout=timeout, attempts=attempts).decode("utf-8"))
+    return json.loads(fetch_bytes(url, timeout=timeout, attempts=attempts, cache_dir=cache_dir).decode("utf-8"))
 
 
 def normalize_text(text: str) -> str:
@@ -202,19 +284,24 @@ def normalize_text(text: str) -> str:
     }
     for old, new in replacements.items():
         text = text.replace(old, new)
+    text = text.replace("\\times", " x ")
+    text = text.replace("\\_", "_")
+    text = text.replace("\\\\", "\n")
+    text = re.sub(r"(\w)-\n(\w)", r"\1\2", text)
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     text = re.sub(r"[\t\f\v]+", " ", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text.strip()
 
 
-def extract_pdf_text(blob: bytes, max_pages: int = 5) -> str:
+def extract_pdf_text(blob: bytes, max_pages: int | None = 12) -> str:
     """Extract text from the first few pages of a PDF benchmark document."""
 
     document = fitz.open(stream=blob, filetype="pdf")
     try:
         pages: list[str] = []
-        for page_index in range(min(len(document), max_pages)):
+        page_limit = len(document) if max_pages is None else min(len(document), max_pages)
+        for page_index in range(page_limit):
             pages.append(document[page_index].get_text("text"))
         return "\n".join(pages)
     finally:
@@ -431,6 +518,7 @@ def candidate_from_table_set(table_set: TableCandidateSet) -> tuple[Candidate | 
 
     effect_index = 0
     model_note_parts: list[str] = []
+    label_bonus = score_table_label(table_set.label)
     if table_set.preferred_panel:
         model_note_parts.append(f"panel_{table_set.preferred_panel.lower()}")
     if table_set.preferred_column is not None:
@@ -445,8 +533,8 @@ def candidate_from_table_set(table_set: TableCandidateSet) -> tuple[Candidate | 
 
     effect_candidate = Candidate(
         value=effect_value,
-        score=88 if table_set.preferred_column is not None else 76,
-        method="round1_table_effect",
+        score=(88 if table_set.preferred_column is not None else 76) + label_bonus,
+        method="table_effect",
         excerpt=table_set.excerpt,
         model_note=" ".join(model_note_parts),
     )
@@ -459,8 +547,8 @@ def candidate_from_table_set(table_set: TableCandidateSet) -> tuple[Candidate | 
         if abs(se_value) <= 0.6:
             se_candidate = Candidate(
                 value=se_value,
-                score=86 if table_set.preferred_column is not None else 74,
-                method="round1_table_se",
+                score=(86 if table_set.preferred_column is not None else 74) + max(0, label_bonus),
+                method="table_se",
                 excerpt=table_set.excerpt,
                 model_note=" ".join(model_note_parts),
             )
@@ -469,48 +557,81 @@ def candidate_from_table_set(table_set: TableCandidateSet) -> tuple[Candidate | 
         sample_index = max(0, min(effect_index, len(table_set.sample_sizes) - 1))
         sample_candidate = Candidate(
             value=float(table_set.sample_sizes[sample_index]),
-            score=86 if table_set.preferred_column is not None else 74,
-            method="round1_table_sample",
+            score=(86 if table_set.preferred_column is not None else 74) + max(0, label_bonus),
+            method="table_sample",
             excerpt=table_set.excerpt,
             model_note=" ".join(model_note_parts),
         )
     return effect_candidate, se_candidate, sample_candidate
 
 
-def add_round1_effect_candidates(text: str, lines: list[str]) -> list[Candidate]:
-    """Extract preferred effect candidates from standardized Round 1 explanation tables."""
+def score_table_label(label: str) -> int:
+    """Boost rows that look like the interaction term of interest and penalize generic rows."""
+
+    normalized = re.sub(r"\s+", " ", label.strip().lower())
+    bonus = 0
+    if "intent-to-treat" in normalized or normalized == "att":
+        bonus += 12
+    if re.search(r"\btreat\d", normalized) and "post" in normalized:
+        bonus += 10
+    if ("eligible" in normalized or "treated" in normalized) and ("post" in normalized or "daca" in normalized):
+        bonus += 12
+    if normalized in {"daca", "eligible", "post"}:
+        bonus -= 25
+    if normalized.startswith("daca ") and "post" not in normalized and "eligible" not in normalized:
+        bonus -= 15
+    return bonus
+
+
+def add_table_effect_candidates(text: str, lines: list[str]) -> list[Candidate]:
+    """Extract effect candidates from table-like documents across all Task 1 submissions."""
 
     candidates: list[Candidate] = []
     for table_set in build_table_candidate_sets(text, lines):
         effect_candidate, _, _ = candidate_from_table_set(table_set)
-        if effect_candidate is None:
-            continue
-        candidates.append(effect_candidate)
+        if effect_candidate is not None:
+            candidates.append(effect_candidate)
     return candidates
+
+
+def add_table_se_candidates(text: str, lines: list[str]) -> list[Candidate]:
+    """Extract standard-error candidates from table-like documents across all Task 1 submissions."""
+
+    candidates: list[Candidate] = []
+    for table_set in build_table_candidate_sets(text, lines):
+        _, se_candidate, _ = candidate_from_table_set(table_set)
+        if se_candidate is not None:
+            candidates.append(se_candidate)
+    return candidates
+
+
+def add_table_sample_candidates(text: str, lines: list[str]) -> list[Candidate]:
+    """Extract total-sample candidates from table-like documents across all Task 1 submissions."""
+
+    candidates: list[Candidate] = []
+    for table_set in build_table_candidate_sets(text, lines):
+        _, _, sample_candidate = candidate_from_table_set(table_set)
+        if sample_candidate is not None:
+            candidates.append(sample_candidate)
+    return candidates
+
+
+def add_round1_effect_candidates(text: str, lines: list[str]) -> list[Candidate]:
+    """Extract preferred effect candidates from standardized Round 1 explanation tables."""
+
+    return add_table_effect_candidates(text, lines)
 
 
 def add_round1_se_candidates(text: str, lines: list[str]) -> list[Candidate]:
     """Extract standard-error candidates from standardized Round 1 explanation tables."""
 
-    candidates: list[Candidate] = []
-    for table_set in build_table_candidate_sets(text, lines):
-        _, se_candidate, _ = candidate_from_table_set(table_set)
-        if se_candidate is None:
-            continue
-        candidates.append(se_candidate)
-    return candidates
+    return add_table_se_candidates(text, lines)
 
 
 def add_round1_sample_candidates(text: str, lines: list[str]) -> list[Candidate]:
     """Extract sample-size candidates from standardized Round 1 explanation tables."""
 
-    candidates: list[Candidate] = []
-    for table_set in build_table_candidate_sets(text, lines):
-        _, _, sample_candidate = candidate_from_table_set(table_set)
-        if sample_candidate is None:
-            continue
-        candidates.append(sample_candidate)
-    return candidates
+    return add_table_sample_candidates(text, lines)
 
 
 def parse_grouped_number(raw_value: str) -> int:
@@ -567,6 +688,22 @@ def add_sample_candidates(flat_text: str, lines: list[str]) -> list[Candidate]:
                     continue
                 candidates.append(Candidate(value=float(value), score=score, method=method, excerpt=line.strip()))
 
+    for index, line in enumerate(lines[:-1]):
+        if not any(pattern.match(line.strip()) for pattern, _, _ in line_patterns):
+            continue
+        next_line = lines[index + 1].strip()
+        raw_match = re.search(rf"{GROUPED_COUNT_BODY}", next_line)
+        if raw_match is None:
+            continue
+        candidates.append(
+            Candidate(
+                value=float(parse_grouped_number(raw_match.group(0))),
+                score=90,
+                method="split_line_sample",
+                excerpt=f"{line.strip()} | {next_line}",
+            )
+        )
+
     for pattern, score, method in text_patterns:
         for match in pattern.finditer(flat_text):
             try:
@@ -588,12 +725,73 @@ def add_sample_candidates(flat_text: str, lines: list[str]) -> list[Candidate]:
     return candidates
 
 
+def add_treated_group_candidates(flat_text: str, lines: list[str]) -> list[Candidate]:
+    """Collect plausible treated-group sizes from one benchmark document."""
+
+    candidates: list[Candidate] = []
+    line_patterns = [
+        (re.compile(rf"(?i)^(?:treated(?:-group)?(?: size| observations?)?|daca[- ]?eligible(?: sample| size| observations?)?|eligible(?: sample| size| observations?)?)\s*(?:[:=|])?\s*(?P<count>{GROUPED_COUNT_BODY})"), 96, "treated_label"),
+    ]
+    text_patterns = [
+        (re.compile(rf"(?i)(?:treated group|treated-group size|daca[- ]?eligible(?: sample| observations| individuals)?|eligible sample|eligible individuals)[^.\n]{{0,60}}?(?:is|was|of|=|:|contains|includes)?\s*(?P<count>{GROUPED_COUNT_BODY})"), 88, "treated_narrative"),
+    ]
+
+    for line in lines:
+        for pattern, score, method in line_patterns:
+            match = pattern.search(line.strip())
+            if match is None:
+                continue
+            raw_value = match.group("count")
+            if raw_value is None:
+                continue
+            candidates.append(
+                Candidate(
+                    value=float(parse_grouped_number(raw_value)),
+                    score=score,
+                    method=method,
+                    excerpt=line.strip(),
+                )
+            )
+
+    for index, line in enumerate(lines[:-1]):
+        if not any(pattern.match(line.strip()) for pattern in TREATED_GROUP_LABEL_PATTERNS):
+            continue
+        next_line = lines[index + 1].strip()
+        raw_match = re.search(rf"{GROUPED_COUNT_BODY}", next_line)
+        if raw_match is None:
+            continue
+        candidates.append(
+            Candidate(
+                value=float(parse_grouped_number(raw_match.group(0))),
+                score=90,
+                method="split_line_treated_group",
+                excerpt=f"{line.strip()} | {next_line}",
+            )
+        )
+
+    for pattern, score, method in text_patterns:
+        for match in pattern.finditer(flat_text):
+            raw_value = match.group("count")
+            if raw_value is None:
+                continue
+            candidates.append(
+                Candidate(
+                    value=float(parse_grouped_number(raw_value)),
+                    score=score,
+                    method=method,
+                    excerpt=capture_excerpt(flat_text, match.start(), match.end()),
+                )
+            )
+
+    return candidates
+
+
 def add_se_candidates(flat_text: str, lines: list[str]) -> list[Candidate]:
     """Collect plausible standard errors for the preferred benchmark effect."""
 
     candidates: list[Candidate] = []
     narrative_patterns = [
-        (re.compile(r"(?i)\bse\s*(?:=|of)?\s*([+-]?[0-9]*\.?[0-9]+)"), 92, "se_narrative"),
+        (re.compile(r"(?i)\b(?:s\.?e\.?|se|standard errors?|std\.? error)\s*(?:=|of|:)?\s*([+-]?[0-9]*\.?[0-9]+)\s*(percentage points?|pp|%)?"), 92, "se_narrative"),
         (re.compile(r"(?i)standard errors?[^.\n]{0,40}?\(([+-]?[0-9]*\.?[0-9]+)\)"), 82, "standard_error_parenthetical"),
     ]
     line_patterns = [
@@ -609,6 +807,11 @@ def add_se_candidates(flat_text: str, lines: list[str]) -> list[Candidate]:
                 value = float(raw_value)
             except ValueError:
                 continue
+            unit_text = match.group(2) if pattern.groups >= 2 else None
+            if unit_text and ("percentage" in unit_text.lower() or unit_text.lower() in {"pp", "%"}) and 0.6 < abs(value) <= 100:
+                value = value / 100.0
+            if abs(value) > 0.6:
+                continue
             candidates.append(Candidate(value=value, score=score, method=method, excerpt=capture_excerpt(flat_text, match.start(), match.end())))
 
     for line in lines:
@@ -623,9 +826,24 @@ def add_se_candidates(flat_text: str, lines: list[str]) -> list[Candidate]:
                 value = float(raw_value)
             except ValueError:
                 continue
+            if abs(value) > 0.6:
+                continue
             candidates.append(Candidate(value=value, score=score, method=method, excerpt=line.strip()))
 
     return candidates
+
+
+def looks_like_task1_result_document(text: str, lines: list[str]) -> bool:
+    """Identify Task 1 result documents even when they omit the literal word DACA."""
+
+    if any(line_matches_any(line, ROUND1_EFFECT_LABEL_PATTERNS) for line in lines):
+        return True
+    if re.search(r"(?i)full[- ]time|working full[- ]time|probability of working", text) and re.search(
+        r"(?i)eligible(?:[_ ]?daca|\s*[×x*]\s*daca|\s*[×x*]\s*post|_post)|intent-to-treat|treat\d\s*[×x*]\s*post|observations",
+        text,
+    ):
+        return True
+    return False
 
 
 def convert_effect_units(
@@ -692,6 +910,12 @@ def add_effect_candidates(flat_text: str, lines: list[str]) -> list[Candidate]:
             (None, 1, 2),
         ),
         (
+            re.compile(r"(?i)(?:indicates?|implies?|is associated with)[^.\n]{0,160}?([+-]?[0-9]*\.?[0-9]+)\s*[- ]?(percentage[- ]points?|pp)\s*(increase|decrease)"),
+            86,
+            "indicates_units_change",
+            (3, 1, 2),
+        ),
+        (
             re.compile(r"(?i)probability of (?:full-time employment|working full[- ]time|being employed full-time)[^.\n]{0,120}?([+-]?[0-9]*\.?[0-9]+)\s*(percent(?:age)? points?|%)"),
             84,
             "probability_change_units",
@@ -750,7 +974,7 @@ def choose_candidate(candidates: list[Candidate]) -> Candidate | None:
     return candidates[best_index]
 
 
-def list_benchmark_documents(api_url: str, max_files: int | None = None) -> list[dict[str, str]]:
+def list_benchmark_documents(api_url: str, max_files: int | None = None, cache_dir: Path | None = DEFAULT_OSF_CACHE_DIR) -> list[dict[str, str]]:
     """Traverse the public OSF tree and keep only Task 1 narrative/result documents."""
 
     documents: list[dict[str, str]] = []
@@ -766,7 +990,7 @@ def list_benchmark_documents(api_url: str, max_files: int | None = None) -> list
 
         next_url: str | None = current_url
         while next_url:
-            page = fetch_json(next_url)
+            page = fetch_json(next_url, cache_dir=cache_dir)
             for item in page["data"]:
                 attrs = item["attributes"]
                 if attrs["kind"] == "folder":
@@ -779,6 +1003,8 @@ def list_benchmark_documents(api_url: str, max_files: int | None = None) -> list
                     continue
 
                 materialized_path = attrs.get("materialized_path", "")
+                if should_skip_document(name, materialized_path):
+                    continue
                 source_bucket = ""
                 if "/Submitted Replications/00_Round_1_Explanations/" in materialized_path:
                     source_bucket = "round1_explanation"
@@ -806,11 +1032,11 @@ def list_benchmark_documents(api_url: str, max_files: int | None = None) -> list
     return documents
 
 
-def extract_benchmark_rows(api_url: str, max_files: int | None = None, verbose: bool = False) -> pd.DataFrame:
+def extract_benchmark_rows(api_url: str, max_files: int | None = None, verbose: bool = False, cache_dir: Path | None = DEFAULT_OSF_CACHE_DIR) -> pd.DataFrame:
     """Download candidate Task 1 documents and build one audit row per document."""
 
     rows: list[dict[str, object]] = []
-    files = list_benchmark_documents(api_url, max_files=max_files)
+    files = list_benchmark_documents(api_url, max_files=max_files, cache_dir=cache_dir)
 
     for index, item in enumerate(files, start=1):
         name = item["file_name"]
@@ -822,27 +1048,29 @@ def extract_benchmark_rows(api_url: str, max_files: int | None = None, verbose: 
             print(f"[{index}/{len(files)}] {name}")
 
         try:
-            blob = fetch_bytes(download_url)
+            blob = fetch_bytes(download_url, cache_dir=cache_dir)
             text = extract_document_text(name, blob)
             researcher_id = parse_researcher_id(name, materialized_path, text)
             lines = [line.strip() for line in text.splitlines() if line.strip()]
             flat_text = re.sub(r"\s+", " ", text)
-            is_daca_relevant = bool(re.search(r"(?i)\bDACA\b|Deferred Action for Childhood Arrivals", text))
+            is_daca_relevant = bool(re.search(r"(?i)\bDACA\b|Deferred Action for Childhood Arrivals", text)) or looks_like_task1_result_document(text, lines)
             effect_candidates: list[Candidate] = []
             se_candidates: list[Candidate] = []
             sample_candidates: list[Candidate] = []
+            treated_group_candidates: list[Candidate] = []
             if is_daca_relevant:
                 effect_candidates.extend(add_effect_candidates(flat_text, lines))
                 sample_candidates.extend(add_sample_candidates(flat_text, lines))
                 se_candidates.extend(add_se_candidates(flat_text, lines))
-                if source_bucket == ROUND1_EXPLANATION_BUCKET:
-                    effect_candidates.extend(add_round1_effect_candidates(text, lines))
-                    se_candidates.extend(add_round1_se_candidates(text, lines))
-                    sample_candidates.extend(add_round1_sample_candidates(text, lines))
+                effect_candidates.extend(add_table_effect_candidates(text, lines))
+                se_candidates.extend(add_table_se_candidates(text, lines))
+                sample_candidates.extend(add_table_sample_candidates(text, lines))
+                treated_group_candidates.extend(add_treated_group_candidates(flat_text, lines))
 
             effect_candidate = choose_candidate(effect_candidates) if is_daca_relevant else None
             se_candidate = choose_candidate(se_candidates) if is_daca_relevant else None
             sample_candidate = choose_candidate(sample_candidates) if is_daca_relevant else None
+            treated_group_candidate = choose_candidate(treated_group_candidates) if is_daca_relevant else None
             row = {
                 "researcher_id": researcher_id,
                 "file_name": name,
@@ -866,6 +1094,11 @@ def extract_benchmark_rows(api_url: str, max_files: int | None = None, verbose: 
                 "sample_method": sample_candidate.method if sample_candidate is not None else "",
                 "sample_excerpt": sample_candidate.excerpt if sample_candidate is not None else "",
                 "sample_model_note": sample_candidate.model_note if sample_candidate is not None else "",
+                "treated_group_size": int(treated_group_candidate.value) if treated_group_candidate is not None else np.nan,
+                "treated_score": treated_group_candidate.score if treated_group_candidate is not None else np.nan,
+                "treated_method": treated_group_candidate.method if treated_group_candidate is not None else "",
+                "treated_excerpt": treated_group_candidate.excerpt if treated_group_candidate is not None else "",
+                "treated_model_note": treated_group_candidate.model_note if treated_group_candidate is not None else "",
                 "error": "",
             }
         except Exception as exc:  # noqa: BLE001 - keep the audit trail even when one file fails.
@@ -892,6 +1125,11 @@ def extract_benchmark_rows(api_url: str, max_files: int | None = None, verbose: 
                 "sample_method": "",
                 "sample_excerpt": "",
                 "sample_model_note": "",
+                "treated_group_size": np.nan,
+                "treated_score": np.nan,
+                "treated_method": "",
+                "treated_excerpt": "",
+                "treated_model_note": "",
                 "error": str(exc),
             }
         rows.append(row)
@@ -904,16 +1142,216 @@ def summarize_series(values: pd.Series) -> dict[str, float]:
 
     clean = pd.to_numeric(values, errors="coerce").dropna()
     if clean.empty:
-        return {"n": 0, "mean": np.nan, "p25": np.nan, "median": np.nan, "p75": np.nan, "min": np.nan, "max": np.nan}
+        return {"n": 0, "mean": np.nan, "sd": np.nan, "p25": np.nan, "median": np.nan, "p75": np.nan, "min": np.nan, "max": np.nan}
     return {
         "n": int(clean.shape[0]),
         "mean": float(clean.mean()),
+        "sd": float(clean.std(ddof=1)) if clean.shape[0] > 1 else 0.0,
         "p25": float(clean.quantile(0.25)),
         "median": float(clean.median()),
         "p75": float(clean.quantile(0.75)),
         "min": float(clean.min()),
         "max": float(clean.max()),
     }
+
+
+def summarize_weighted_series(values: pd.Series, weights: pd.Series) -> dict[str, float]:
+    """Return weighted descriptive statistics used in the benchmark paper's Table 3."""
+
+    frame = pd.DataFrame({"value": pd.to_numeric(values, errors="coerce"), "weight": pd.to_numeric(weights, errors="coerce")}).dropna()
+    frame = frame[frame["weight"] > 0].copy()
+    if frame.empty:
+        return {"n": 0, "mean": np.nan, "sd": np.nan, "p25": np.nan, "median": np.nan, "p75": np.nan, "min": np.nan, "max": np.nan}
+
+    ordered = frame.sort_values("value")
+    sorted_values = ordered["value"].to_numpy(dtype=float)
+    sorted_weights = ordered["weight"].to_numpy(dtype=float)
+    weight_total = float(sorted_weights.sum())
+    weighted_mean = float(np.average(sorted_values, weights=sorted_weights))
+    weighted_variance = float(np.average((sorted_values - weighted_mean) ** 2, weights=sorted_weights))
+    cumulative = np.cumsum(sorted_weights) - 0.5 * sorted_weights
+    cumulative /= weight_total
+
+    def weighted_quantile(probability: float) -> float:
+        return float(np.interp(probability, cumulative, sorted_values))
+
+    return {
+        "n": int(frame.shape[0]),
+        "mean": weighted_mean,
+        "sd": float(np.sqrt(weighted_variance)),
+        "p25": weighted_quantile(0.25),
+        "median": weighted_quantile(0.5),
+        "p75": weighted_quantile(0.75),
+        "min": float(sorted_values.min()),
+        "max": float(sorted_values.max()),
+    }
+
+
+def summarize_weighted_effects(researcher_df: pd.DataFrame, weight_cap: float = 200.0) -> dict[str, float]:
+    """Reproduce the paper's inverse-SE weighted Task 1 effect summary."""
+
+    frame = researcher_df[["effect_estimate", "standard_error"]].copy()
+    frame["effect_estimate"] = pd.to_numeric(frame["effect_estimate"], errors="coerce")
+    frame["standard_error"] = pd.to_numeric(frame["standard_error"], errors="coerce")
+    frame = frame.dropna()
+    frame = frame[(frame["standard_error"] > 0) & frame["effect_estimate"].abs().le(1)]
+    if frame.empty:
+        return {"n": 0, "mean": np.nan, "sd": np.nan, "p25": np.nan, "median": np.nan, "p75": np.nan, "min": np.nan, "max": np.nan}
+    weights = 1.0 / frame["standard_error"]
+    weights = weights.clip(upper=weight_cap)
+    return summarize_weighted_series(frame["effect_estimate"], weights)
+
+
+def round_summary_for_paper(summary: dict[str, float], series_key: str) -> dict[str, float | int]:
+    """Round computed summaries to the precision shown in the benchmark paper."""
+
+    rounded: dict[str, float | int] = {"n": int(summary["n"])}
+    decimals = 0 if series_key in {"sample_size", "treated_group_size"} else 3
+    for metric in ["mean", "sd", "min", "p25", "median", "p75", "max"]:
+        value = summary[metric]
+        if pd.isna(value):
+            rounded[metric] = np.nan
+            continue
+        rounded[metric] = int(round(float(value))) if decimals == 0 else round(float(value), decimals)
+    return rounded
+
+
+def compare_summary_to_target(summary: dict[str, float], series_key: str) -> dict[str, object]:
+    """Compare reconstructed Task 1 statistics against the paper's displayed Table 3 values."""
+
+    rounded_actual = round_summary_for_paper(summary, series_key)
+    target = BENCHMARK_TASK1_TABLE3_TARGETS[series_key]
+    metric_matches = {metric: rounded_actual[metric] == target[metric] for metric in target}
+    return {
+        "actual_display": rounded_actual,
+        "target_display": target,
+        "metric_matches": metric_matches,
+        "all_metrics_match": all(metric_matches.values()),
+    }
+
+
+def apply_manual_overrides(researcher_df: pd.DataFrame, override_path: Path) -> pd.DataFrame:
+    """Apply optional researcher-level manual corrections when a document needs hand reading."""
+
+    if not override_path.exists():
+        return researcher_df
+
+    override_df = pd.read_csv(override_path, dtype={"researcher_id": str}, keep_default_na=False).replace({"": np.nan})
+    override_df["researcher_id"] = override_df["researcher_id"].map(normalize_researcher_id)
+
+    def last_non_null(series: pd.Series) -> object:
+        non_null = series.dropna()
+        return non_null.iloc[-1] if not non_null.empty else np.nan
+
+    override_df = override_df.groupby("researcher_id", as_index=False, sort=False).agg(last_non_null)
+    merged = researcher_df.merge(override_df, on="researcher_id", how="left", suffixes=("", "_override"))
+    clear_targets = {
+        "effect_estimate": [
+            "effect_estimate",
+            "effect_score",
+            "effect_method",
+            "effect_file_name",
+            "effect_source_bucket",
+            "effect_materialized_path",
+            "effect_excerpt",
+            "effect_model_note",
+        ],
+        "standard_error": [
+            "standard_error",
+            "se_score",
+            "se_method",
+            "se_file_name",
+            "se_source_bucket",
+            "se_materialized_path",
+            "se_excerpt",
+            "se_model_note",
+        ],
+        "sample_size": [
+            "sample_size",
+            "sample_score",
+            "sample_method",
+            "sample_file_name",
+            "sample_source_bucket",
+            "sample_materialized_path",
+            "sample_excerpt",
+            "sample_model_note",
+        ],
+        "treated_group_size": [
+            "treated_group_size",
+            "treated_score",
+            "treated_method",
+            "treated_file_name",
+            "treated_source_bucket",
+            "treated_materialized_path",
+            "treated_excerpt",
+            "treated_model_note",
+        ],
+    }
+
+    def is_truthy_override(value: object) -> bool:
+        if pd.isna(value):
+            return False
+        if isinstance(value, bool):
+            return value
+        return str(value).strip().lower() in {"1", "true", "yes", "y", "clear"}
+
+    clear_columns = [column for column in override_df.columns if column.startswith("clear_")]
+    override_columns = [column for column in override_df.columns if column not in {"researcher_id", *clear_columns}]
+    for column in override_columns:
+        override_column = f"{column}_override"
+        merged[column] = merged[override_column].combine_first(merged[column])
+        merged = merged.drop(columns=[override_column])
+
+    for clear_column in clear_columns:
+        field_name = clear_column.removeprefix("clear_")
+        if field_name not in clear_targets or clear_column not in merged.columns:
+            continue
+        clear_mask = merged[clear_column].map(is_truthy_override)
+        for target_column in clear_targets[field_name]:
+            if target_column in merged.columns:
+                merged.loc[clear_mask, target_column] = np.nan
+        merged = merged.drop(columns=[clear_column])
+
+    # Manual override CSVs are read as strings, so normalize numeric fields after merge.
+    for numeric_column in [
+        "effect_estimate",
+        "standard_error",
+        "sample_size",
+        "treated_group_size",
+        "effect_score",
+        "se_score",
+        "sample_score",
+        "treated_score",
+    ]:
+        if numeric_column in merged.columns:
+            merged[numeric_column] = pd.to_numeric(merged[numeric_column], errors="coerce")
+    return merged
+
+
+def build_benchmark_paper_table3_df() -> pd.DataFrame:
+    """Return the exact Task 1 Table 3 values reported in the benchmark paper."""
+
+    rows: list[dict[str, object]] = []
+    for series_key, statistics in BENCHMARK_TASK1_TABLE3_TARGETS.items():
+        rows.append(
+            {
+                "round": "Task 1",
+                "variable": BENCHMARK_TASK1_TABLE3_LABELS[series_key],
+                "series_key": series_key,
+                "n": statistics["n"],
+                "mean": statistics["mean"],
+                "sd": statistics["sd"],
+                "min": statistics["min"],
+                "p25": statistics["p25"],
+                "median": statistics["median"],
+                "p75": statistics["p75"],
+                "max": statistics["max"],
+                "gather_process": "manual_from_converted_pdf",
+                "source_table": "Table 3",
+                "source_paper": "replication-materials/I4R-DP209.pdf",
+            }
+        )
+    return pd.DataFrame(rows)
 
 
 def collapse_to_researcher_level(document_df: pd.DataFrame) -> pd.DataFrame:
@@ -940,10 +1378,15 @@ def collapse_to_researcher_level(document_df: pd.DataFrame) -> pd.DataFrame:
             by=["sample_score", "_source_rank", "_format_rank"],
             ascending=[False, False, False],
         )
+        treated_group = group[group["treated_group_size"].notna()].sort_values(
+            by=["treated_score", "_source_rank", "_format_rank"],
+            ascending=[False, False, False],
+        )
 
         best_effect = effect_group.iloc[0] if not effect_group.empty else None
         best_se = se_group.iloc[0] if not se_group.empty else None
         best_sample = sample_group.iloc[0] if not sample_group.empty else None
+        best_treated = treated_group.iloc[0] if not treated_group.empty else None
 
         rows.append(
             {
@@ -972,6 +1415,14 @@ def collapse_to_researcher_level(document_df: pd.DataFrame) -> pd.DataFrame:
                 "sample_materialized_path": best_sample["materialized_path"] if best_sample is not None else "",
                 "sample_excerpt": best_sample["sample_excerpt"] if best_sample is not None else "",
                 "sample_model_note": best_sample["sample_model_note"] if best_sample is not None else "",
+                "treated_group_size": best_treated["treated_group_size"] if best_treated is not None else np.nan,
+                "treated_score": best_treated["treated_score"] if best_treated is not None else np.nan,
+                "treated_method": best_treated["treated_method"] if best_treated is not None else "",
+                "treated_file_name": best_treated["file_name"] if best_treated is not None else "",
+                "treated_source_bucket": best_treated["source_bucket"] if best_treated is not None else "",
+                "treated_materialized_path": best_treated["materialized_path"] if best_treated is not None else "",
+                "treated_excerpt": best_treated["treated_excerpt"] if best_treated is not None else "",
+                "treated_model_note": best_treated["treated_model_note"] if best_treated is not None else "",
             }
         )
 
@@ -1101,20 +1552,37 @@ def main() -> None:
         default=None,
         help="Optional cap for debugging against a subset of candidate benchmark documents.",
     )
+    parser.add_argument(
+        "--cache-dir",
+        type=Path,
+        default=DEFAULT_OSF_CACHE_DIR,
+        help="Directory used to cache OSF API pages and downloaded benchmark documents.",
+    )
+    parser.add_argument(
+        "--manual-overrides-csv",
+        type=Path,
+        default=Path("meta_analysis") / "benchmark_task1_manual_overrides.csv",
+        help="Optional researcher-level manual corrections for fields that require hand reading.",
+    )
     parser.add_argument("--verbose", action="store_true", help="Print progress as files are processed.")
     args = parser.parse_args()
 
     configure_matplotlib_cache()
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
+    args.cache_dir.mkdir(parents=True, exist_ok=True)
 
-    benchmark_document_audit = extract_benchmark_rows(args.api_url, max_files=args.max_files, verbose=args.verbose)
+    benchmark_document_audit = extract_benchmark_rows(args.api_url, max_files=args.max_files, verbose=args.verbose, cache_dir=args.cache_dir)
     benchmark_document_audit_path = args.output_dir / "benchmark_task1_osf_document_audit.csv"
     benchmark_document_audit.to_csv(benchmark_document_audit_path, index=False)
 
     benchmark_researcher_extracts = collapse_to_researcher_level(benchmark_document_audit)
+    benchmark_researcher_extracts = apply_manual_overrides(benchmark_researcher_extracts, args.manual_overrides_csv)
     benchmark_researcher_extracts_path = args.output_dir / "benchmark_task1_osf_researcher_extracts.csv"
     benchmark_researcher_extracts.to_csv(benchmark_researcher_extracts_path, index=False)
+
+    benchmark_paper_table3_path = args.output_dir / "benchmark_task1_paper_table3.csv"
+    build_benchmark_paper_table3_df().to_csv(benchmark_paper_table3_path, index=False)
 
     benchmark_effect_overlay = benchmark_researcher_extracts[
         benchmark_researcher_extracts["effect_score"].fillna(0).ge(args.min_effect_score)
@@ -1128,18 +1596,46 @@ def main() -> None:
         & benchmark_researcher_extracts["sample_size"].le(10_000_000)
     ].copy()
 
+    effect_table3 = benchmark_researcher_extracts[
+        benchmark_researcher_extracts["effect_estimate"].notna() & benchmark_researcher_extracts["effect_estimate"].abs().le(1)
+    ].copy()
+    se_table3 = benchmark_researcher_extracts[benchmark_researcher_extracts["standard_error"].notna()].copy()
+    sample_table3 = benchmark_researcher_extracts[
+        benchmark_researcher_extracts["sample_size"].notna() & benchmark_researcher_extracts["sample_size"].gt(0)
+    ].copy()
+    treated_table3 = benchmark_researcher_extracts[
+        benchmark_researcher_extracts["treated_group_size"].notna() & benchmark_researcher_extracts["treated_group_size"].gt(0)
+    ].copy()
+    weighted_effect_summary = summarize_weighted_effects(benchmark_researcher_extracts)
+
     llm_df = load_and_filter_data(args.runs_csv)
     generate_overlay_figures(llm_df, benchmark_effect_overlay, benchmark_sample_overlay, args.output_dir)
+
+    paper_table3_summary = {
+        "effect_unweighted": summarize_series(effect_table3["effect_estimate"]),
+        "effect_weighted": weighted_effect_summary,
+        "standard_error": summarize_series(se_table3["standard_error"]),
+        "sample_size": summarize_series(sample_table3["sample_size"]),
+        "treated_group_size": summarize_series(treated_table3["treated_group_size"]),
+    }
+    paper_table3_match_report = {
+        key: compare_summary_to_target(summary, key) for key, summary in paper_table3_summary.items()
+    }
 
     summary = {
         "benchmark_total_documents": int(benchmark_document_audit.shape[0]),
         "benchmark_unique_researchers": int(benchmark_researcher_extracts.shape[0]),
         "benchmark_effect_extracted_documents": int(benchmark_document_audit["effect_estimate"].notna().sum()),
+        "benchmark_se_extracted_documents": int(benchmark_document_audit["standard_error"].notna().sum()),
         "benchmark_sample_extracted_documents": int(benchmark_document_audit["sample_size"].notna().sum()),
+        "benchmark_treated_group_extracted_documents": int(benchmark_document_audit["treated_group_size"].notna().sum()),
         "benchmark_effect_rows_used_in_overlay": int(benchmark_effect_overlay.shape[0]),
         "benchmark_sample_rows_used_in_overlay": int(benchmark_sample_overlay.shape[0]),
         "benchmark_effect_summary": summarize_series(benchmark_effect_overlay["effect_estimate"]),
         "benchmark_sample_summary": summarize_series(benchmark_sample_overlay["sample_size"]),
+        "benchmark_paper_table3_reference": BENCHMARK_TASK1_TABLE3_TARGETS,
+        "benchmark_osf_reconstructed_table3_summary": paper_table3_summary,
+        "benchmark_osf_vs_paper_table3_match_report": paper_table3_match_report,
         "llm_rows_used": int(llm_df.shape[0]),
         "llm_effect_summary": summarize_series(llm_df["point_est"]),
         "llm_sample_summary": summarize_series(llm_df["sample_size"]),
@@ -1150,6 +1646,7 @@ def main() -> None:
     print(json.dumps(summary, indent=2))
     print(f"Wrote benchmark document audit CSV to {benchmark_document_audit_path}")
     print(f"Wrote benchmark researcher-level extracts to {benchmark_researcher_extracts_path}")
+    print(f"Wrote exact benchmark paper Table 3 CSV to {benchmark_paper_table3_path}")
     print(f"Wrote overlay figures to {args.output_dir}")
 
 

@@ -137,6 +137,7 @@ Outputs (default):
 	- Optional benchmark-overlay artifacts from `code/run_task1_benchmark_overlay.py`, including:
 		- `benchmark_task1_osf_document_audit.csv`
 		- `benchmark_task1_osf_researcher_extracts.csv`
+		- `benchmark_task1_paper_table3.csv`
 		- `benchmark_task1_osf_summary.json`
 		- `benchmark_task1_overlay_effect.png`
 		- `benchmark_task1_overlay_sample_size.png`
@@ -147,7 +148,9 @@ The original NHK/I4R benchmark paper PDF is stored at:
 For graphical overlays against the benchmark Task 1 distribution, use:
 - `code/run_task1_benchmark_overlay.py`
 
-That script downloads public Many Economists Task 1 narrative/result documents from OSF, extracts one benchmark estimate and one benchmark sample size per researcher when they can be parsed defensibly, writes document-level and researcher-level audit CSVs, and generates overlay figures against the retained CLI sample.
-It now broadens that extraction to all public Task 1 narrative/result documents under the OSF Submitted Replications tree, then collapses to one best-effect and one best-sample extraction per researcher before plotting the overlays.
+That script downloads public Many Economists Task 1 narrative/result documents from OSF, caches the OSF API responses locally under the system temp directory, retries through transient OSF rate limits, and extracts benchmark effect estimates, standard errors, total sample sizes, and treated-group sizes when they can be parsed defensibly.
+It broadens that extraction to all public Task 1 narrative/result documents under the OSF Submitted Replications tree, records the extraction method used for each recovered field in the audit/researcher CSVs, and compares the OSF-based reconstruction against Table 3 in `replication-materials/I4R-DP209.pdf`.
+Because the public OSF submission documents are not the same source as the paper's internal survey-response data, the reconstruction does not necessarily match the paper's respondent counts. The exact published Task 1 Table 3 values are exported separately in `meta_analysis/benchmark_task1_paper_table3.csv` as a paper-reference spreadsheet.
+If a small number of benchmark rows require hand reading, place researcher-level corrections in `meta_analysis/benchmark_task1_manual_overrides.csv`; the script will apply those overrides reproducibly on top of the automatic extraction before writing final outputs.
 
 The Phase 4 outputs are intended to be comparable “like-for-like” to the descriptive tables/figures in that PDF, with transparent notes about any mismatches.
