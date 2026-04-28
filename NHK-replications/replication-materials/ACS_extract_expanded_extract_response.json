@@ -1,0 +1,315 @@
+{
+  "downloadLinks": {
+    "basicCodebook": {
+      "bytes": 533008,
+      "sha256": "798445b1c566c5f1e757d4072107d7f113b81ed871f2e57ba6ccca5003114922",
+      "url": "https://api.ipums.org/downloads/usa/api/v1/extracts/2877583/usa_00045.cbk"
+    },
+    "data": {
+      "bytes": 8809128944,
+      "sha256": "3a8dd62557ba347020e57173b870a07040b23deda5e2c80081d131508b4bd0f8",
+      "url": "https://api.ipums.org/downloads/usa/api/v1/extracts/2877583/usa_00045.dat.gz"
+    },
+    "ddiCodebook": {
+      "bytes": 1504692,
+      "sha256": "5f8f208fa021b679cf9fc245c670443f094ce118070647dca6a0ee6faecc2a07",
+      "url": "https://api.ipums.org/downloads/usa/api/v1/extracts/2877583/usa_00045.xml"
+    },
+    "rCommandFile": {
+      "bytes": 406,
+      "sha256": "ece8955fa4723fb63025d78e613985388097f6138560879f222014f3d43ae806",
+      "url": "https://api.ipums.org/downloads/usa/api/v1/extracts/2877583/usa_00045.R"
+    },
+    "sasCommandFile": {
+      "bytes": 369225,
+      "sha256": "430843a23dc0b8dc8a20881afdb7b3b49f41d249e2d9bc3b71281955587b88bf",
+      "url": "https://api.ipums.org/downloads/usa/api/v1/extracts/2877583/usa_00045.sas"
+    },
+    "spssCommandFile": {
+      "bytes": 391056,
+      "sha256": "20eeca32575cbce69ce586cb2c3702cdea07eb5f028a2dfebca1ea18a9e88065",
+      "url": "https://api.ipums.org/downloads/usa/api/v1/extracts/2877583/usa_00045.sps"
+    },
+    "stataCommandFile": {
+      "bytes": 770175,
+      "sha256": "1a004da2757c64fb4aa08ec8a3b905a40945bf811b9da0666f77f62288f7b04b",
+      "url": "https://api.ipums.org/downloads/usa/api/v1/extracts/2877583/usa_00045.do"
+    }
+  },
+  "email": "brett.mccully@gmail.com",
+  "extractDefinition": {
+    "caseSelectWho": "individuals",
+    "collection": "usa",
+    "dataFormat": "fixed_width",
+    "dataStructure": {
+      "rectangular": {
+        "on": "P"
+      }
+    },
+    "description": "ACS_extract_expanded: one-year ACS 2006-2016, superset of Task 1 researcher-observed IPUMS USA variable choices",
+    "samples": {
+      "us2006a": {},
+      "us2007a": {},
+      "us2008a": {},
+      "us2009a": {},
+      "us2010a": {},
+      "us2011a": {},
+      "us2012a": {},
+      "us2013a": {},
+      "us2014a": {},
+      "us2015a": {},
+      "us2016a": {}
+    },
+    "variables": {
+      "ABSENT": {},
+      "AGE": {
+        "dataQualityFlags": true
+      },
+      "AGEORIG": {},
+      "ANCESTR1": {},
+      "ANCESTR2": {},
+      "ARRIVES": {},
+      "AVAILBLE": {},
+      "BEDROOMS": {},
+      "BIRTHQTR": {},
+      "BIRTHYR": {},
+      "BPL": {
+        "dataQualityFlags": true
+      },
+      "CARPOOL": {},
+      "CBSERIAL": {
+        "preselected": true
+      },
+      "CIDATAPLN": {},
+      "CIDIAL": {},
+      "CIHAND": {},
+      "CIHISPEED": {},
+      "CILAPTOP": {},
+      "CINETHH": {},
+      "CIOTHCOMP": {},
+      "CIOTHSVC": {},
+      "CISAT": {},
+      "CISMRTPHN": {},
+      "CITABLET": {},
+      "CITIZEN": {
+        "dataQualityFlags": true
+      },
+      "CITY": {},
+      "CITYPOP": {},
+      "CLASSWKR": {},
+      "CLUSTER": {
+        "preselected": true
+      },
+      "CNTRY": {},
+      "COUNTYFIP": {},
+      "COUNTYICP": {},
+      "CPI99": {},
+      "CPUMA0010": {},
+      "DEGFIELD": {},
+      "DENSITY": {},
+      "DEPARTS": {},
+      "DIFFCARE": {},
+      "DIFFMOB": {},
+      "DIFFPHYS": {},
+      "DIFFREM": {},
+      "DIFFSENS": {},
+      "DISABWRK": {},
+      "DIVINYR": {},
+      "EDUC": {
+        "dataQualityFlags": true
+      },
+      "ELDCH": {},
+      "EMPSTAT": {
+        "dataQualityFlags": true
+      },
+      "FAMSIZE": {},
+      "FAMUNIT": {},
+      "FARM": {},
+      "FERTYR": {},
+      "FOODSTMP": {},
+      "FTOTINC": {},
+      "GQ": {
+        "preselected": true
+      },
+      "GQTYPE": {},
+      "GRADEATT": {},
+      "HCOVANY": {},
+      "HCOVPRIV": {},
+      "HCOVPUB": {},
+      "HHINCOME": {},
+      "HHTYPE": {},
+      "HHWT": {
+        "preselected": true
+      },
+      "HINSCAID": {},
+      "HINSCARE": {},
+      "HINSEMP": {},
+      "HINSIHS": {},
+      "HINSPUR": {},
+      "HINSTRI": {},
+      "HINSVA": {},
+      "HISPAN": {
+        "dataQualityFlags": true
+      },
+      "HOMELAND": {},
+      "HWSEI": {},
+      "INCBUS00": {},
+      "INCEARN": {},
+      "INCINVST": {},
+      "INCOTHER": {},
+      "INCRETIR": {},
+      "INCSS": {},
+      "INCSUPP": {},
+      "INCTOT": {},
+      "INCWAGE": {},
+      "INCWELFR": {},
+      "IND": {},
+      "INDNAICS": {},
+      "INSINCL": {},
+      "LABFORCE": {},
+      "LANGUAGE": {
+        "dataQualityFlags": true
+      },
+      "LINGISOL": {},
+      "LOOKING": {},
+      "MARRINYR": {},
+      "MARST": {
+        "dataQualityFlags": true
+      },
+      "MET2013": {},
+      "METAREA": {},
+      "METPOP10": {},
+      "METRO": {},
+      "MIGCOUNTY1": {},
+      "MIGMET131": {},
+      "MIGPLAC1": {},
+      "MIGPUMA1": {},
+      "MIGRATE1": {
+        "dataQualityFlags": true
+      },
+      "MOMLOC": {},
+      "MOMRULE": {},
+      "MORTAMT1": {},
+      "MORTGAG2": {},
+      "MORTGAGE": {},
+      "MOVEDIN": {},
+      "MULTGEN": {},
+      "NCHILD": {},
+      "NCHLT5": {},
+      "NCOUPLES": {},
+      "NFAMS": {},
+      "NFATHERS": {},
+      "NMOTHERS": {},
+      "NSIBS": {},
+      "NSUBFAM": {},
+      "OCC": {
+        "dataQualityFlags": true
+      },
+      "OCC2010": {},
+      "OCCSCORE": {},
+      "OFFPOV": {},
+      "OWNERSHP": {},
+      "PERNUM": {
+        "preselected": true
+      },
+      "PERWT": {
+        "preselected": true
+      },
+      "PHONE": {},
+      "POPLOC": {},
+      "POVERTY": {},
+      "PREDAI": {},
+      "PREDAPI": {},
+      "PREDBLK": {},
+      "PREDHISP": {},
+      "PREDWHT": {},
+      "PROPTX99": {},
+      "PUMA": {},
+      "PWCOUNTY": {},
+      "PWSTATE2": {},
+      "RACAMIND": {},
+      "RACASIAN": {},
+      "RACBLK": {},
+      "RACE": {
+        "dataQualityFlags": true
+      },
+      "RACHSING": {},
+      "RACOTHER": {},
+      "RACPACIS": {},
+      "RACWHT": {},
+      "REGION": {},
+      "RELATE": {
+        "dataQualityFlags": true
+      },
+      "RENTGRS": {},
+      "RENTMEAL": {},
+      "REPWT": {},
+      "REPWTP": {},
+      "RIDERS": {},
+      "SAMPLE": {
+        "preselected": true
+      },
+      "SCHLTYPE": {},
+      "SCHOOL": {
+        "dataQualityFlags": true
+      },
+      "SEI": {},
+      "SERIAL": {
+        "preselected": true
+      },
+      "SEX": {
+        "dataQualityFlags": true
+      },
+      "SFTYPE": {},
+      "SLWT": {},
+      "SPEAKENG": {
+        "dataQualityFlags": true
+      },
+      "SPLOC": {},
+      "SPMPOV": {},
+      "STATEFIP": {},
+      "STATEICP": {},
+      "STRATA": {
+        "preselected": true
+      },
+      "SUBFAM": {},
+      "TAXINCL": {},
+      "TRANTIME": {},
+      "TRANWORK": {},
+      "UHRSWORK": {
+        "dataQualityFlags": true
+      },
+      "VACANCY": {},
+      "VALUEH": {},
+      "VEHICLES": {},
+      "VETDISAB": {},
+      "VETSTAT": {},
+      "WIDINYR": {},
+      "WKSWORK1": {},
+      "WKSWORK2": {
+        "dataQualityFlags": true
+      },
+      "WORKEDYR": {
+        "dataQualityFlags": true
+      },
+      "WRKLSTWK": {},
+      "WRKRECAL": {},
+      "YEAR": {
+        "preselected": true
+      },
+      "YNGCH": {},
+      "YRIMMIG": {
+        "dataQualityFlags": true
+      },
+      "YRMARR": {},
+      "YRNATUR": {
+        "dataQualityFlags": true
+      },
+      "YRSUSA1": {},
+      "YRSUSA2": {}
+    },
+    "version": 2
+  },
+  "number": 45,
+  "status": "completed"
+}

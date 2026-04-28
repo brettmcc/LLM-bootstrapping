@@ -48,5 +48,12 @@ runs/
 # Binary files
 *.docx
 
+# compressed files
+*.gz
+*.zip
+
+# NHK replications
+NHK-replications/meta_analysis/Submitted Replications/
+
 # Archives
 NHK-replications/archive/

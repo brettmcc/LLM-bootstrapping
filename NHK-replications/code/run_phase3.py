@@ -11,6 +11,14 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
+from data_profiles import (
+    DEFAULT_DATA_PROFILE,
+    aggregate_output_path,
+    conversations_root,
+    data_profile_choices,
+    executions_root,
+    specs_base_dir,
+)
 from path_utils import resolve_path
 
 
@@ -290,19 +298,30 @@ def build_metadata_index(log_paths: list[Path]) -> dict[str, list[dict[str, Any]
     return mapping
 
 
-def load_spec_files(spec_root: Path, providers: list[str]) -> list[Path]:
-    # Collect spec files from provider subdirectories.
+def load_spec_files(spec_root: Path, phase12_spec_root: Path, providers: list[str]) -> list[Path]:
+    # Collect spec files from the non-phase12 and phase12 spec trees.
     files: list[Path] = []
     if providers:
         for provider in providers:
-            provider_dir = spec_root / provider
+            parts = provider_filter_parts(provider)
+            if parts and parts[0] == "phase12":
+                provider_dir = phase12_spec_root.joinpath(*parts[1:]) if len(parts) > 1 else phase12_spec_root
+            else:
+                provider_dir = spec_root / provider
             if provider_dir.exists():
                 files.extend(sorted(provider_dir.rglob("*.json")))
         return files
-    # If no providers specified, scan all subdirectories.
-    for subdir in sorted(spec_root.iterdir()):
-        if subdir.is_dir():
+    # If no providers specified, scan all non-phase12 provider folders first.
+    if spec_root.exists():
+        for subdir in sorted(spec_root.iterdir()):
+            if not subdir.is_dir() or subdir.name == "phase12":
+                continue
             files.extend(sorted(subdir.rglob("*.json")))
+    # Then scan the dedicated phase12 provider folders.
+    if phase12_spec_root.exists():
+        for subdir in sorted(phase12_spec_root.iterdir()):
+            if subdir.is_dir():
+                files.extend(sorted(subdir.rglob("*.json")))
     return files
 
 
@@ -360,14 +379,20 @@ def main() -> None:
     parser.add_argument(
         "--output",
         type=Path,
-        default=resolve_path("runs_complete.csv"),
-        help="Output CSV path (default: runs_complete.csv)",
+        default=None,
+        help="Output CSV path (default depends on --data-profile)",
     )
     parser.add_argument(
         "--spec-provider",
         action="append",
         default=[],
         help="Limit to specific providers (e.g., codex, mistral, gemini_api, gemini_cli)",
+    )
+    parser.add_argument(
+        "--data-profile",
+        choices=[*data_profile_choices(), "all"],
+        default=DEFAULT_DATA_PROFILE,
+        help="Which ACS extract cohort to aggregate (default: expanded)",
     )
     parser.add_argument(
         "--phase2-model",
@@ -377,36 +402,51 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    # Resolve project paths.
-    spec_root = resolve_path("specs")
-    conversations_root = resolve_path("runs/conversations")
-    executions_root = resolve_path("runs/executions")
-    phase12_root = executions_root / "phase12"
+    project_root = resolve_path(".")
+    if args.output is None:
+        if args.data_profile == "all":
+            args.output = project_root / "runs_complete_all.csv"
+        else:
+            args.output = aggregate_output_path(project_root, args.data_profile)
+
+    selected_profiles = list(data_profile_choices()) if args.data_profile == "all" else [args.data_profile]
 
     # Collect log files from Phase 1 API runs.
     log_paths = []
-    if conversations_root.exists():
-        for subdir in conversations_root.iterdir():
+    for profile_name in selected_profiles:
+        profile_conversations_root = conversations_root(project_root, profile_name)
+        if not profile_conversations_root.exists():
+            continue
+        for subdir in profile_conversations_root.iterdir():
             if not subdir.is_dir():
                 continue
             log_paths.extend(sorted(subdir.glob("run_*_B_*.txt")))
     metadata_index = build_metadata_index(log_paths)
 
     # Collect spec files.
-    spec_files = load_spec_files(spec_root, args.spec_provider)
-    phase12_run_dirs = load_phase12_run_dirs(phase12_root, args.spec_provider)
-    spec_paths_by_run_id: dict[str, Path] = {}
-    for spec_path in spec_files:
-        run_id = spec_path.stem.replace("spec_", "")
-        spec_paths_by_run_id.setdefault(run_id, spec_path)
-    candidate_run_ids = sorted(set(spec_paths_by_run_id) | set(phase12_run_dirs))
-    if not candidate_run_ids:
+    spec_paths_by_key: dict[tuple[str, str], Path] = {}
+    phase12_run_dirs: dict[tuple[str, str], Path] = {}
+    for profile_name in selected_profiles:
+        spec_root = specs_base_dir(project_root, profile_name, phase12=False)
+        phase12_spec_root = specs_base_dir(project_root, profile_name, phase12=True)
+        spec_files = load_spec_files(spec_root, phase12_spec_root, args.spec_provider)
+        for spec_path in spec_files:
+            run_id = spec_path.stem.replace("spec_", "")
+            spec_paths_by_key.setdefault((profile_name, run_id), spec_path)
+
+        phase12_root = executions_root(project_root, profile_name, phase12=True)
+        for run_id, run_dir in load_phase12_run_dirs(phase12_root, args.spec_provider).items():
+            phase12_run_dirs.setdefault((profile_name, run_id), run_dir)
+
+    candidate_keys = sorted(set(spec_paths_by_key) | set(phase12_run_dirs))
+    if not candidate_keys:
         print("No archived specs or runs found.")
         return
 
     # Define output columns in the required order.
     fieldnames = [
         "run_id",
+        "data_profile",
         "datetime",
         "random_seed",
         "model_phase1",
@@ -433,16 +473,16 @@ def main() -> None:
     with args.output.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
         writer.writeheader()
-        for run_id in candidate_run_ids:
-            spec_path = spec_paths_by_run_id.get(run_id)
-            phase12_run_dir = phase12_run_dirs.get(run_id)
+        for data_profile, run_id in candidate_keys:
+            spec_path = spec_paths_by_key.get((data_profile, run_id))
+            phase12_run_dir = phase12_run_dirs.get((data_profile, run_id))
             is_phase12 = phase12_run_dir is not None or (
                 spec_path is not None and any(parent.name == "phase12" for parent in spec_path.parents)
             )
             run_dirs: list[Path] = []
             if is_phase12:
-                run_dirs.append(phase12_root / run_id)
-            base_run_dir = executions_root / run_id
+                run_dirs.append(phase12_run_dir or (executions_root(project_root, data_profile, phase12=True) / run_id))
+            base_run_dir = executions_root(project_root, data_profile) / run_id
             if not is_phase12 or base_run_dir.exists():
                 run_dirs.append(base_run_dir)
             deduped_run_dirs: list[Path] = []
@@ -544,6 +584,7 @@ def main() -> None:
             writer.writerow(
                 {
                     "run_id": run_id_value,
+                    "data_profile": data_profile,
                     "datetime": run_datetime,
                     "random_seed": random_seed,
                     "model_phase1": model_phase1,

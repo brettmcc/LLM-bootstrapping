@@ -20,8 +20,18 @@ from functools import lru_cache
 from copilot_cli_utils import (
     build_copilot_command,
     detect_copilot_cli_fatal_error,
+    extract_copilot_rate_limit_wait_seconds,
     extract_copilot_final_content,
     extract_copilot_model,
+)
+from data_profiles import (
+    DEFAULT_DATA_PROFILE,
+    data_file_path,
+    data_profile_choices,
+    executions_root,
+    get_data_profile,
+    layout_file_path,
+    specs_dir,
 )
 
 
@@ -34,12 +44,8 @@ SPEC_SCHEMA = PROJECT / "spec_schema.json"
 RESULTS_SCHEMA = PROJECT / "results_schema.json"
 PHASE12_SCHEMA = PROJECT / "phase12_schema.json"
 REPLICATION_DIR = PROJECT / "replication-materials"
-DATA_FILE = REPLICATION_DIR / "usa_00042.dat"
-DO_FILE = REPLICATION_DIR / "usa_00042.do"
 POLICY_FILE = REPLICATION_DIR / "policy_labor_market_data.csv"
 DOC_FILE = REPLICATION_DIR / "State-Level Data Documentation.md"
-SPECS_ROOT = PROJECT / "specs" / "phase12"
-RUNS_ROOT = PROJECT / "runs" / "executions" / "phase12"
 
 CLI_TEMPLATE_ENV = {
     "copilot": "COPILOT_CLI_COMMAND",
@@ -50,8 +56,6 @@ ANALYSIS_PLACEHOLDER = "# Placeholder analysis file (overwrite with implementati
 # Placeholder used to ensure analysis.py exists before Copilot runs.
 
 ATTEMPT_LOG_NAME = "attempt_log.txt"
-RATE_LIMIT_DEFAULT_WAIT_SECONDS = 65
-RATE_LIMIT_WAIT_BUFFER_SECONDS = 5
 MAX_RATE_LIMIT_RETRIES = 12
 
 
@@ -60,12 +64,14 @@ def write_run_metadata(
     provider: str,
     model_name: str | None,
     requested_model: str | None,
+    data_profile: str,
 ) -> None:
     # Persist phase12 metadata so Phase 3 can recover both model columns.
     resolved_model = model_name or f"{provider}-cli"
     payload = {
         "phase": "phase12",
         "cli_provider": provider,
+        "data_profile": data_profile,
         "model_phase1": resolved_model,
         "model_phase2": resolved_model,
     }
@@ -300,9 +306,14 @@ def python_executable() -> str:
     return str(exe)
 
 
-def build_prompt(prompt_text: str, feedback: Optional[str] = None) -> str:
+def build_prompt(
+    prompt_text: str,
+    data_profile: str,
+    feedback: Optional[str] = None,
+) -> str:
     # Build the combined Phase 1 + Phase 2 prompt for the LLM.
     python_cmd = python_executable()
+    profile = get_data_profile(data_profile)
     feedback_block = ""
     if feedback:
         feedback_block = (
@@ -318,7 +329,7 @@ YOUR TASK:
 1. Propose a research specification (sample selection, outcome, treatment, model line).
 2. Implement that specification in analysis.py using the local data files.
    analysis.py may already exist; overwrite it with your implementation.
-2b. Consider yourself to have a maximum of 30GB of memory. Therefore, when reading in usa_00042.dat, you may want to type variables, filter variables early, implement chunking etc. as needed.
+2b. Consider yourself to have a maximum of 30GB of memory. Therefore, when reading in {profile.run_data_file_name}, you may want to type variables, filter variables early, implement chunking etc. as needed.
 3. Verify the sample has variation in the treatment. If not, revise the specification
    and update analysis.py accordingly.
 4. Run analysis.py with:
@@ -348,8 +359,8 @@ Output JSON format:
 }}
 
 Allowed local files (in this working directory only):
-- usa_00042.dat (symlinked large data file)
-- usa_00042_layout_excerpt.do (layout + missing codes)
+- {profile.run_data_file_name} (symlinked large data file)
+- {profile.run_layout_excerpt_name} (layout + missing codes)
 - policy_labor_market_data.csv
 - State-Level Data Documentation.md
 
@@ -421,10 +432,10 @@ def remove_run_data(link_path: Path) -> None:
         pass
 
 
-def write_layout_excerpt(dest: Path, max_lines: int) -> None:
-    # Write the first max_lines of the DO_FILE to dest.
+def write_layout_excerpt(dest: Path, layout_path: Path, max_lines: int) -> None:
+    # Write the first max_lines of the selected layout file to dest.
     lines = []
-    with DO_FILE.open("r", encoding="utf-8", errors="replace") as handle:
+    with layout_path.open("r", encoding="utf-8", errors="replace") as handle:
         for idx, line in enumerate(handle, start=1):
             lines.append(line)
             if idx >= max_lines:
@@ -439,11 +450,12 @@ def copy_if_missing(src: Path, dest: Path) -> None:
     dest.write_bytes(src.read_bytes())
 
 
-def validate_run_dir(run_dir: Path) -> None:
+def validate_run_dir(run_dir: Path, data_profile: str) -> None:
     # Ensure the run directory only contains expected files.
+    profile = get_data_profile(data_profile)
     allowed = {
-        "usa_00042.dat",
-        "usa_00042_layout_excerpt.do",
+        profile.run_data_file_name,
+        profile.run_layout_excerpt_name,
         "policy_labor_market_data.csv",
         "State-Level Data Documentation.md",
         "prompt_phase12.txt",
@@ -486,32 +498,17 @@ def build_feedback(reason: str, stdout: str, stderr: str) -> str:
     return f"{reason}\nSTDERR:\n{stderr_tail}\nSTDOUT:\n{stdout_tail}"
 
 
-def rate_limit_wait_seconds(stdout: str, stderr: str) -> Optional[int]:
-    # Detect Copilot rate-limit responses and return a retry delay in seconds.
-    combined = "\n".join(part for part in (stdout, stderr) if part)
-    if not combined:
-        return None
-    lower = combined.lower()
-    if "rate_limit" not in lower and "rate limit" not in lower and "retry after" not in lower:
-        return None
+def remaining_rate_limit_cooldown(rate_limit_state: dict[str, float]) -> int:
+    # Compute how much longer we should wait before issuing another Copilot request.
+    not_before = float(rate_limit_state.get("not_before", 0.0))
+    return max(0, math.ceil(not_before - time.time()))
 
-    patterns = (
-        r"(?:try again in|retry after|available in)\s*(\d+(?:\.\d+)?)\s*(seconds?|secs?|minutes?|mins?|hours?|hrs?)",
-        r"(?:wait|waiting)\s*(\d+(?:\.\d+)?)\s*(seconds?|secs?|minutes?|mins?|hours?|hrs?)",
-    )
-    for pattern in patterns:
-        match = re.search(pattern, lower)
-        if match:
-            value = float(match.group(1))
-            unit = match.group(2)
-            multiplier = 1
-            if unit.startswith(("min", "minute")):
-                multiplier = 60
-            elif unit.startswith(("hr", "hour")):
-                multiplier = 3600
-            return max(1, math.ceil(value * multiplier) + RATE_LIMIT_WAIT_BUFFER_SECONDS)
 
-    return RATE_LIMIT_DEFAULT_WAIT_SECONDS
+def extend_rate_limit_cooldown(rate_limit_state: dict[str, float], wait_seconds: int) -> int:
+    # Keep the latest known cooldown across all runs in the current process.
+    target_time = time.time() + wait_seconds
+    rate_limit_state["not_before"] = max(float(rate_limit_state.get("not_before", 0.0)), target_time)
+    return remaining_rate_limit_cooldown(rate_limit_state)
 
 
 def detect_fatal_cli_error(stdout: str, stderr: str) -> Optional[str]:
@@ -663,7 +660,7 @@ def write_validation_failure(run_dir: Path, reason: str, stdout: str, stderr: st
 
 def specs_dir_for(provider: str) -> Path:
     # Return provider-specific specs directory.
-    return SPECS_ROOT / provider
+    raise RuntimeError("Use the profile-aware specs_dir(...) helper instead.")
 
 
 def run_phase12(
@@ -679,30 +676,36 @@ def run_phase12(
     reasoning_supported: bool,
     max_attempts: int,
     copilot_model: Optional[str],
+    data_profile: str,
+    rate_limit_state: dict[str, float],
 ) -> None:
     # Run a single Phase 1+2 execution using the selected CLI provider.
-    run_dir = RUNS_ROOT / run_id
+    profile = get_data_profile(data_profile)
+    run_dir = executions_root(PROJECT, data_profile, phase12=True) / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
+    data_file = data_file_path(PROJECT, data_profile)
+    do_file = layout_file_path(PROJECT, data_profile)
+    spec_output_dir = specs_dir(PROJECT, provider, data_profile, phase12=True)
 
     metadata_path = run_dir / "run_metadata.json"
     initial_model = copilot_model if provider == "copilot" else None
-    write_run_metadata(metadata_path, provider, initial_model, copilot_model)
+    write_run_metadata(metadata_path, provider, initial_model, copilot_model, data_profile)
 
-    validate_run_dir(run_dir)
+    validate_run_dir(run_dir, data_profile)
 
-    if not DATA_FILE.exists():
-        raise FileNotFoundError(f"Missing data file: {DATA_FILE}")
-    if not DO_FILE.exists():
-        raise FileNotFoundError(f"Missing layout file: {DO_FILE}")
+    if not data_file.exists():
+        raise FileNotFoundError(f"Missing data file: {data_file}")
+    if not do_file.exists():
+        raise FileNotFoundError(f"Missing layout file: {do_file}")
     if not POLICY_FILE.exists():
         raise FileNotFoundError(f"Missing policy file: {POLICY_FILE}")
     if not DOC_FILE.exists():
         raise FileNotFoundError(f"Missing documentation file: {DOC_FILE}")
 
-    ensure_data_link(DATA_FILE, run_dir / "usa_00042.dat")
+    ensure_data_link(data_file, run_dir / profile.run_data_file_name)
     prompt_path: Optional[Path] = None
     try:
-        write_layout_excerpt(run_dir / "usa_00042_layout_excerpt.do", layout_lines)
+        write_layout_excerpt(run_dir / profile.run_layout_excerpt_name, do_file, layout_lines)
         copy_if_missing(POLICY_FILE, run_dir / "policy_labor_market_data.csv")
         copy_if_missing(DOC_FILE, run_dir / "State-Level Data Documentation.md")
 
@@ -721,9 +724,10 @@ def run_phase12(
         last_stdout = ""
         last_stderr = ""
         feedback: Optional[str] = None
+        spec_output_dir.mkdir(parents=True, exist_ok=True)
 
         for attempt in range(1, max_attempts + 1):
-            prompt = build_prompt(prompt_text, feedback)
+            prompt = build_prompt(prompt_text, data_profile, feedback)
             append_attempt_log(run_dir, f"Attempt {attempt}/{max_attempts} started.")
 
             result: Optional[subprocess.CompletedProcess[str]] = None
@@ -732,6 +736,21 @@ def run_phase12(
             rate_limit_retries = 0
 
             while True:
+                cooldown_seconds = remaining_rate_limit_cooldown(rate_limit_state)
+                if cooldown_seconds > 0:
+                    append_attempt_log(
+                        run_dir,
+                        (
+                            f"Attempt {attempt}/{max_attempts} waiting {cooldown_seconds}s for "
+                            "the shared Copilot rate-limit cooldown to expire."
+                        ),
+                    )
+                    print(
+                        f"{run_id}: waiting {cooldown_seconds}s for the Copilot rate-limit cooldown "
+                        f"before attempt {attempt}/{max_attempts}."
+                    )
+                    time.sleep(cooldown_seconds)
+
                 try:
                     if provider == "copilot":
                         if not analysis_path.exists():
@@ -760,6 +779,7 @@ def run_phase12(
                                 provider,
                                 resolved_model,
                                 copilot_model,
+                                data_profile,
                             )
                         parsed_stdout = extract_copilot_final_content(result.stdout) or result.stdout
                     else:
@@ -790,17 +810,22 @@ def run_phase12(
                 last_stdout = parsed_stdout
                 last_stderr = result.stderr
 
-                wait_seconds = rate_limit_wait_seconds(raw_stdout, result.stderr)
+                wait_seconds = extract_copilot_rate_limit_wait_seconds(
+                    raw_stdout,
+                    result.stderr,
+                    retry_count=rate_limit_retries,
+                )
                 if wait_seconds is None:
                     break
 
                 rate_limit_retries += 1
+                cooldown_seconds = extend_rate_limit_cooldown(rate_limit_state, wait_seconds)
                 last_reason = "CLI rate limited"
                 append_attempt_log(
                     run_dir,
                     (
                         f"Attempt {attempt}/{max_attempts} hit a rate limit; waiting "
-                        f"{wait_seconds}s before retry {rate_limit_retries}/{MAX_RATE_LIMIT_RETRIES}."
+                        f"{cooldown_seconds}s before retry {rate_limit_retries}/{MAX_RATE_LIMIT_RETRIES}."
                     ),
                 )
                 if rate_limit_retries >= MAX_RATE_LIMIT_RETRIES:
@@ -812,10 +837,10 @@ def run_phase12(
                     break
 
                 print(
-                    f"{run_id}: rate limited; waiting {wait_seconds}s before retrying "
+                    f"{run_id}: rate limited; waiting {cooldown_seconds}s before retrying "
                     f"the request (attempt {attempt}/{max_attempts})."
                 )
-                time.sleep(wait_seconds)
+                time.sleep(cooldown_seconds)
 
             if result is None:
                 continue
@@ -893,8 +918,7 @@ def run_phase12(
             run_spec_path.write_text(
                 json.dumps(spec, indent=2, sort_keys=True), encoding="utf-8"
             )
-            specs_dir_for(provider).mkdir(parents=True, exist_ok=True)
-            spec_path = specs_dir_for(provider) / f"spec_{run_id}.json"
+            spec_path = spec_output_dir / f"spec_{run_id}.json"
             spec_path.write_text(
                 json.dumps(spec, indent=2, sort_keys=True), encoding="utf-8"
             )
@@ -987,7 +1011,7 @@ def run_phase12(
         print(f"{run_id}: failed after {max_attempts} attempts ({last_reason}).")
     finally:
         # Always remove the run-local data file when done.
-        remove_run_data(run_dir / "usa_00042.dat")
+        remove_run_data(run_dir / profile.run_data_file_name)
         if prompt_path is not None and prompt_path.exists():
             prompt_path.unlink()
 
@@ -1061,6 +1085,12 @@ def main() -> None:
         default=None,
         help="Optional Copilot CLI model override (e.g., gpt-5.4)",
     )
+    parser.add_argument(
+        "--data-profile",
+        choices=data_profile_choices(),
+        default=DEFAULT_DATA_PROFILE,
+        help="ACS extract profile to use (default: expanded)",
+    )
     args = parser.parse_args()
 
     if not PROMPT_PATH.exists():
@@ -1072,8 +1102,8 @@ def main() -> None:
     if not PHASE12_SCHEMA.exists():
         raise FileNotFoundError(f"Missing schema: {PHASE12_SCHEMA}")
 
-    RUNS_ROOT.mkdir(parents=True, exist_ok=True)
-    specs_dir_for(args.cli_provider).mkdir(parents=True, exist_ok=True)
+    executions_root(PROJECT, args.data_profile, phase12=True).mkdir(parents=True, exist_ok=True)
+    specs_dir(PROJECT, args.cli_provider, args.data_profile, phase12=True).mkdir(parents=True, exist_ok=True)
 
     reasoning = None if args.codex_reasoning == "none" else args.codex_reasoning
     reasoning_supported = False
@@ -1109,6 +1139,7 @@ def main() -> None:
         return
 
     prompt_text = PROMPT_PATH.read_text(encoding="utf-8")
+    rate_limit_state: dict[str, float] = {"not_before": 0.0}
 
     for i in range(1, args.n + 1):
         run_id = build_run_id()
@@ -1126,6 +1157,8 @@ def main() -> None:
             reasoning_supported,
             args.max_attempts,
             args.copilot_model,
+            args.data_profile,
+            rate_limit_state,
         )
 
 

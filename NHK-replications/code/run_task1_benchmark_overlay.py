@@ -62,6 +62,7 @@ ROUND1_EXPLANATION_BUCKET = "round1_explanation"
 TASK1_SUBMISSION_BUCKET = "task1_submission"
 OSF_RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
 DEFAULT_OSF_CACHE_DIR = Path(tempfile.gettempdir()) / "nhk-replications" / "benchmark_task1_osf_cache"
+DEFAULT_SUBMITTED_REPLICATIONS_ROOT = Path("meta_analysis") / "Submitted Replications"
 BENCHMARK_TASK1_TABLE3_TARGETS = {
     "effect_unweighted": {"n": 145, "mean": 0.053, "sd": 0.095, "min": -0.049, "p25": 0.014, "median": 0.030, "p75": 0.051, "max": 0.660},
     "effect_weighted": {"n": 138, "mean": 0.044, "sd": 0.092, "min": -0.049, "p25": 0.012, "median": 0.026, "p75": 0.043, "max": 0.660},
@@ -1354,6 +1355,71 @@ def build_benchmark_paper_table3_df() -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def build_task_completion_df(submitted_replications_root: Path) -> pd.DataFrame:
+    """Record which local researcher folders contain Task 1/2/3 submissions."""
+
+    columns = [
+        "researcher_id",
+        "has_task1_submission",
+        "has_task2_submission",
+        "has_task3_submission",
+        "has_all_task_submissions",
+    ]
+    if not submitted_replications_root.exists():
+        return pd.DataFrame(columns=columns)
+
+    rows: list[dict[str, object]] = []
+    for child in submitted_replications_root.iterdir():
+        if not child.is_dir() or not child.name.isdigit():
+            continue
+        researcher_id = normalize_researcher_id(child.name)
+        has_task1_submission = (child / "Replication Task 1").exists()
+        has_task2_submission = (child / "Replication Task 2").exists()
+        has_task3_submission = (child / "Replication Task 3").exists()
+        rows.append(
+            {
+                "researcher_id": researcher_id,
+                "has_task1_submission": has_task1_submission,
+                "has_task2_submission": has_task2_submission,
+                "has_task3_submission": has_task3_submission,
+                "has_all_task_submissions": has_task1_submission and has_task2_submission and has_task3_submission,
+            }
+        )
+    return pd.DataFrame(rows, columns=columns)
+
+
+def annotate_task_completion(researcher_df: pd.DataFrame, submitted_replications_root: Path) -> pd.DataFrame:
+    """Add local Task 1/2/3 completion flags to the researcher-level benchmark rows."""
+
+    completion_df = build_task_completion_df(submitted_replications_root)
+    completion_columns = [
+        "has_task1_submission",
+        "has_task2_submission",
+        "has_task3_submission",
+        "has_all_task_submissions",
+    ]
+    if completion_df.empty:
+        annotated = researcher_df.copy()
+        for column in completion_columns:
+            annotated[column] = False
+        return annotated
+
+    annotated = researcher_df.merge(completion_df, on="researcher_id", how="left")
+    for column in completion_columns:
+        annotated[column] = annotated[column].fillna(False).astype(bool)
+    return annotated
+
+
+def filter_to_table3_bounds(researcher_df: pd.DataFrame, column: str, series_key: str) -> pd.DataFrame:
+    """Keep only rows that fall within the published Task 1 Table 3 min/max range."""
+
+    lower_bound = BENCHMARK_TASK1_TABLE3_TARGETS[series_key]["min"]
+    upper_bound = BENCHMARK_TASK1_TABLE3_TARGETS[series_key]["max"]
+    filtered = researcher_df.copy()
+    filtered[column] = pd.to_numeric(filtered[column], errors="coerce")
+    return filtered[filtered[column].notna() & filtered[column].between(lower_bound, upper_bound, inclusive="both")].copy()
+
+
 def collapse_to_researcher_level(document_df: pd.DataFrame) -> pd.DataFrame:
     """Keep the best available effect and sample extraction for each researcher."""
 
@@ -1559,6 +1625,12 @@ def main() -> None:
         help="Directory used to cache OSF API pages and downloaded benchmark documents.",
     )
     parser.add_argument(
+        "--submitted-replications-root",
+        type=Path,
+        default=DEFAULT_SUBMITTED_REPLICATIONS_ROOT,
+        help="Local Submitted Replications root used to tag which benchmark rows have Task 1/2/3 folders.",
+    )
+    parser.add_argument(
         "--manual-overrides-csv",
         type=Path,
         default=Path("meta_analysis") / "benchmark_task1_manual_overrides.csv",
@@ -1578,35 +1650,56 @@ def main() -> None:
 
     benchmark_researcher_extracts = collapse_to_researcher_level(benchmark_document_audit)
     benchmark_researcher_extracts = apply_manual_overrides(benchmark_researcher_extracts, args.manual_overrides_csv)
+    benchmark_researcher_extracts = annotate_task_completion(benchmark_researcher_extracts, args.submitted_replications_root)
     benchmark_researcher_extracts_path = args.output_dir / "benchmark_task1_osf_researcher_extracts.csv"
     benchmark_researcher_extracts.to_csv(benchmark_researcher_extracts_path, index=False)
 
     benchmark_paper_table3_path = args.output_dir / "benchmark_task1_paper_table3.csv"
     build_benchmark_paper_table3_df().to_csv(benchmark_paper_table3_path, index=False)
 
-    benchmark_effect_overlay = benchmark_researcher_extracts[
+    benchmark_effect_overlay_candidates = benchmark_researcher_extracts[
         benchmark_researcher_extracts["effect_score"].fillna(0).ge(args.min_effect_score)
         & benchmark_researcher_extracts["effect_estimate"].notna()
         & benchmark_researcher_extracts["effect_estimate"].abs().le(1)
     ].copy()
-    benchmark_sample_overlay = benchmark_researcher_extracts[
+    benchmark_sample_overlay_candidates = benchmark_researcher_extracts[
         benchmark_researcher_extracts["sample_score"].fillna(0).ge(args.min_sample_score)
         & benchmark_researcher_extracts["sample_size"].notna()
         & benchmark_researcher_extracts["sample_size"].gt(0)
         & benchmark_researcher_extracts["sample_size"].le(10_000_000)
     ].copy()
 
-    effect_table3 = benchmark_researcher_extracts[
+    overlay_requires_all_task_submissions = args.submitted_replications_root.exists()
+    if overlay_requires_all_task_submissions:
+        benchmark_chart_pool = benchmark_researcher_extracts[benchmark_researcher_extracts["has_all_task_submissions"]].copy()
+        benchmark_effect_overlay = benchmark_effect_overlay_candidates[
+            benchmark_effect_overlay_candidates["has_all_task_submissions"]
+        ].copy()
+        benchmark_sample_overlay = benchmark_sample_overlay_candidates[
+            benchmark_sample_overlay_candidates["has_all_task_submissions"]
+        ].copy()
+    else:
+        benchmark_chart_pool = benchmark_researcher_extracts.copy()
+        benchmark_effect_overlay = benchmark_effect_overlay_candidates
+        benchmark_sample_overlay = benchmark_sample_overlay_candidates
+
+    effect_table3_raw = benchmark_researcher_extracts[
         benchmark_researcher_extracts["effect_estimate"].notna() & benchmark_researcher_extracts["effect_estimate"].abs().le(1)
     ].copy()
-    se_table3 = benchmark_researcher_extracts[benchmark_researcher_extracts["standard_error"].notna()].copy()
-    sample_table3 = benchmark_researcher_extracts[
+    effect_table3 = filter_to_table3_bounds(effect_table3_raw, "effect_estimate", "effect_unweighted")
+    se_table3_raw = benchmark_researcher_extracts[benchmark_researcher_extracts["standard_error"].notna()].copy()
+    se_table3 = filter_to_table3_bounds(se_table3_raw, "standard_error", "standard_error")
+    sample_table3_raw = benchmark_researcher_extracts[
         benchmark_researcher_extracts["sample_size"].notna() & benchmark_researcher_extracts["sample_size"].gt(0)
     ].copy()
-    treated_table3 = benchmark_researcher_extracts[
+    sample_table3 = filter_to_table3_bounds(sample_table3_raw, "sample_size", "sample_size")
+    treated_table3_raw = benchmark_researcher_extracts[
         benchmark_researcher_extracts["treated_group_size"].notna() & benchmark_researcher_extracts["treated_group_size"].gt(0)
     ].copy()
-    weighted_effect_summary = summarize_weighted_effects(benchmark_researcher_extracts)
+    treated_table3 = filter_to_table3_bounds(treated_table3_raw, "treated_group_size", "treated_group_size")
+    weighted_effect_source = filter_to_table3_bounds(benchmark_researcher_extracts, "effect_estimate", "effect_weighted")
+    weighted_effect_source = filter_to_table3_bounds(weighted_effect_source, "standard_error", "standard_error")
+    weighted_effect_summary = summarize_weighted_effects(weighted_effect_source)
 
     llm_df = load_and_filter_data(args.runs_csv)
     generate_overlay_figures(llm_df, benchmark_effect_overlay, benchmark_sample_overlay, args.output_dir)
@@ -1625,12 +1718,26 @@ def main() -> None:
     summary = {
         "benchmark_total_documents": int(benchmark_document_audit.shape[0]),
         "benchmark_unique_researchers": int(benchmark_researcher_extracts.shape[0]),
+        "benchmark_researchers_with_all_task_submissions": int(benchmark_chart_pool.shape[0]),
+        "benchmark_overlay_requires_all_task_submissions": overlay_requires_all_task_submissions,
         "benchmark_effect_extracted_documents": int(benchmark_document_audit["effect_estimate"].notna().sum()),
         "benchmark_se_extracted_documents": int(benchmark_document_audit["standard_error"].notna().sum()),
         "benchmark_sample_extracted_documents": int(benchmark_document_audit["sample_size"].notna().sum()),
         "benchmark_treated_group_extracted_documents": int(benchmark_document_audit["treated_group_size"].notna().sum()),
         "benchmark_effect_rows_used_in_overlay": int(benchmark_effect_overlay.shape[0]),
         "benchmark_sample_rows_used_in_overlay": int(benchmark_sample_overlay.shape[0]),
+        "benchmark_effect_rows_used_in_paper_reconstruction": int(effect_table3.shape[0]),
+        "benchmark_sample_rows_used_in_paper_reconstruction": int(sample_table3.shape[0]),
+        "benchmark_effect_rows_excluded_missing_task3_for_overlay": int(
+            benchmark_effect_overlay_candidates.shape[0] - benchmark_effect_overlay.shape[0]
+        ),
+        "benchmark_sample_rows_excluded_missing_task3_for_overlay": int(
+            benchmark_sample_overlay_candidates.shape[0] - benchmark_sample_overlay.shape[0]
+        ),
+        "benchmark_effect_rows_excluded_outside_table3_bounds": int(effect_table3_raw.shape[0] - effect_table3.shape[0]),
+        "benchmark_se_rows_excluded_outside_table3_bounds": int(se_table3_raw.shape[0] - se_table3.shape[0]),
+        "benchmark_sample_rows_excluded_outside_table3_bounds": int(sample_table3_raw.shape[0] - sample_table3.shape[0]),
+        "benchmark_treated_rows_excluded_outside_table3_bounds": int(treated_table3_raw.shape[0] - treated_table3.shape[0]),
         "benchmark_effect_summary": summarize_series(benchmark_effect_overlay["effect_estimate"]),
         "benchmark_sample_summary": summarize_series(benchmark_sample_overlay["sample_size"]),
         "benchmark_paper_table3_reference": BENCHMARK_TASK1_TABLE3_TARGETS,

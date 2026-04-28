@@ -12,16 +12,16 @@ See [task.md](task.md) for the canonical, up-to-date pipeline documentation.
 |----------|------|-------------------|--------|
 | A | Devstral API (Mistral) | ✓ | JSON in `runs/` |
 | B | Google API (Gemini Flash) | ✓ | JSON in `runs/` |
-| C | Codex CLI (OpenAI) | ✗ | JSON in `specs/codex/` |
+| C | Codex/Copilot/Gemini CLI | ✗ | JSON in `specs/<provider>/` for the legacy cohort or `specs/expanded/<provider>/` for the expanded cohort |
 
 **Phase 2 — Implementation + Execution**:
 - Codex CLI (`--full-auto`) implements each spec as Python
 - Codex executes, self-corrects errors, re-runs until success
-- Output: `runs/executions/{run_id}/analysis.py` + `runs/executions/{run_id}/results.json`
+- Output: legacy runs in `runs/executions/{run_id}/...`; expanded runs in `runs/executions/expanded/{run_id}/...`
 
 **Phase 3 — Aggregation**:
-- Combine specs + execution results into `runs_complete.csv`
+- Combine specs + execution results into a profile-specific aggregate CSV (`runs_complete.csv` for legacy, `runs_complete_expanded.csv` for expanded)
 - Impute control_variables, fixed_effects, etc. from `model_specification_line`
 
 **Phase 4 — Meta-analysis**:
-- Use `runs_complete.csv` to generate publication-ready tables/figures under `meta_analysis/`.
+- Use the chosen aggregate CSV to generate publication-ready tables/figures under `meta_analysis/`.

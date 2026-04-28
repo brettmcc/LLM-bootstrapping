@@ -43,6 +43,7 @@ python code/run_api_phase1.py --n <number_of_runs> [options]
 | `--seed` | Optional fixed seed for reproducibility |
 | `--temperature` | Sampling temperature (default: 2.0; mistral capped at 1.5) |
 | `--env-file` | Optional path to a .env file with API keys |
+| `--data-profile` | Cohort label for the generated specs/logs: `expanded` (default) or `legacy` |
 
 **Examples:**
 ```bash
@@ -67,6 +68,7 @@ python code/run_cli_phase1.py [options]
 | `--n` | Number of specs to generate (default: 10) |
 | `--cli-provider` | CLI to use: codex, copilot, gemini_cli (default: codex) |
 | `--copilot-model` | Optional Copilot model override; see Copilot Model Values below |
+| `--data-profile` | Cohort label for the generated specs: `expanded` (default) or `legacy` |
 | `--dry-run` | Only verify the CLI is available, then exit |
 | `--no-wsl` | Do not run Codex/Gemini via WSL on Windows |
 | `--wsl-distro` | Optional WSL distribution name (e.g., Ubuntu) |
@@ -92,7 +94,7 @@ python code/run_phase2.py [options]
 **Parameters:**
 | Argument | Description |
 |----------|-------------|
-| `--spec-dir` | Directory containing spec JSON files (default: specs/codex) |
+| `--spec-dir` | Directory containing spec JSON files (default: profile-aware `specs/codex`) |
 | `--spec-provider` | Shortcut: codex, mistral, copilot, gemini_cli, gemini_api, all |
 | `--spec` | Specific spec file path(s) to run (can be multiple) |
 | `--timeout` | Per-run timeout in seconds (default: 1800) |
@@ -102,6 +104,7 @@ python code/run_phase2.py [options]
 | `--dangerous` | Run Codex without sandbox (use with caution) |
 | `--cli-provider` | CLI to use: codex, copilot, gemini_cli (default: codex) |
 | `--copilot-model` | Optional Copilot model override; see Copilot Model Values below |
+| `--data-profile` | ACS extract profile: `expanded` (default) or `legacy` |
 | `--dry-run` | Only verify the CLI is available, then exit |
 | `--no-wsl` | Do not run Codex/Gemini via WSL on Windows |
 | `--wsl-distro` | Optional WSL distribution name |
@@ -113,8 +116,8 @@ python code/run_phase2.py --cli-provider copilot --dry-run
 python code/run_phase2.py --cli-provider gemini_cli --dry-run
 python code/run_phase2.py --cli-provider codex --dry-run
 
-# Run 3 specs from all providers
-python code/run_phase2.py --spec-provider all --limit 3 --cli-provider codex
+# Run 3 expanded-profile specs from all providers
+python code/run_phase2.py --data-profile expanded --spec-provider all --limit 3 --cli-provider codex
 ```
 
 ---
@@ -138,6 +141,7 @@ python code/run_phase12.py [options]
 | `--wsl-distro` | Optional WSL distribution name |
 | `--codex-reasoning` | Codex reasoning level: low/medium/high/none (default: low) |
 | `--copilot-model` | Optional Copilot model override; see Copilot Model Values below |
+| `--data-profile` | ACS extract profile: `expanded` (default) or `legacy` |
 
 **Examples:**
 ```bash
@@ -148,6 +152,9 @@ python code/run_phase12.py --cli-provider copilot --dry-run
 # Single execution (Phase 1 + Phase 2 together)
 python code/run_phase12.py --cli-provider codex --n 1
 python code/run_phase12.py --cli-provider copilot --n 1
+
+# Expanded-profile Copilot test batch with Claude Sonnet 4.6
+python code/run_phase12.py --cli-provider copilot --copilot-model claude-sonnet-4.6 --data-profile expanded --n 20
 ```
 
 ---
@@ -186,17 +193,26 @@ python code/run_phase3.py [options]
 **Parameters:**
 | Argument | Description |
 |----------|-------------|
-| `--output` | Output CSV path (default: runs_complete.csv) |
+| `--output` | Output CSV path (default depends on `--data-profile`) |
 | `--spec-provider` | Limit to specific providers (can be repeated) |
+| `--data-profile` | Cohort to aggregate: `expanded` (default), `legacy`, or `all` |
 
 **Examples:**
 ```bash
-# Aggregate all providers
+# Aggregate the expanded cohort (default output: runs_complete_expanded.csv)
 python code/run_phase3.py
 
-# Aggregate only codex + gemini specs
-python code/run_phase3.py --spec-provider codex --spec-provider gemini_api --spec-provider gemini_cli
+# Aggregate only legacy codex + gemini specs into the historical CSV
+python code/run_phase3.py --data-profile legacy --output runs_complete.csv --spec-provider codex --spec-provider gemini_api --spec-provider gemini_cli
 ```
+
+---
+
+## Copilot Rate Limits
+
+The installed GitHub Copilot CLI does not currently expose a dedicated quota or rate-limit status subcommand via `copilot --help`.
+
+The Phase 1 CLI, Phase 2, and Phase 1+2 combined runners therefore react to the CLI's own rate-limit responses, parse explicit retry windows when available, and share a cooldown across the whole batch so new runs do not immediately hammer the same limit.
 
 ---
 

@@ -22,8 +22,17 @@ import time
 
 from dotenv import load_dotenv
 
+from data_profiles import (
+    DEFAULT_DATA_PROFILE,
+    conversations_dir,
+    data_profile_choices,
+    specs_dir,
+)
 from llm_client import LLMClient
 from path_utils import resolve_path
+
+
+PROJECT = Path(__file__).resolve().parents[1]
 
 
 def build_run_id() -> str:
@@ -48,6 +57,7 @@ def write_run_output(
     temperature: float,
     usage: dict,
     content: str,
+    data_profile: str,
     prompt_variant: str | None = None,
 ) -> None:
     # Write the run output to a file, including metadata header and LLM response
@@ -60,6 +70,7 @@ def write_run_output(
         + f"datetime: {run_datetime}\n"
         + f"random_seed: {random_seed}\n"
         + f"model: {model}\n"
+        + f"data_profile: {data_profile}\n"
         + f"temperature: {temperature}\n"
         + (f"prompt_variant: {prompt_variant}\n" if prompt_variant else "")
         + f"prompt_tokens: {usage.get('prompt_tokens', '')}\n"
@@ -128,6 +139,12 @@ def main() -> None:
         default=2,
         help="Seconds to wait between attempts after errors/timeouts (default: 2)",
     )
+    parser.add_argument(
+        "--data-profile",
+        choices=data_profile_choices(),
+        default=DEFAULT_DATA_PROFILE,
+        help="ACS extract profile to associate with the generated specs (default: expanded)",
+    )
     args = parser.parse_args()
 
     # Load environment variables from possible .env files
@@ -188,12 +205,12 @@ def main() -> None:
 
     # Prepare output directory for raw run logs
     model_dir = args.model.replace("/", "_")
-    runs_dir = resolve_path(f"runs/conversations/{model_dir}")
+    runs_dir = conversations_dir(PROJECT, model_dir, args.data_profile)
     runs_dir.mkdir(parents=True, exist_ok=True)
 
     # Prepare output directory for validated JSON specs (grouped by provider)
-    specs_dir = resolve_path(f"specs/{provider}")
-    specs_dir.mkdir(parents=True, exist_ok=True)
+    specs_output_dir = specs_dir(PROJECT, provider, args.data_profile)
+    specs_output_dir.mkdir(parents=True, exist_ok=True)
 
     # Initialize total usage tracking
     total_usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
@@ -234,6 +251,7 @@ def main() -> None:
             print(f"datetime: {run_datetime}")
             print(f"random_seed: {random_seed}")
             print(f"model: {args.model}")
+            print(f"data_profile: {args.data_profile}")
             print(f"output_dir: {runs_dir}")
             print("PROMPT PREVIEW (first 500 chars):")
             print(prompt[:500])
@@ -300,7 +318,7 @@ def main() -> None:
 
             # Save the spec in the provider-specific specs directory
             run_id = build_run_id()
-            spec_file = specs_dir / f"spec_{run_id}.json"
+            spec_file = specs_output_dir / f"spec_{run_id}.json"
             spec_file.write_text(json.dumps(spec_data, indent=2), encoding="utf-8")
             print(f"Valid spec saved: {spec_file}")
         except (json.JSONDecodeError, ValueError) as exc:
@@ -318,6 +336,7 @@ def main() -> None:
             temperature=temperature,
             usage=response.usage,
             content=response.content,
+            data_profile=args.data_profile,
             prompt_variant="B",
         )
 

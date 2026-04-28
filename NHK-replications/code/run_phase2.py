@@ -25,8 +25,18 @@ from typing import Iterable, Optional
 from copilot_cli_utils import (
     build_copilot_command,
     detect_copilot_cli_fatal_error,
+    extract_copilot_rate_limit_wait_seconds,
     extract_copilot_final_content,
     extract_copilot_model,
+)
+from data_profiles import (
+    DEFAULT_DATA_PROFILE,
+    data_file_path,
+    data_profile_choices,
+    executions_root,
+    get_data_profile,
+    layout_file_path,
+    specs_dir,
 )
 
 
@@ -35,18 +45,15 @@ PROJECT = Path(__file__).resolve().parents[1]
 # PROJECT is the root directory of the project, found by going up two levels from this script's location.
 
 REPLICATION_DIR = PROJECT / "replication-materials"
-DATA_FILE = REPLICATION_DIR / "usa_00042.dat"
-DO_FILE = REPLICATION_DIR / "usa_00042.do"
 POLICY_FILE = REPLICATION_DIR / "policy_labor_market_data.csv"
 DOC_FILE = REPLICATION_DIR / "State-Level Data Documentation.md"
 RESULTS_SCHEMA = PROJECT / "results_schema.json"
-
-RUNS_DIR = PROJECT / "runs" / "executions"
 
 CLI_TEMPLATE_ENV = {
     "copilot": "COPILOT_CLI_COMMAND",
     "gemini_cli": "GEMINI_CLI_COMMAND",
 }
+MAX_RATE_LIMIT_RETRIES = 12
 
 
 def write_run_metadata(
@@ -54,11 +61,13 @@ def write_run_metadata(
     provider: str,
     model_phase2: str | None,
     requested_model: str | None,
+    data_profile: str,
 ) -> None:
     # Persist execution metadata for downstream aggregation.
     payload = {
         "phase": "phase2",
         "cli_provider": provider,
+        "data_profile": data_profile,
         "model_phase2": model_phase2 or f"{provider}-cli",
     }
     if requested_model:
@@ -149,12 +158,12 @@ def cleanup_run_data_file(link_path: Path) -> None:
         pass
 
 
-def write_layout_excerpt(dest: Path, max_lines: int) -> None:
+def write_layout_excerpt(dest: Path, layout_path: Path, max_lines: int) -> None:
     # This function writes the first max_lines of the DO_FILE to dest.
     # It's used to provide a layout excerpt for parsing the fixed-width data.
     lines = []
     # Initialize an empty list to hold the lines.
-    with DO_FILE.open("r", encoding="utf-8", errors="replace") as handle:
+    with layout_path.open("r", encoding="utf-8", errors="replace") as handle:
         # Open the DO_FILE for reading, handling encoding errors by replacing them.
         for idx, line in enumerate(handle, start=1):
             # Loop through each line, starting index at 1.
@@ -177,12 +186,13 @@ def copy_if_missing(src: Path, dest: Path) -> None:
     # Read the source file as bytes and write to destination.
 
 
-def validate_run_dir(run_dir: Path) -> None:
+def validate_run_dir(run_dir: Path, data_profile: str) -> None:
     # This function checks that the run directory only contains expected files.
     # It raises an error if there are unexpected files.
+    profile = get_data_profile(data_profile)
     allowed = {
-        "usa_00042.dat",
-        "usa_00042_layout_excerpt.do",
+        profile.run_data_file_name,
+        profile.run_layout_excerpt_name,
         "policy_labor_market_data.csv",
         "State-Level Data Documentation.md",
         "analysis.py",
@@ -233,27 +243,28 @@ def python_executable() -> str:
     return str(exe)
 
 
-def build_prompt(spec_text: str, provider: str) -> str:
+def build_prompt(spec_text: str, provider: str, data_profile: str) -> str:
     # This function builds the prompt string that will be sent to the Codex CLI.
     # It includes the research specification and instructions for the LLM.
     python_cmd = python_executable()
+    profile = get_data_profile(data_profile)
     
     return f"""You have this research specification:
 
 {spec_text}
 
 You may only read the following local files in this working directory:
-- usa_00042.dat (symlinked large data file)
-- usa_00042_layout_excerpt.do (showing infix layout + missing codes)
+- {profile.run_data_file_name} (symlinked large data file)
+- {profile.run_layout_excerpt_name} (showing infix layout + missing codes)
 - policy_labor_market_data.csv
 - State-Level Data Documentation.md
 
 Do not access any other paths.
 
-1. Read the layout excerpt to parse the fixed-width data in usa_00042.dat.
+1. Read the layout excerpt to parse the fixed-width data in {profile.run_data_file_name}.
 1b. If needed, read State-Level Data Documentation.md for the policy data.
 2. Write analysis.py that implements this exact specification.
-2b. Consider yourself to have a maximum of 30GB of memory. Therefore, when reading in usa_00042.dat, you may want to type variables, filter variables early, implement chunking etc. as needed.
+2b. Consider yourself to have a maximum of 30GB of memory. Therefore, when reading in {profile.run_data_file_name}, you may want to type variables, filter variables early, implement chunking etc. as needed.
 3. Run analysis.py on the data in this working directory using:
    {python_cmd} analysis.py
 4. If errors occur, fix them and re-run until successful, always maintaining fealty to the original specification.
@@ -262,6 +273,19 @@ Do not access any other paths.
 
 Save the working analysis.py to this directory.
 """
+
+
+def remaining_rate_limit_cooldown(rate_limit_state: dict[str, float]) -> int:
+    # Compute how much longer we should wait before another Copilot request.
+    not_before = float(rate_limit_state.get("not_before", 0.0))
+    return max(0, math.ceil(not_before - time.time()))
+
+
+def extend_rate_limit_cooldown(rate_limit_state: dict[str, float], wait_seconds: int) -> int:
+    # Preserve the longest active cooldown across all specs in the current run.
+    target_time = time.time() + wait_seconds
+    rate_limit_state["not_before"] = max(float(rate_limit_state.get("not_before", 0.0)), target_time)
+    return remaining_rate_limit_cooldown(rate_limit_state)
 
 
 def build_feedback_prompt(
@@ -509,21 +533,26 @@ def run_cli(
     wsl_distro: Optional[str],
     max_attempts: int,
     copilot_model: Optional[str],
+    data_profile: str,
+    rate_limit_state: dict[str, float],
 ) -> None:
     # This is the main function that runs the selected CLI for a single spec file.
     # It sets up the run directory, runs the CLI, and validates the results.
     run_id = spec_file.stem.replace("spec_", "")
     # Extract the run ID from the spec file name by removing 'spec_' prefix.
-    run_dir = RUNS_DIR / run_id
+    profile = get_data_profile(data_profile)
+    run_dir = executions_root(PROJECT, data_profile) / run_id
     # Create the run directory path.
     run_dir.mkdir(parents=True, exist_ok=True)
     # Create the directory if it doesn't exist.
+    data_file = data_file_path(PROJECT, data_profile)
+    do_file = layout_file_path(PROJECT, data_profile)
 
     metadata_path = run_dir / "run_metadata.json"
     initial_model = copilot_model if provider == "copilot" else None
-    write_run_metadata(metadata_path, provider, initial_model, copilot_model)
+    write_run_metadata(metadata_path, provider, initial_model, copilot_model, data_profile)
 
-    validate_run_dir(run_dir)
+    validate_run_dir(run_dir, data_profile)
     # Check that the run directory has only expected files.
     results_path = run_dir / "results.json"
     if results_path.exists() and not force:
@@ -531,17 +560,17 @@ def run_cli(
         return
 
     # Check that all required input files exist.
-    if not DATA_FILE.exists():
-        raise FileNotFoundError(f"Missing data file: {DATA_FILE}")
-    if not DO_FILE.exists():
-        raise FileNotFoundError(f"Missing layout file: {DO_FILE}")
+    if not data_file.exists():
+        raise FileNotFoundError(f"Missing data file: {data_file}")
+    if not do_file.exists():
+        raise FileNotFoundError(f"Missing layout file: {do_file}")
     if not POLICY_FILE.exists():
         raise FileNotFoundError(f"Missing policy file: {POLICY_FILE}")
     if not DOC_FILE.exists():
         raise FileNotFoundError(f"Missing documentation file: {DOC_FILE}")
 
     spec_text = spec_file.read_text(encoding="utf-8")
-    base_prompt = build_prompt(spec_text, provider)
+    base_prompt = build_prompt(spec_text, provider, data_profile)
 
     # Build the command to run the selected CLI.
     cmd = build_cli_command(provider, dangerous, no_wsl, wsl_distro, copilot_model)
@@ -549,49 +578,87 @@ def run_cli(
     prompt = base_prompt
     for attempt in range(1, max_attempts + 1):
         # Set up the run directory with necessary files for each attempt.
-        ensure_data_link(DATA_FILE, run_dir / "usa_00042.dat")
+        ensure_data_link(data_file, run_dir / profile.run_data_file_name)
         try:
-            write_layout_excerpt(run_dir / "usa_00042_layout_excerpt.do", layout_lines)
+            write_layout_excerpt(run_dir / profile.run_layout_excerpt_name, do_file, layout_lines)
             copy_if_missing(POLICY_FILE, run_dir / "policy_labor_market_data.csv")
             copy_if_missing(DOC_FILE, run_dir / "State-Level Data Documentation.md")
 
             # Run the selected CLI command.
-            if provider == "copilot":
-                run_cmd = [*cmd, "-p", prompt]
-                result = subprocess.run(
-                    run_cmd,
-                    capture_output=True,
-                    text=True,
-                    encoding="utf-8",
-                    timeout=timeout,
-                    cwd=str(run_dir),
-                    env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
-                )
-                resolved_model = extract_copilot_model(result.stdout)
-                if resolved_model:
-                    write_run_metadata(
-                        metadata_path,
-                        provider,
-                        resolved_model,
-                        copilot_model,
+            result: Optional[subprocess.CompletedProcess[str]] = None
+            cli_stdout = ""
+            raw_stdout = ""
+            rate_limit_retries = 0
+            while True:
+                cooldown_seconds = remaining_rate_limit_cooldown(rate_limit_state)
+                if cooldown_seconds > 0:
+                    print(
+                        f"{run_id}: waiting {cooldown_seconds}s for the Copilot rate-limit cooldown before retrying."
                     )
-                cli_stdout = extract_copilot_final_content(result.stdout) or result.stdout
-                fatal_error = detect_copilot_cli_fatal_error(result.stdout, result.stderr)
-                if fatal_error:
-                    write_validation_failure(run_dir, fatal_error, cli_stdout, result.stderr)
-                    raise SystemExit(f"{run_id}: fatal CLI error — {fatal_error}")
-            else:
-                result = subprocess.run(
-                    cmd,
-                    input=prompt,
-                    capture_output=True,
-                    text=True,
-                    encoding="utf-8",
-                    timeout=timeout,
-                    cwd=str(run_dir),
-                    env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+                    time.sleep(cooldown_seconds)
+
+                if provider == "copilot":
+                    run_cmd = [*cmd, "-p", prompt]
+                    result = subprocess.run(
+                        run_cmd,
+                        capture_output=True,
+                        text=True,
+                        encoding="utf-8",
+                        timeout=timeout,
+                        cwd=str(run_dir),
+                        env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+                    )
+                    raw_stdout = result.stdout
+                    resolved_model = extract_copilot_model(result.stdout)
+                    if resolved_model:
+                        write_run_metadata(
+                            metadata_path,
+                            provider,
+                            resolved_model,
+                            copilot_model,
+                            data_profile,
+                        )
+                    cli_stdout = extract_copilot_final_content(result.stdout) or result.stdout
+                    fatal_error = detect_copilot_cli_fatal_error(result.stdout, result.stderr)
+                    if fatal_error:
+                        write_validation_failure(run_dir, fatal_error, cli_stdout, result.stderr)
+                        raise SystemExit(f"{run_id}: fatal CLI error — {fatal_error}")
+                else:
+                    result = subprocess.run(
+                        cmd,
+                        input=prompt,
+                        capture_output=True,
+                        text=True,
+                        encoding="utf-8",
+                        timeout=timeout,
+                        cwd=str(run_dir),
+                        env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+                    )
+                    raw_stdout = result.stdout
+                    cli_stdout = result.stdout
+
+                wait_seconds = extract_copilot_rate_limit_wait_seconds(
+                    raw_stdout,
+                    result.stderr,
+                    retry_count=rate_limit_retries,
                 )
-                cli_stdout = result.stdout
+                if wait_seconds is None:
+                    break
+
+                rate_limit_retries += 1
+                if rate_limit_retries >= MAX_RATE_LIMIT_RETRIES:
+                    print(f"{run_id}: rate limited too many times while implementing this spec.")
+                    result = None
+                    break
+
+                cooldown_seconds = extend_rate_limit_cooldown(rate_limit_state, wait_seconds)
+                print(
+                    f"{run_id}: rate limited; waiting {cooldown_seconds}s before retry {rate_limit_retries}/{MAX_RATE_LIMIT_RETRIES}."
+                )
+                time.sleep(cooldown_seconds)
+
+            if result is None:
+                continue
 
             analysis_path = run_dir / "analysis.py"
             if not analysis_path.exists():
@@ -664,7 +731,7 @@ def run_cli(
             return
         finally:
             # Always remove data file from the run directory after each attempt.
-            cleanup_run_data_file(run_dir / "usa_00042.dat")
+            cleanup_run_data_file(run_dir / profile.run_data_file_name)
 
 
 def main() -> None:
@@ -684,8 +751,8 @@ def main() -> None:
     parser.add_argument(
         "--spec-dir",
         type=Path,
-        default=PROJECT / "specs" / "codex",
-        help="Directory containing spec JSON files (default: specs/codex)",
+        default=None,
+        help="Directory containing spec JSON files (default: profile-aware specs/codex)",
     )
     # Optional convenience flag to select a provider-specific spec directory.
     parser.add_argument(
@@ -766,6 +833,12 @@ def main() -> None:
         default=None,
         help="Optional Copilot CLI model override (e.g., gpt-5.4)",
     )
+    parser.add_argument(
+        "--data-profile",
+        choices=data_profile_choices(),
+        default=DEFAULT_DATA_PROFILE,
+        help="ACS extract profile to use (default: expanded)",
+    )
     # WSL distribution selection.
     args = parser.parse_args()
     # Parse the arguments.
@@ -783,19 +856,22 @@ def main() -> None:
         return
 
     # If a provider is specified, override spec_dir to the provider folder.
-    spec_dirs = [args.spec_dir]
     if args.spec_provider is not None:
         if args.spec_provider == "all":
             spec_dirs = [
-                PROJECT / "specs" / "codex",
-                PROJECT / "specs" / "mistral",
-                PROJECT / "specs" / "gemini_cli",
-                PROJECT / "specs" / "gemini_api",
+                specs_dir(PROJECT, "codex", args.data_profile),
+                specs_dir(PROJECT, "mistral", args.data_profile),
+                specs_dir(PROJECT, "gemini_cli", args.data_profile),
+                specs_dir(PROJECT, "gemini_api", args.data_profile),
             ]
         else:
-            spec_dirs = [PROJECT / "specs" / args.spec_provider]
+            spec_dirs = [specs_dir(PROJECT, args.spec_provider, args.data_profile)]
+    elif args.spec_dir is not None:
+        spec_dirs = [args.spec_dir]
+    else:
+        spec_dirs = [specs_dir(PROJECT, "codex", args.data_profile)]
 
-    RUNS_DIR.mkdir(parents=True, exist_ok=True)
+    executions_root(PROJECT, args.data_profile).mkdir(parents=True, exist_ok=True)
     # Ensure the runs directory exists.
 
     try:
@@ -821,6 +897,7 @@ def main() -> None:
         print("No spec files found.")
         return
 
+    rate_limit_state: dict[str, float] = {"not_before": 0.0}
     for spec_file in spec_files:
         # Loop through each spec file.
         print(f"Processing {spec_file.name}...")
@@ -836,6 +913,8 @@ def main() -> None:
             args.wsl_distro,
             args.max_attempts,
             args.copilot_model,
+            args.data_profile,
+            rate_limit_state,
         )
         # Run the selected CLI for this spec.
 
