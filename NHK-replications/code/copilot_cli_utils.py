@@ -29,6 +29,35 @@ def _iter_events(output: str) -> list[dict[str, Any]]:
     return events
 
 
+def _strip_event_message_fields(value: Any) -> Any:
+    if isinstance(value, dict):
+        stripped: dict[str, Any] = {}
+        for key, item in value.items():
+            if key in {"content", "deltaContent", "transformedContent"}:
+                continue
+            stripped[key] = _strip_event_message_fields(item)
+        return stripped
+    if isinstance(value, list):
+        return [_strip_event_message_fields(item) for item in value]
+    return value
+
+
+def _rate_limit_search_text(stdout: str, stderr: str) -> str:
+    parts = [part for part in (stderr,) if part]
+    events = _iter_events(stdout)
+    if events:
+        for event in events:
+            event_type = str(event.get("type", "")).lower()
+            exit_code = event.get("exitCode")
+            if "error" not in event_type and "warning" not in event_type:
+                if event_type != "result" or not isinstance(exit_code, int) or exit_code == 0:
+                    continue
+            parts.append(json.dumps(_strip_event_message_fields(event), sort_keys=True))
+    elif stdout:
+        parts.append(stdout)
+    return "\n".join(parts)
+
+
 def extract_copilot_model(output: str) -> Optional[str]:
     model = None
     for event in _iter_events(output):
@@ -160,7 +189,7 @@ def extract_copilot_rate_limit_wait_seconds(
     retry_count: int = 0,
 ) -> Optional[int]:
     # Parse the Copilot CLI response for an explicit retry window when rate limited.
-    combined = "\n".join(part for part in (stdout, stderr) if part)
+    combined = _rate_limit_search_text(stdout, stderr)
     if not combined:
         return None
 

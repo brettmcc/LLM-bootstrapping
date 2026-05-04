@@ -1,0 +1,15 @@
+{
+  "model_specification_line": "smf.ols('employed_ft_dm ~ post_dm + treated_dm + post_treated_dm', data=df).fit(cov_type='cluster', cov_kwds={'groups': df['statefip']})",
+  "outcome_definition": "((empstat == 1) & (uhrswork >= 35)).astype(float)",
+  "sample_selection": [
+    "ethnically Hispanic-Mexican: hispan == 1",
+    "born in Mexico: bpl == 200",
+    "non-citizen (proxy for lacking lawful status): citizen == 3",
+    "survey years 2009, 2010, 2011, 2013, 2014, 2015, 2016 (2012 excluded as DACA transition year)",
+    "birth year 1972-1997: defines treated cohort (birthyr >= 1982, age < 31 at June 2012) and control cohort (birthyr 1972-1981, age 31-40 at June 2012)",
+    "immigrated to the US (yrimmig > 0) by 2007 or earlier (yrimmig <= 2007, proxy for continuous residence since June 15 2007)",
+    "arrived before age 16: (yrimmig - birthyr) >= 0 and < 16 (key DACA arrival-age criterion)",
+    "at least 18 years old at survey time: age >= 18"
+  ],
+  "treatment_definition": "(birthyr >= 1982).astype(float)  # age < 31 as of June 15 2012 \u2014 DACA-eligible age cohort"
+}

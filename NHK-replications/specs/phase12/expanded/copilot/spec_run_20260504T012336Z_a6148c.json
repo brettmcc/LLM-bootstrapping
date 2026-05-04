@@ -1,0 +1,14 @@
+{
+  "model_specification_line": "result = smf.wls('fulltime ~ daca_eligible * post + C(year) + C(statefip)', data=df, weights=df['weight']).fit(cov_type='cluster', cov_kwds={'groups': df['statefip']})",
+  "outcome_definition": "(df['empstat'] == 1) & (df['uhrswork'] >= 35)",
+  "sample_selection": [
+    "hispan == 1 (Hispanic-Mexican ethnicity)",
+    "bpl == 200 (born in Mexico)",
+    "citizen == 3 (non-citizen, proxy for undocumented status)",
+    "yrimmig - birthyr <= 15 (arrived before 16th birthday, DACA criterion)",
+    "yrimmig <= 2007 (arrived by 2007, proxy for continuous US residence since June 15, 2007)",
+    "birthyr in [1975, 1994] (control group 1975-1981; treatment group 1982-1994)",
+    "year in {2009, 2010, 2011, 2013, 2014, 2015, 2016} (pre/post periods, 2012 excluded as DACA transition year)"
+  ],
+  "treatment_definition": "(df['birthyr'] >= 1982).astype(int)"
+}
