@@ -1,0 +1,13 @@
+{
+  "model_specification_line": "WLS(fulltime ~ daca_eligible + post + treated + state_fe + year_fe, weights=perwt_normalized)",
+  "outcome_definition": "(acs['uhrswork'] >= 35).astype(int)",
+  "sample_selection": [
+    "year in [2006,2007,2008,2009,2010,2011,2013,2014,2015,2016]",
+    "hispan == 1 (Mexican ethnicity)",
+    "bpl == 200 (Mexico birthplace)",
+    "citizen in [3,4,5] (noncitizen status)",
+    "age in [18,35]",
+    "uhrswork in [1,99] (employed with valid hours)"
+  ],
+  "treatment_definition": "(acs['birth_year_approx'] >= 1982) * (acs['year'] >= 2013)"
+}

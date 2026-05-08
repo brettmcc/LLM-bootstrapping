@@ -68,6 +68,7 @@ python code/run_cli_phase1.py [options]
 | `--n` | Number of specs to generate (default: 10) |
 | `--cli-provider` | CLI to use: codex, copilot, gemini_cli (default: codex) |
 | `--copilot-model` | Optional Copilot model override; see Copilot Model Values below |
+| `--gemini-model` | Optional Gemini CLI model override; see Gemini CLI Model Values below |
 | `--data-profile` | Cohort label for the generated specs: `expanded` (default) or `legacy` |
 | `--dry-run` | Only verify the CLI is available, then exit |
 | `--no-wsl` | Do not run Codex/Gemini via WSL on Windows |
@@ -79,8 +80,8 @@ python code/run_cli_phase1.py [options]
 # Verify gemini CLI is available
 python code/run_cli_phase1.py --cli-provider gemini_cli --dry-run
 
-# Generate 5 specs with gemini
-python code/run_cli_phase1.py --n 5 --cli-provider gemini_cli --timeout 300
+# Generate 5 specs with Gemini 3 Flash
+python code/run_cli_phase1.py --n 5 --cli-provider gemini_cli --gemini-model gemini-3-flash-preview --timeout 300
 ```
 
 ---
@@ -104,6 +105,7 @@ python code/run_phase2.py [options]
 | `--dangerous` | Run Codex without sandbox (use with caution) |
 | `--cli-provider` | CLI to use: codex, copilot, gemini_cli (default: codex) |
 | `--copilot-model` | Optional Copilot model override; see Copilot Model Values below |
+| `--gemini-model` | Optional Gemini CLI model override; see Gemini CLI Model Values below |
 | `--data-profile` | ACS extract profile: `expanded` (default) or `legacy` |
 | `--dry-run` | Only verify the CLI is available, then exit |
 | `--no-wsl` | Do not run Codex/Gemini via WSL on Windows |
@@ -118,7 +120,12 @@ python code/run_phase2.py --cli-provider codex --dry-run
 
 # Run 3 expanded-profile specs from all providers
 python code/run_phase2.py --data-profile expanded --spec-provider all --limit 3 --cli-provider codex
+
+# Execute Gemini CLI specs with Gemini 3 Flash
+python code/run_phase2.py --data-profile expanded --spec-provider gemini_cli --cli-provider gemini_cli --gemini-model gemini-3-flash-preview --dangerous --limit 5
 ```
+
+For Gemini CLI Phase 2 runs, `--dangerous` passes `--yolo` through to the Gemini CLI so it can edit `analysis.py` and execute it without interactive approval prompts.
 
 ---
 
@@ -157,30 +164,36 @@ python code/run_phase12.py --cli-provider copilot --n 1
 python code/run_phase12.py --cli-provider copilot --copilot-model claude-sonnet-4.6 --data-profile expanded --n 20
 ```
 
+`run_phase12.py` does not currently support Gemini directly; use `run_cli_phase1.py` plus `run_phase2.py` for Gemini CLI models.
+
 ---
 
 ## Copilot Model Values
 
-The `--copilot-model` flag currently accepts the following values on this machine, as reported by `copilot --help` for the installed GitHub Copilot CLI. This list can change when the CLI is updated.
+`copilot --help` no longer prints the full accepted model list. The values below were verified on this machine with one-shot CLI probes on 2026-05-04. This list can change when the CLI updates.
 
 - `claude-sonnet-4.6`
 - `claude-sonnet-4.5`
 - `claude-haiku-4.5`
-- `claude-opus-4.6`
-- `claude-opus-4.6-fast`
-- `claude-opus-4.5`
 - `claude-sonnet-4`
-- `gemini-3-pro-preview`
 - `gpt-5.4`
+- `gpt-5.4-mini`
 - `gpt-5.3-codex`
 - `gpt-5.2-codex`
 - `gpt-5.2`
-- `gpt-5.1-codex-max`
-- `gpt-5.1-codex`
-- `gpt-5.1`
-- `gpt-5.1-codex-mini`
 - `gpt-5-mini`
 - `gpt-4.1`
+
+Gemini model IDs were not accepted through `--copilot-model` on this machine during the same check.
+
+---
+
+## Gemini CLI Model Values
+
+The installed Gemini CLI accepted the following tested Flash-oriented model IDs on 2026-05-04:
+
+- `gemini-3-flash-preview`
+- `gemini-2.5-flash`
 
 ---
 

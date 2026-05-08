@@ -1,0 +1,12 @@
+{
+  "model_specification_line": "sm.WLS(fulltime_employed, sm.add_constant(df[['daca_eligible', 'post_daca', 'treatment', 'year_2014', 'year_2015']]), weights=perwt).fit()",
+  "outcome_definition": "(empstat == 1) & (uhrswork >= 35)",
+  "sample_selection": [
+    "hispan == 1 (ethnically Mexican)",
+    "bpl == 200 (born in Mexico)",
+    "citizen in [3, 4, 5] (non-citizen without lawful status)",
+    "birth_year in [1981, 1996] (age 16-31 in 2012, DACA-eligible cohort)",
+    "year in [2013, 2014, 2015, 2016]"
+  ],
+  "treatment_definition": "daca_eligible * post_daca, where daca_eligible = 1 if birth_year in [1981, 1996], post_daca = 1 if year >= 2013"
+}

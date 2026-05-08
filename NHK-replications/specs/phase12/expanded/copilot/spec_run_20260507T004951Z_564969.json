@@ -1,0 +1,11 @@
+{
+  "model_specification_line": "wls_model = WLS(y, X, weights=df_sample['weights'])",
+  "outcome_definition": "(empstat == 1) & (uhrswork >= 35)",
+  "sample_selection": [
+    "hispan == 1 (Mexican ethnicity)",
+    "bpl == 200 (Mexico birthplace)",
+    "citizen in [3, 4, 5] (Noncitizen status)",
+    "age >= 18 and age <= 65 (Working-age population)"
+  ],
+  "treatment_definition": "year >= 2013"
+}

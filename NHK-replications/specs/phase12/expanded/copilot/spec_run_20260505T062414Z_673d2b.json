@@ -1,0 +1,15 @@
+{
+  "model_specification_line": "model = smf.wls(\"full_time ~ treatment + age + C(year) + C(statefip)\", data=df, weights=df[\"perwt\"]).fit(cov_type=\"HC3\")",
+  "outcome_definition": "int((empstat == 1) and (uhrswork >= 35))",
+  "sample_selection": [
+    "survey years 2013-2016",
+    "Mexican-origin Hispanic detailed codes (hispand in {100,102,103,104,105,106,107})",
+    "Mexico-born (bpl == 200)",
+    "noncitizen (citizen == 3)",
+    "age 18-40",
+    "arrival_age between 0 and 30",
+    "valid usual-hours codes (uhrswork 0-98)",
+    "positive person weight (perwt > 0)"
+  ],
+  "treatment_definition": "int((arrival_age < 16) and (birthyr >= 1982) and (yrimmig <= 2007) and (citizen == 3))"
+}

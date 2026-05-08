@@ -1,0 +1,11 @@
+{
+  "model_specification_line": "OLS with weights: fulltime ~ DACA_eligible + age_centered + year_2013 + year_2014 + year_2015",
+  "outcome_definition": "((empstat == 1) & (uhrswork >= 35)).astype(int)",
+  "sample_selection": [
+    "Mexican ethnicity (hispan == 1)",
+    "Mexican-born (bpl == 200)",
+    "Non-citizen status (citizen in [3, 4, 5])",
+    "Years 2013-2016 (post-DACA implementation)"
+  ],
+  "treatment_definition": "((age >= 16) & (age <= 31)).astype(int)"
+}

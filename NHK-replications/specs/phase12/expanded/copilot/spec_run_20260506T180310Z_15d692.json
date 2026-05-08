@@ -1,0 +1,12 @@
+{
+  "model_specification_line": "OLS with weights, covariates: post_daca, age, year fixed effects",
+  "outcome_definition": "(empstat == 1) & (uhrswork >= 35)",
+  "sample_selection": [
+    "hispan == 1 (Mexican)",
+    "bpl == 200 (Mexico)",
+    "citizen in [3, 4, 5] (non-citizen)",
+    "birth_year between 1982-1995 (age eligibility for DACA)",
+    "year between 2007-2016"
+  ],
+  "treatment_definition": "post_daca = (year >= 2013)"
+}

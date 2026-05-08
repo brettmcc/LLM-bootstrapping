@@ -18,6 +18,7 @@ import shlex
 
 import subprocess
 import shutil
+import time
 from pathlib import Path
 from typing import Iterable, Optional
 # These are type hints: Iterable for things you can loop over, Optional for values that might be None.
@@ -348,7 +349,7 @@ def build_cli_command(
     dangerous: bool,
     no_wsl: bool,
     wsl_distro: Optional[str],
-    copilot_model: Optional[str],
+    model_override: Optional[str],
 ) -> list[str]:
     # Build the CLI command for the given provider.
     if provider in CLI_TEMPLATE_ENV:
@@ -380,13 +381,15 @@ def build_cli_command(
             "json",
             "-s",
         ])
-        if copilot_model:
-            cmd.extend(["--model", copilot_model])
+        if model_override:
+            cmd.extend(["--model", model_override])
         if dangerous:
             cmd.append("--allow-all")
         return cmd
     elif provider == "gemini_cli":
         cmd = ["gemini", "--output-format", "json"]
+        if model_override:
+            cmd.extend(["--model", model_override])
         if dangerous:
             cmd.append("--yolo")
         return wrap_wsl(cmd, wsl_distro) if should_use_wsl(provider, no_wsl) else cmd
@@ -399,7 +402,8 @@ def build_version_command(
     # Build a provider-appropriate version check command.
     if provider == "copilot":
         return build_copilot_command(["--version"])
-    cmd = [provider, "--version"]
+    binary = "gemini" if provider == "gemini_cli" else provider
+    cmd = [binary, "--version"]
     return wrap_wsl(cmd, wsl_distro) if should_use_wsl(provider, no_wsl) else cmd
 
 
@@ -463,6 +467,41 @@ def extract_result_json(output: str) -> Optional[dict]:
             return obj
     return None
     # If no valid JSON found, return None.
+
+
+def extract_gemini_final_content(output: str) -> Optional[str]:
+    # Gemini CLI JSON mode wraps the model's text response inside a top-level
+    # JSON object under the "response" key.
+    decoder = json.JSONDecoder()
+    starts = [match.start() for match in re.finditer(r"{", output)]
+    for start in reversed(starts):
+        try:
+            obj, _ = decoder.raw_decode(output[start:])
+        except json.JSONDecodeError:
+            continue
+        if isinstance(obj, dict):
+            response = obj.get("response")
+            if isinstance(response, str):
+                return response
+    return None
+
+
+def detect_gemini_cli_fatal_error(stdout: str, stderr: str) -> Optional[str]:
+    # Detect Gemini CLI errors that make immediate retries pointless.
+    combined = "\n".join(part for part in (stdout, stderr) if part)
+    if not combined:
+        return None
+
+    patterns = (
+        r"TerminalQuotaError:\s*([^\r\n]+)",
+        r"You have exhausted your capacity on this model\.[^\r\n]*",
+        r"No capacity available for model\s+[\w.-]+\s+on the server",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, combined, flags=re.IGNORECASE)
+        if match:
+            return match.group(0).strip()
+    return None
 
 
 def validate_result(result: dict) -> tuple[bool, str]:
@@ -533,6 +572,7 @@ def run_cli(
     wsl_distro: Optional[str],
     max_attempts: int,
     copilot_model: Optional[str],
+    gemini_model: Optional[str],
     data_profile: str,
     rate_limit_state: dict[str, float],
 ) -> None:
@@ -549,8 +589,12 @@ def run_cli(
     do_file = layout_file_path(PROJECT, data_profile)
 
     metadata_path = run_dir / "run_metadata.json"
-    initial_model = copilot_model if provider == "copilot" else None
-    write_run_metadata(metadata_path, provider, initial_model, copilot_model, data_profile)
+    model_override = None
+    if provider == "copilot":
+        model_override = copilot_model
+    elif provider == "gemini_cli":
+        model_override = gemini_model
+    write_run_metadata(metadata_path, provider, model_override, model_override, data_profile)
 
     validate_run_dir(run_dir, data_profile)
     # Check that the run directory has only expected files.
@@ -573,7 +617,7 @@ def run_cli(
     base_prompt = build_prompt(spec_text, provider, data_profile)
 
     # Build the command to run the selected CLI.
-    cmd = build_cli_command(provider, dangerous, no_wsl, wsl_distro, copilot_model)
+    cmd = build_cli_command(provider, dangerous, no_wsl, wsl_distro, model_override)
 
     prompt = base_prompt
     for attempt in range(1, max_attempts + 1):
@@ -615,7 +659,7 @@ def run_cli(
                             metadata_path,
                             provider,
                             resolved_model,
-                            copilot_model,
+                            model_override,
                             data_profile,
                         )
                     cli_stdout = extract_copilot_final_content(result.stdout) or result.stdout
@@ -635,13 +679,22 @@ def run_cli(
                         env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
                     )
                     raw_stdout = result.stdout
-                    cli_stdout = result.stdout
+                    if provider == "gemini_cli":
+                        cli_stdout = extract_gemini_final_content(result.stdout) or result.stdout
+                        fatal_error = detect_gemini_cli_fatal_error(result.stdout, result.stderr)
+                        if fatal_error:
+                            write_validation_failure(run_dir, fatal_error, cli_stdout, result.stderr)
+                            raise SystemExit(f"{run_id}: fatal CLI error — {fatal_error}")
+                    else:
+                        cli_stdout = result.stdout
 
-                wait_seconds = extract_copilot_rate_limit_wait_seconds(
-                    raw_stdout,
-                    result.stderr,
-                    retry_count=rate_limit_retries,
-                )
+                wait_seconds = None
+                if provider == "copilot":
+                    wait_seconds = extract_copilot_rate_limit_wait_seconds(
+                        raw_stdout,
+                        result.stderr,
+                        retry_count=rate_limit_retries,
+                    )
                 if wait_seconds is None:
                     break
 
@@ -834,6 +887,12 @@ def main() -> None:
         help="Optional Copilot CLI model override (e.g., gpt-5.4)",
     )
     parser.add_argument(
+        "--gemini-model",
+        type=str,
+        default=None,
+        help="Optional Gemini CLI model override (e.g., gemini-3-flash-preview)",
+    )
+    parser.add_argument(
         "--data-profile",
         choices=data_profile_choices(),
         default=DEFAULT_DATA_PROFILE,
@@ -875,12 +934,17 @@ def main() -> None:
     # Ensure the runs directory exists.
 
     try:
+        model_override = None
+        if args.cli_provider == "copilot":
+            model_override = args.copilot_model
+        elif args.cli_provider == "gemini_cli":
+            model_override = args.gemini_model
         probe_cmd = build_cli_command(
             args.cli_provider,
             args.dangerous,
             args.no_wsl,
             args.wsl_distro,
-            args.copilot_model,
+            model_override,
         )
     except ValueError as exc:
         print(str(exc))
@@ -913,6 +977,7 @@ def main() -> None:
             args.wsl_distro,
             args.max_attempts,
             args.copilot_model,
+            args.gemini_model,
             args.data_profile,
             rate_limit_state,
         )

@@ -1,0 +1,11 @@
+{
+  "model_specification_line": "model = WLS(y, X, weights=weights); results = model.fit()",
+  "outcome_definition": "(empstat == 1) & (uhrswork >= 35)",
+  "sample_selection": [
+    "hispan == 1 (Mexican ethnicity)",
+    "bpl == 200 (Mexican-born)",
+    "citizen in [3, 4, 5] (non-citizen or undocumented status)",
+    "age >= 16 and age <= 31 (arrived before age 16, not yet 31 by June 2012)"
+  ],
+  "treatment_definition": "year >= 2013"
+}

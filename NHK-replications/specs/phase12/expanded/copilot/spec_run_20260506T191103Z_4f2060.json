@@ -1,0 +1,13 @@
+{
+  "model_specification_line": "Weighted Least Squares (WLS) with person weights: fulltime = b0 + b1*daca_eligible + b2*post + b3*daca_eligible*post",
+  "outcome_definition": "fulltime = 1 if uhrswork >= 35 else 0 (employed 35+ hours per week)",
+  "sample_selection": [
+    "year in [2013, 2014, 2015, 2016]",
+    "hispan == 1 (ethnically Hispanic)",
+    "bpl == 200 (Mexican-born)",
+    "birthyr between 1968 and 1996 (age constraints for DACA eligibility)",
+    "labforce == 2 (in labor force)",
+    "uhrswork > 0 and uhrswork <= 99 (non-missing, valid hours worked)"
+  ],
+  "treatment_definition": "daca_eligible = 1 if (birthyr > 1981 AND bpl == 200 AND citizen in [3, 5] AND yrimmig <= 2007) else 0"
+}

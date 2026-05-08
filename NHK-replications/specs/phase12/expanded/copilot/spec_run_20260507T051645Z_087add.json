@@ -1,0 +1,11 @@
+{
+  "model_specification_line": "sm.WLS(y, sm.add_constant(X[['daca_eligible']]), weights=weights_norm).fit()",
+  "outcome_definition": "(empstat == 1) & (uhrswork >= 35)",
+  "sample_selection": [
+    "Hispanic Mexican (hispan == 1)",
+    "Born in Mexico (bpl == 200)",
+    "Age between 16 and 50 years old",
+    "Years 2013-2016 (post-DACA period)"
+  ],
+  "treatment_definition": "(citizen in [3, 4, 5]) & (age_in_2012 >= 15) & (age_in_2012 <= 31)"
+}

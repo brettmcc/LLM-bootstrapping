@@ -1,0 +1,14 @@
+{
+  "model_specification_line": "point_estimate = weighted_mean_eligible - weighted_mean_ineligible",
+  "outcome_definition": "(empstat == 1) & (uhrswork >= 35)",
+  "sample_selection": [
+    "hispan == 1 (Mexican ethnicity)",
+    "bpl == 200 (Mexico birthplace)",
+    "yrimmig <= 2007 (continuous US residence since June 2007)",
+    "citizen in [3, 4, 5] (non-citizen status)",
+    "age_at_immigration < 16 (arrived before 16th birthday)",
+    "birthyr >= 1981 (not yet 31 as of June 15, 2012)",
+    "year in [2013, 2014, 2015, 2016] (2013-2016 ACS years, post-DACA implementation)"
+  ],
+  "treatment_definition": "(birthyr >= 1981) & (yrimmig <= 2007) & (age_at_immigration < 16)"
+}

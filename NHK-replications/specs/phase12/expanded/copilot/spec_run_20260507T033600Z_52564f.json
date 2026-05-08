@@ -1,0 +1,14 @@
+{
+  "model_specification_line": "LinearRegression().fit(X, y, sample_weight=weights)",
+  "outcome_definition": "(empstat == 1) & (uhrswork >= 35)",
+  "sample_selection": [
+    "hispan == 1 (Hispanic origin = Mexican)",
+    "bpl == 200 (Birthplace = Mexico)",
+    "citizen in [3, 4, 5] (Non-citizen)",
+    "year in [2013, 2014, 2015, 2016] (Post-DACA years)",
+    "age in [16, 65] (Working age)",
+    "yrimmig <= 2007 (Arrived before continuous residence cutoff)",
+    "arrival_age < 16 (Arrived before age 16)"
+  ],
+  "treatment_definition": "(birth_year >= 1981)"
+}

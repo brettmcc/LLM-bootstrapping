@@ -1,0 +1,13 @@
+{
+  "model_specification_line": "sm.WLS(fulltime_employed, sm.add_constant(daca_eligible), weights=perwt/100).fit()",
+  "outcome_definition": "(empstat==1) and (uhrswork>=35)",
+  "sample_selection": [
+    "Years 2013-2016 (post-DACA implementation for policy variation)",
+    "Ethnically Hispanic with hispan==1 (Mexican)",
+    "Born in Mexico (bpl==200)",
+    "Age 18-70",
+    "Non-citizen status (citizen codes 3, 4, or 5)",
+    "Valid employment and hours worked data"
+  ],
+  "treatment_definition": "(birth_year >= 1982) and (yrimmig <= 2007) and (citizen in [3,4,5]) and (yrimmig - birth_year <= 15)"
+}

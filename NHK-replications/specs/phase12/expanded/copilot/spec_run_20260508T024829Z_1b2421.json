@@ -1,0 +1,12 @@
+{
+  "model_specification_line": "model = smf.wls(\"full_time ~ daca_eligible + C(year) + C(statefip) + age + I(age ** 2) + C(sex) + unemp + lfpr + driverslicenses + everify\", data=sample, weights=sample[\"perwt\"]).fit(cov_type=\"cluster\", cov_kwds={\"groups\": sample[\"statefip\"]})",
+  "outcome_definition": "((chunk[\"empstat\"] == 1) & (chunk[\"uhrswork\"] >= 35)).astype(int)",
+  "sample_selection": [
+    "Keep ACS observations from 2013-2016 only.",
+    "Restrict to ethnically Mexican respondents born in Mexico (hispan == 1 and bpl == 200).",
+    "Restrict to noncitizens or status-not-reported cases (citizen in {3, 4, 5}).",
+    "Restrict to ages 18-45 with positive person weights and valid usual hours (0-98).",
+    "Restrict to plausible childhood arrivals with yrimmig <= 2007 and 0 <= yrimmig - birthyr <= 15."
+  ],
+  "treatment_definition": "(((chunk[\"age\"] - (chunk[\"year\"] - 2012)) <= 30) & (chunk[\"yrimmig\"] <= 2007) & ((chunk[\"yrimmig\"] - chunk[\"birthyr\"]) <= 15)).astype(int)"
+}

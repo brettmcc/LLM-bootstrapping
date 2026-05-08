@@ -1,0 +1,14 @@
+{
+  "model_specification_line": "ols('fulltime_employed ~ C(year) + young_cohort + post_daca:young_cohort')",
+  "outcome_definition": "(empstat == 1) and (uhrswork >= 35)",
+  "sample_selection": [
+    "hispan == 1",
+    "bpl == 200",
+    "citizen in [3, 4, 5]",
+    "yrimmig <= 2007",
+    "age + (2012 - year) <= 30",
+    "yrimmig - (year - age) < 16",
+    "year in [2013, 2014, 2015, 2016]"
+  ],
+  "treatment_definition": "DACA eligible via post_daca and young_cohort indicators"
+}

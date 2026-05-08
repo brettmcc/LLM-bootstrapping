@@ -1,0 +1,12 @@
+{
+  "model_specification_line": "WLS regression with treatment indicator on full-time employment",
+  "outcome_definition": "(empstat == 1) & (uhrswork >= 35)",
+  "sample_selection": [
+    "year in [2013, 2014, 2015, 2016]",
+    "age >= 18 and age <= 65",
+    "(bpl == 200) or (hispan == 1)",
+    "citizen in [3, 4, 5]",
+    "empstat and uhrswork not missing"
+  ],
+  "treatment_definition": "birthyr >= 1982"
+}

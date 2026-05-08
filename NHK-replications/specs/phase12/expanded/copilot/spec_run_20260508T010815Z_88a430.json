@@ -1,0 +1,16 @@
+{
+  "model_specification_line": "result = smf.wls(\"full_time ~ eligible * post_daca + C(age) + C(year) + C(statefip) + unemp + lfpr + driverslicenses + instatetuition + statefinancialaid + higheredban + everify + limiteverify + omnibus + task287g + jail287g + securecommunities\", data=model_df, weights=model_df[\"perwt\"]).fit(cov_type=\"cluster\", cov_kwds={\"groups\": model_df[\"statefip\"]})",
+  "outcome_definition": "((empstat == 1) & (uhrswork >= 35)).astype(int)",
+  "sample_selection": [
+    "2006 <= year <= 2016",
+    "year != 2012",
+    "gq in {1, 2, 5}",
+    "hispan == 1",
+    "bpl == 200",
+    "citizen in {3, 4, 5}",
+    "15 <= age <= 40",
+    "yrimmig > 0",
+    "empstat in {1, 2, 3}"
+  ],
+  "treatment_definition": "((year - age >= 1981) & ((year - age - yrimmig) < 16) & (yrimmig <= 2007))"
+}

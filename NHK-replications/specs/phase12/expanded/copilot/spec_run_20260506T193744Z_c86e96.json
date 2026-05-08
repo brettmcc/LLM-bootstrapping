@@ -1,0 +1,13 @@
+{
+  "model_specification_line": "wls('full_time ~ treatment + C(year) + age_centered', data=analysis_df, weights=analysis_df['wt'])",
+  "outcome_definition": "(empstat == 1) & (uhrswork >= 35)",
+  "sample_selection": [
+    "year >= 2013 and year <= 2016",
+    "hispan == 1 (Mexican)",
+    "bpl == 200 (Mexico)",
+    "age >= 18 and age <= 31",
+    "citizen in [3, 4, 5] (not citizen)",
+    "empstat in [1, 2] (in labor force)"
+  ],
+  "treatment_definition": "post_daca = (year >= 2013)"
+}

@@ -1,0 +1,16 @@
+{
+  "model_specification_line": "results = smf.wls(\"full_time_employed ~ daca_eligible * post_daca + C(birthyr) + C(year) + C(statefip) + C(sex) + UNEMP + LFPR + DRIVERSLICENSES + INSTATETUITION + STATEFINANCIALAID + HIGHEREDBAN + EVERIFY + LIMITEVERIFY + OMNIBUS + TASK287G + JAIL287G + SECURECOMMUNITIES\", data=analysis_df, weights=analysis_df[\"perwt\"]).fit(cov_type=\"cluster\", cov_kwds={\"groups\": analysis_df[\"statefip\"]})",
+  "outcome_definition": "((analysis_df[\"empstat\"] == 1) & (analysis_df[\"uhrswork\"] >= 35)).astype(int)",
+  "sample_selection": [
+    "year in {2006, 2007, 2008, 2009, 2010, 2011, 2013, 2014, 2015, 2016}",
+    "statefip matches a row in policy_labor_market_data.csv",
+    "gq in {1, 2, 5}",
+    "sex in {1, 2}",
+    "birthyr between 1978 and 1984, excluding 1981",
+    "hispan == 1 and bpl == 200",
+    "citizen in {3, 4, 5}",
+    "yrimmig between 1 and 2007",
+    "0 <= yrimmig - birthyr <= 15"
+  ],
+  "treatment_definition": "(analysis_df[\"birthyr\"] >= 1982).astype(int)"
+}

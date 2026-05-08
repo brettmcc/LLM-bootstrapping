@@ -1,0 +1,12 @@
+{
+  "model_specification_line": "LinearRegression().fit(X * sqrt(weights), y * sqrt(weights))",
+  "outcome_definition": "((empstat == 1) & (uhrswork >= 35))",
+  "sample_selection": [
+    "Years 2013-2016 (post-DACA implementation)",
+    "HISPAN == 1 (Mexican ethnicity)",
+    "BPL == 200 (Mexico-born)",
+    "CITIZEN in {3, 4, 5} (non-citizen, provisional status, or status not reported)",
+    "Birth year 1982-1996 (age 16-30 on June 15, 2012)"
+  ],
+  "treatment_definition": "(birthyr >= 1982) & (birthyr <= 1996) & (bpl == 200) & (citizen in [3, 4, 5])"
+}

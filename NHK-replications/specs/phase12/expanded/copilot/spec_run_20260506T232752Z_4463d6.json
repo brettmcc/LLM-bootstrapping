@@ -1,0 +1,11 @@
+{
+  "model_specification_line": "weighted_difference_in_means = treated_mean - control_mean",
+  "outcome_definition": "(empstat == 1) & (uhrswork >= 35)",
+  "sample_selection": [
+    "hispan == 1",
+    "bpl == 200",
+    "citizen in [3, 4, 5]",
+    "year in [2013, 2014, 2015, 2016]"
+  ],
+  "treatment_definition": "(birth_year_approx >= 1981) & (birth_year_approx <= 1996)"
+}

@@ -1,0 +1,13 @@
+{
+  "model_specification_line": "OLS linear probability model: fulltime = \u03b20 + \u03b21*daca_eligible + \u03b22*post_daca + \u03b23*(daca_eligible * post_daca), estimated with person weights",
+  "outcome_definition": "(empstat == 1) AND (uhrswork >= 35)",
+  "sample_selection": [
+    "bpl == 200 (Mexican-born)",
+    "hispan == 1 (Ethnically Hispanic-Mexican)",
+    "age >= 16 AND age <= 40 (Working-age population)",
+    "year in [2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016] (Pre- and post-DACA period)",
+    "empstat in [1, 2] (Employed or unemployed, in labor force)",
+    "uhrswork not missing (Have usual hours worked data)"
+  ],
+  "treatment_definition": "(bpl == 200) AND (hispan == 1) AND (age_at_daca >= 15) AND (age_at_daca <= 30) AND (citizen in [3, 4, 5])"
+}

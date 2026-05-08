@@ -1,0 +1,13 @@
+{
+  "model_specification_line": "model = smf.wls(\"fulltime_mean ~ eligible * post + running + I(running ** 2) + C(year) + C(sex) + C(statefip) + DRIVERSLICENSES + INSTATETUITION + STATEFINANCIALAID + HIGHEREDBAN + EVERIFY + LIMITEVERIFY + OMNIBUS + TASK287G + JAIL287G + SECURECOMMUNITIES + LFPR + UNEMP\", data=model_df, weights=model_df[\"sample_weight\"]).fit(cov_type=\"cluster\", cov_kwds={\"groups\": model_df[\"statefip\"]})",
+  "outcome_definition": "((empstat == 1) & (uhrswork >= 35)).astype(int)",
+  "sample_selection": [
+    "year != 2012",
+    "hispan == 1",
+    "bpl == 200",
+    "citizen == 3",
+    "sex in (1, 2)",
+    "15 <= (age - (year - 2012)) <= 36"
+  ],
+  "treatment_definition": "((age - (year - 2012)) <= 30).astype(int)"
+}

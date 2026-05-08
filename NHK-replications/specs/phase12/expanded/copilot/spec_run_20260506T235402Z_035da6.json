@@ -1,0 +1,12 @@
+{
+  "model_specification_line": "WLS(fulltime ~ daca_eligible + post_daca + daca_eligible*post_daca, weights=perwt)",
+  "outcome_definition": "1 if empstat == 1 (employed) and uhrswork >= 35 (hours per week), 0 otherwise",
+  "sample_selection": [
+    "hispan == 1 (Mexican ethnicity)",
+    "bpl == 200 (born in Mexico)",
+    "citizen in [3, 4, 5] (not a citizen or status not reported)",
+    "age >= 15 and age <= 30",
+    "year in [2013, 2014, 2015, 2016]"
+  ],
+  "treatment_definition": "1 if age between 15-27 (proxy for DACA eligibility), 0 otherwise"
+}

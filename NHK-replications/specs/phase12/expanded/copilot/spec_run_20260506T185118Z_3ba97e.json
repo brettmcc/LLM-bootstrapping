@@ -1,0 +1,14 @@
+{
+  "model_specification_line": "smf.wls('full_time ~ C(daca_eligible) + C(year) + C(statefip)', data=df, weights=df['perwt']).fit()",
+  "outcome_definition": "(df['uhrswork'] >= 35)",
+  "sample_selection": [
+    "year in [2013, 2014, 2015, 2016]",
+    "hispan == 1",
+    "bpl == 200",
+    "age in [15, 30]",
+    "citizen in [3, 4, 5]",
+    "empstat in [1, 2]",
+    "uhrswork > 0"
+  ],
+  "treatment_definition": "(df['birth_year'] >= 1982) & (df['birth_year'] <= 1996)"
+}

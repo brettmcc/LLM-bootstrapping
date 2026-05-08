@@ -194,6 +194,43 @@ def dry_run_check(cmd: list[str]) -> bool:
     return True
 
 
+def validate_copilot_model_dry_run(copilot_model: str, timeout: int = 120) -> tuple[bool, str]:
+    # Run a tiny non-interactive Copilot request so dry-run can catch invalid
+    # model names instead of only checking the CLI binary.
+    cmd = build_copilot_command([
+        "--allow-all-tools",
+        "--allow-all-paths",
+        "--no-ask-user",
+        "--output-format",
+        "json",
+        "-s",
+        "--model",
+        copilot_model,
+        "-p",
+        "Reply with exactly OK and nothing else.",
+    ])
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=timeout,
+        )
+    except FileNotFoundError:
+        return False, f"CLI not found: {cmd[0]}"
+    except subprocess.TimeoutExpired:
+        return False, f"Copilot model check timed out for model: {copilot_model}"
+
+    fatal = detect_fatal_cli_error(result.stdout, result.stderr)
+    if fatal:
+        return False, fatal
+    if result.returncode != 0:
+        message = (result.stderr or result.stdout or "").strip()
+        return False, message or f"Copilot model check failed for model: {copilot_model}"
+    return True, ""
+
+
 def codex_supports_reasoning(no_wsl: bool, wsl_distro: Optional[str]) -> bool:
     # Check whether the Codex CLI advertises a reasoning flag.
     cmd = ["codex", "exec", "--help"]
@@ -1135,6 +1172,10 @@ def main() -> None:
                 "skipping availability check in dry-run"
             )
             ok = True
+        if ok and args.cli_provider == "copilot" and args.copilot_model:
+            ok, message = validate_copilot_model_dry_run(args.copilot_model)
+            if not ok:
+                print(message)
         print("ok" if ok else "fail")
         return
 

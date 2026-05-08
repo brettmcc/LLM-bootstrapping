@@ -1,0 +1,14 @@
+{
+  "model_specification_line": "wls('fulltime ~ C(treatment) + C(state_str) + C(year_str) + age', data=df, weights=df['perwt']).fit()",
+  "outcome_definition": "(empstat == 1) & (uhrswork >= 35)",
+  "sample_selection": [
+    "hispan == 1 (Mexican, per ACS codes)",
+    "bpl == 200 (Mexico, per ACS birthplace codes)",
+    "citizen in (3, 5) (not a citizen or citizenship status not reported)",
+    "age >= 16 and age <= 30 (at least 16 by June 15, 2012; under 31 on June 15, 2012)",
+    "year in (2013, 2014, 2015, 2016) (post-DACA implementation period)",
+    "empstat != 0 and empstat != 9 (employment status reported)",
+    "uhrswork != 0 (usual hours worked per week reported)"
+  ],
+  "treatment_definition": "Age-based DACA eligibility indicator: 1 if would have been age 16-30 in June 2012 (i.e., for survey year Y, treatment=1 if age in [Y-2012+16, Y-2012+30])"
+}
