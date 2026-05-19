@@ -1,0 +1,13 @@
+{
+  "model_specification_line": "fit = smf.wls(\"full_time ~ eligible + eligible:post + C(statefip) + C(year) + DRIVERSLICENSES + INSTATETUITION + STATEFINANCIALAID + HIGHEREDBAN + EVERIFY + LIMITEVERIFY + OMNIBUS + JAIL287G + LFPR + UNEMP\", data=merged, weights=merged[\"perwt\"]).fit(cov_type=\"cluster\", cov_kwds={\"groups\": merged[\"statefip\"]})",
+  "outcome_definition": "int(empstat == 1 and uhrswork >= 35)",
+  "sample_selection": [
+    "year >= 2006 and year <= 2016 and year != 2012",
+    "hispan == 1",
+    "bpl == 200",
+    "citizen in {3, 4, 5}",
+    "birthyr >= 1982 and birthyr <= 1996",
+    "yrimmig > 0"
+  ],
+  "treatment_definition": "int((yrimmig <= 2007) and (yrimmig <= birthyr + 15))"
+}

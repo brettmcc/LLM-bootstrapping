@@ -12,7 +12,7 @@ Each aggregate CSV combines:
 - Phase 1 specifications (structured JSON)
 - Phase 2 execution outputs (point estimate, standard error, sample size)
 
-Phase 4 turns one of these aggregate CSVs into publication-ready tables/figures and a short LaTeX report.
+Phase 4 turns one of these aggregate CSVs into publication-ready tables/figures, paper-facing TeX macros, and a short LaTeX report.
 
 ---
 
@@ -162,6 +162,7 @@ Inputs:
 Outputs (default):
 - `meta_analysis/` folder with:
 	- LaTeX tables (e.g., `table1_summary_stats.tex`)
+	- manuscript macro/table inputs (e.g., `paper_macros.tex`, `paper_table1_summary.tex`)
 	- Figures (PNG)
 	- Optional benchmark-overlay artifacts from `code/run_task1_benchmark_overlay.py`, including:
 		- `benchmark_task1_osf_document_audit.csv`
@@ -185,3 +186,11 @@ Because the public OSF submission documents are not the same source as the paper
 If a small number of benchmark rows require hand reading, place researcher-level corrections in `meta_analysis/benchmark_task1_manual_overrides.csv`; the script will apply those overrides reproducibly on top of the automatic extraction before writing final outputs.
 
 The Phase 4 outputs are intended to be comparable “like-for-like” to the descriptive tables/figures in that PDF, with transparent notes about any mismatches.
+
+For the Economics Letters draft, run Phase 4 on the expanded aggregate and then input the generated TeX artifacts from `paper/economics_letters.qmd` rather than hard-coding results in the manuscript:
+
+```powershell
+python code/run_phase4_meta_analysis.py --input runs_complete_expanded.csv --output-dir meta_analysis_expanded
+```
+
+Phase 4 applies the manuscript's analytic-sample filter by default: recoverable specification, successful execution, positive standard error, positive sample size, and `abs(point_est) <= 1`. Use `--max-abs-effect -1` only for diagnostics that intentionally retain extreme/degenerate executions.

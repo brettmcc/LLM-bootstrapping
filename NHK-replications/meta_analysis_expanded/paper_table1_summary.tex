@@ -1,0 +1,9 @@
+\begin{table}[!htbp]
+\centering
+\caption{Distribution of AI-agent-generated estimates of the effect of DACA eligibility on full-time employment}
+\label{tab:summary}
+\small
+\resizebox{\textwidth}{!}{\input{../NHK-replications/meta_analysis_expanded/table1_summary_stats.tex}}
+\caption*{\textbf{Notes:} Each observation is one AI-agent-generated specification applied to the same ACS extract. The analytic sample excludes runs without recoverable specifications, execution failures, runs with non-positive standard errors, and successful but degenerate executions with $|\hat{\theta}| > 1$. The inverse-SE weighted row uses weights $1/\max(\text{SE}, q_{0.25})$, where $q_{0.25}$ is the 25th percentile of SE, to limit the influence of very small standard errors.}
+\end{table}
+\FloatBarrier

@@ -1,0 +1,20 @@
+{
+  "model_specification_line": "model = smf.wls(\"full_time ~ daca_eligible + age + I(age ** 2) + C(sex) + C(statefip) + C(year) + DRIVERSLICENSES + INSTATETUITION + STATEFINANCIALAID + HIGHEREDBAN + EVERIFY + LIMITEVERIFY + OMNIBUS + TASK287G + JAIL287G + SECURECOMMUNITIES + LFPR + UNEMP\", data=sample, weights=sample[\"perwt\"] / 100.0).fit(cov_type=\"cluster\", cov_kwds={\"groups\": sample[\"statefip\"]})",
+  "outcome_definition": "((empstat == 1) & (uhrswork >= 35)).astype(int)",
+  "sample_selection": [
+    "year >= 2013 and year <= 2016",
+    "statefip >= 1 and statefip <= 56",
+    "hispan == 1",
+    "bpl == 200",
+    "citizen in (3, 5)",
+    "sex in (1, 2)",
+    "age >= 16 and age <= 45",
+    "birthyr > 0",
+    "yrimmig > 0",
+    "yrimmig >= birthyr",
+    "yrimmig <= 2007",
+    "empstat in (1, 2, 3)",
+    "perwt > 0"
+  ],
+  "treatment_definition": "((birthyr >= 1981) & (yrimmig <= 2007) & (yrimmig <= birthyr + 15)).astype(int)"
+}

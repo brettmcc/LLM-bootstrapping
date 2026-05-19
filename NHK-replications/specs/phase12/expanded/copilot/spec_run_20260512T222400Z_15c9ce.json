@@ -1,0 +1,20 @@
+{
+  "model_specification_line": "point_estimate, standard_error, sample_size = estimate_did()",
+  "outcome_definition": "int(empstat == 1 and uhrswork >= 35)",
+  "sample_selection": [
+    "year between 2010 and 2016",
+    "gq in [1,2] (household population)",
+    "sex in [1,2]",
+    "age between 18 and 40",
+    "hispan == 1 (Mexican Hispanic origin)",
+    "bpl == 200 (born in Mexico)",
+    "citizen in [3,4] (noncitizen / first papers)",
+    "birthyr between 1900 and 2016",
+    "yrimmig between 1900 and 2016",
+    "yrimmig >= birthyr",
+    "empstat in [1,2,3] (valid employment status)",
+    "uhrswork not missing",
+    "perwt > 0"
+  ],
+  "treatment_definition": "int((birthyr >= 1982) and (yrimmig <= 2007) and ((yrimmig - birthyr) < 16))"
+}
