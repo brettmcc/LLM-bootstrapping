@@ -1,0 +1,17 @@
+{
+  "model_specification_line": "model = smf.wls(\"full_time ~ daca_eligible + daca_eligible:post_daca + age + I(age ** 2) + female + UNEMP + LFPR + C(state_fips) + C(year)\", data=sample, weights=sample[\"perwt\"]).fit(cov_type=\"HC1\")",
+  "outcome_definition": "((empstat == 1) & (uhrswork >= 35)).astype(float)",
+  "sample_selection": [
+    "2006 <= year <= 2016 and year != 2012",
+    "hispand in {100, 102, 103, 104, 105, 106, 107}",
+    "bpld == 20000",
+    "citizen == 3",
+    "perwt > 0",
+    "empstat in {1, 2, 3}",
+    "yrimmig > 0 and yrimmig <= 2007",
+    "0 <= age_at_arrival <= 15",
+    "age >= 16",
+    "16 <= age_2012 <= 35 and age_2012 != 31"
+  ],
+  "treatment_definition": "(age_2012 <= 30).astype(int)"
+}

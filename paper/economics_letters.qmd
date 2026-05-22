@@ -4,6 +4,38 @@ author:
   - name: Brett A. McCully
     affiliations:
       - name: Collegio Carlo Alberto
+filters:
+  - main_text_wordcount.lua
+header-includes:
+  - |
+    \usepackage{booktabs}
+    \usepackage{graphicx}
+    \usepackage{caption}
+    \usepackage{subcaption}
+    \usepackage[section]{placeins}
+    \usepackage[dvipsnames]{xcolor}
+    \input{../NHK-replications/meta_analysis_expanded/paper_macros.tex}
+    \input{economics_letters_wordcount.tex}
+    \newcommand{\titleaffiliation}{Collegio Carlo Alberto}
+    \newcommand{\titledate}{May 19, 2026}
+    \newcommand{\titlenote}{I thank Yagan Hazard for helpful conversations.}
+    \makeatletter
+    \renewcommand{\maketitle}{
+      \thispagestyle{empty}
+      \begin{center}
+      {\LARGE \@title\textsuperscript{*} \par}
+      \vspace{1.5em}
+      {\large \@author \par}
+      \vspace{0.5em}
+      {\normalsize \titleaffiliation \par}
+      \vspace{0.75em}
+      {\normalsize \titledate \par}
+      \vspace{0.75em}
+      {\footnotesize \textit{Word count (main text):} \MainTextWordCount \par}
+      \end{center}
+      \vspace{1.5em}
+    }
+    \makeatother
 format:
   pdf:
     documentclass: article
@@ -12,29 +44,29 @@ format:
     linestretch: 1.5
     cite-method: natbib
     biblio-style: ecca
-    include-in-header:
-      text: |
-        \usepackage{booktabs}
-        \usepackage{graphicx}
-        \usepackage{caption}
-        \usepackage{subcaption}
-        \usepackage[section]{placeins}
-        \usepackage[dvipsnames]{xcolor}
-        \input{../NHK-replications/meta_analysis_expanded/paper_macros.tex}
 bibliography: bibliography.bib
-date: today
+date: "May 19, 2026"
 number-sections: true
 number-depth: 2
 abstract: |
-  Reported standard errors capture sampling uncertainty conditional on one set of researcher decisions, but defensible alternatives in sample construction and specification can shift estimates substantially. I draw repeated, independent AI agents that receive the same prompt and dataset but generate different research choices. Applying the method to the immigration policy--employment question studied by \citet{huntingtonklein2025sources}, AI agents generate \aiAnalyticN{} retained specifications with an interquartile range of [\aiIqrLower{}\, \aiIqrUpper{}]. The results support AI agents as scalable proxies for multi-analyst designs that characterize researcher-induced estimation uncertainty.
+  Reported standard errors capture sampling uncertainty conditional on one set of researcher decisions, but defensible alternatives in sample construction and specification can shift estimates substantially. I draw repeated, independent AI agents that receive the same prompt and dataset but generate different research choices. Applying the method to the immigration policy--employment question studied by \citet{huntingtonklein2025sources} using many human analysts, AI agents generate \aiAnalyticN{} estimates. The distribution of coefficients and sample size reasonably match that of the human analysts, suggesting AI agents to be useful proxies for human researchers when quantifying estimate uncertainty due to variation in researcher choices.
 ---
 
 ```{=latex}
-\medskip
+\begin{quotation}
+\footnotesize
 \noindent \textbf{Keywords:} Researcher degrees of freedom, replication, specification uncertainty, AI agents
 
 \medskip
 \noindent \textbf{JEL Codes:} C12, C15, C18
+\end{quotation}
+
+\vfill
+\noindent\rule{0.33\textwidth}{0.4pt}
+\par
+\noindent {\footnotesize \textsuperscript{*}\titlenote\par}
+
+\newpage
 ```
 
 # Introduction {#sec-intro}
@@ -59,18 +91,19 @@ For a given empirical research question, social scientists have substantial degr
 
 For example, in the empirical application below I consider the effect of the immigration policy, Deferred Action for Childhood Arrivals (DACA), on the likelihood of full-time work among affected immigrants. Researchers may make different defensible choices about age bounds, full-time work definitions, eligibility proxies, and whether to estimate a linear or nonlinear model. Different combinations of these choices imply different research designs.
 
-AI agents, such as ChatGPT or Claude Code, provide a reduced-form parameter to capture such variation in approach: the so-called 'temperature' parameter. Temperature governs the stochasticity of AI agent responses. By construction, these responses are non-deterministic: the same prompt can generate a range of responses. By submitting a prompt to estimate a given empirical parameter many times to an AI agent, I propose to simulate at much lower cost a many-analyst approach for generating bounds on the degree of researcher-induced parameter estimation uncertainty.\footnote{Other researchers have adopted the catchier  term 'non-standard' errors to describe the bounds resulting from this type of exercise [@brownlees2024nonstandard].}
+AI agents, such as ChatGPT or Claude Code, provide inherently take different approaches to a given research prompt. By construction, AI responses are non-deterministic: the same prompt can generate a range of responses. By submitting a prompt to estimate a given empirical parameter many times to an AI agent, I propose to simulate at much lower cost a many-analyst approach for generating bounds on the degree of researcher-induced parameter estimation uncertainty.\footnote{Other researchers have adopted the catchier  term 'non-standard' errors to describe the bounds resulting from this type of exercise [@brownlees2024nonstandard].}
 
+Differently from the trained human researchers involved in previous multi-analyst studies, AI agents may take research choices far outside disciplinary norms and may make a set of choices which are less internally coherent. The degree to which AI agents hew to human patterns of research choices is therefore an empirical question. This paper replicates an existing human multianalyst study by @nickchk2022manyeconomists and compares the distribution of research choices and the resulting estimates.
 
-Fix a research problem $P$ and a temperature parameter $\tau > 0$. Repeated independent runs of the same AI agent induce a distribution over defensible research choices, $\pi_{\text{AI}}(\cdot \mid P, \tau)$. For a fixed dataset $\omega$, the empirical object is the distribution of estimates $\hat{\theta}(R, \omega)$ where $R \sim \pi_{\text{AI}}$.
-
-Each run proceeds in two phases within a single agent session. In Phase 1, the agent receives the research question and a data codebook, then returns a structured JSON specification encoding sample restrictions, outcome definition, treatment definition, and a model command embedding controls, fixed effects, weighting, and variance-estimation choices. In Phase 2, the same agent implements its specification in an analysis script, executes it in an isolated workspace, and returns a point estimate, standard error, and sample size. Combining both phases in one session allows the agent to revise non-implementable choices immediately.
+Ex-ante, why might AI agents produce plausible research choices? Their underlying models are trained on academic articles, codebases, and empirical templates [@gao2020pile, @chen2021codex]---the same materials from which researchers learn to define samples, write regression equations, and choose standard-error adjustments. AI agent outputs can therefore be interpreted as draws from a compressed, noisy representation of standard empirical social science practice.
 
 ## Application
 
-I apply the pipeline to the question answered by many analysts in @huntingtonklein2025sources. The authors recruit a large team of economists and graduate students and ask each to independently answer the same causal question using the same instructions and raw data: how did eligibility for the Defferred Action for Childhood Arrivals immigration policy affect the probability of full-time employment among eligible immigrants? Participants are given a data codebook and the research question but otherwise exercise broad discretion over sample construction, variable definitions, and specification choices. In this study I replicate the initial task from @huntingtonklein2025sources in which participants had maximum flexibility to make research choices.
+I apply the pipeline to the question answered by many analysts in @huntingtonklein2025sources. The authors recruit nearly 200 economists and ask each to independently answer the same causal question using the same instructions and raw data: how did eligibility for the Defferred Action for Childhood Arrivals immigration policy affect the probability of full-time employment among eligible immigrants? Participants are given a data codebook and the research question but otherwise exercise broad discretion over sample construction, variable definitions, and specification choices. In this study I replicate the initial task from @huntingtonklein2025sources in which participants had maximum flexibility to make research choices.
 
-I run agents from three frontier AI models---GPT-5.4-mini (OpenAI), Claude Haiku 4.5 and Claude Sonnet 4.6 (Anthropic)---accessed through GitHub Copilot CLI. All agents receive the same prompt and access the same American Community Survey extract with a wide range of potentially relevant variables, plus a set of state policy variables. Each run takes 2--10 minutes and costs under \$1 at subscription pricing, making large-scale replication affordable for individual researchers.
+The computing pipeline works as follows. An AI agent is provided with the raw materials to answer the research question: an IPUMS extract and codebook with all variables used by human analysts in @nickchk2022manyeconomists (derived from their public repository), a supplementary state policy dataset and codebook, and instructions adapted from those given to human analysts.\footnote{All material passed to AI agents are available at https://github.com/brettmcc/LLM-bootstrapping/tree/master/NHK-replications/replication-materials.} Each AI agent is isolated to their own run directory, so they cannot learn from previous agent runs. The agent then writes a JSON file outlining their model specification, outcome definition, sample selection, and treatment definition.\footnote{For example, one retained specification estimates \texttt{full\_time} on \texttt{treated\_post}, treatment and post indicators, age terms, sex indicators, state fixed effects, and year fixed effects; defines full-time work as usual hours worked greater than or equal to 35; restricts the sample by Hispanic origin, Mexican birthplace, non-citizenship, pre-2008 immigration, childhood arrival, birth cohort, group-quarters status, year, and working age; and defines treatment using the birth-year eligibility proxy.} The agent then writes a Python script to implement their estimation and reports the resulting sample size and preferred coefficient.
+
+I use three frontier AI models---GPT-5.4-mini (OpenAI), Claude Haiku 4.5 and Claude Sonnet 4.6 (Anthropic)---accessed through GitHub Copilot CLI. Each run takes 2--10 minutes and has minimal cost when using a subscription,\footnote{It's worth noting the amount of inference provided by Github Copilot is set to fall dramatically at the beginning of June, so researchers would likely do better to leverage Claude Code or OpenAI's Codex in the future.} making large-scale replication affordable for individual researchers.
 
 # Results {#sec-results}
 

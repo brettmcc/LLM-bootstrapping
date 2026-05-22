@@ -19,6 +19,27 @@ source ~/.venvs/NHK-replications/bin/activate
 
 ---
 
+## Current Reporting Workflow: Expanded Phase 12 Copilot Runs
+
+Use these commands first when refreshing the paper-facing results. They aggregate the expanded ACS cohort for the Phase 12 Copilot archive and regenerate the expanded meta-analysis artifacts consumed by the current draft.
+
+```powershell
+# Windows PowerShell (from NHK-replications folder)
+. .\activate.ps1
+python code/run_phase3.py --data-profile expanded --spec-provider phase12/copilot
+python code/run_phase4_meta_analysis.py --input runs_complete_expanded.csv --output-dir meta_analysis_expanded
+```
+
+Outputs:
+- `runs_complete_expanded.csv`
+- `meta_analysis_expanded/table*.tex`
+- `meta_analysis_expanded/paper_*.tex`
+- `meta_analysis_expanded/figure*.png`
+
+For legacy comparisons only, use `--data-profile legacy` and write to `runs_complete.csv` / `meta_analysis`.
+
+---
+
 ## llm_client.py
 This is a module, not a standalone script.
 
@@ -212,11 +233,37 @@ python code/run_phase3.py [options]
 
 **Examples:**
 ```bash
-# Aggregate the expanded cohort (default output: runs_complete_expanded.csv)
-python code/run_phase3.py
+# Aggregate the expanded Phase 12 Copilot cohort used for current reporting
+python code/run_phase3.py --data-profile expanded --spec-provider phase12/copilot
 
 # Aggregate only legacy codex + gemini specs into the historical CSV
 python code/run_phase3.py --data-profile legacy --output runs_complete.csv --spec-provider codex --spec-provider gemini_api --spec-provider gemini_cli
+```
+
+---
+
+## run_phase4_meta_analysis.py
+
+```bash
+python code/run_phase4_meta_analysis.py [options]
+```
+
+**Parameters:**
+| Argument | Description |
+|----------|-------------|
+| `--input` | Aggregate CSV path (expanded reporting uses `runs_complete_expanded.csv`) |
+| `--output-dir` | Directory for generated tables, figures, and macros (expanded reporting uses `meta_analysis_expanded`) |
+| `--no-figures` | Skip PNG figure generation |
+| `--verbose` | Print progress information |
+| `--max-abs-effect` | Drop successful runs with `abs(point_est)` above this value (default: 1.0; use `-1` to disable) |
+
+**Examples:**
+```bash
+# Regenerate the expanded paper-facing tables, figures, and macros
+python code/run_phase4_meta_analysis.py --input runs_complete_expanded.csv --output-dir meta_analysis_expanded
+
+# Legacy comparison output
+python code/run_phase4_meta_analysis.py --input runs_complete.csv --output-dir meta_analysis
 ```
 
 ---

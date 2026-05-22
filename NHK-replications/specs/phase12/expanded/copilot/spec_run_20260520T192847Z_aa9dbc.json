@@ -1,0 +1,16 @@
+{
+  "model_specification_line": "model = smf.wls('full_time ~ eligible + C(year) + C(statefip) + age + I(age ** 2) + C(sex)', data=df, weights=df['perwt']).fit(cov_type='HC1')",
+  "outcome_definition": "int((empstat == 1) & (uhrswork >= 35))",
+  "sample_selection": [
+    "2013 <= year <= 2016",
+    "hispan == 1",
+    "bpl == 200",
+    "citizen == 3",
+    "16 <= age <= 40",
+    "sex in {1, 2}",
+    "empstat in {1, 2, 3}",
+    "yrimmig <= 2007",
+    "perwt > 0"
+  ],
+  "treatment_definition": "int((birthyr >= 1982) & (yrimmig <= 2007) & ((yrimmig - birthyr) <= 15))"
+}
