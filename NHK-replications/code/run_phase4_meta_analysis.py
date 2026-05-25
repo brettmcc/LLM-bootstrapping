@@ -24,17 +24,143 @@ BENCHMARK_TASK1_METHOD_SHARES = {
     "Sample weights": {"n": 145, "share": 25.0},
     "No SE adjustment": {"n": 145, "share": 22.0},
 }
+BENCHMARK_TABLE4_METHOD_SHARES = {
+    "Linear Regression": {"n": 358, "share": 82.0},
+    "Logit/Probit": {"n": 57, "share": 13.0},
+    "Matching": {"n": 11, "share": 3.0},
+    "New DID Estimator": {"n": 7, "share": 2.0},
+    "Other": {"n": 4, "share": 1.0},
+    "Cluster (State)": {"n": 118, "share": 27.0},
+    "Cluster (State & Year)": {"n": 58, "share": 13.0},
+    "Cluster (ID/Strata/Other)": {"n": 65, "share": 15.0},
+    "Het-Robust": {"n": 76, "share": 17.0},
+    "Other/Bootstrap": {"n": 23, "share": 5.0},
+    "None": {"n": 98, "share": 22.0},
+    "No Sample Weights": {"n": 329, "share": 75.0},
+    "Sample Weights": {"n": 109, "share": 25.0},
+}
+BENCHMARK_TABLE5_CONTROL_EFFECTS = [
+    # Published Table 5 in I4R-DP209.pdf. Rows are overlapping indicators:
+    # each row includes every human estimate whose specification contains the
+    # listed functional form, so counts are not meant to sum to the total
+    # number of estimates.
+    {
+        "category": "AGE",
+        "control": "Linear Age",
+        "n": 164,
+        "mean_effect": 0.058,
+        "sd_effect": 0.107,
+        "mean_se": 0.024,
+    },
+    {
+        "category": "AGE",
+        "control": "Age FE",
+        "n": 36,
+        "mean_effect": 0.024,
+        "sd_effect": 0.022,
+        "mean_se": 0.040,
+    },
+    {
+        "category": "AGE",
+        "control": "Age Quadratic",
+        "n": 33,
+        "mean_effect": 0.035,
+        "sd_effect": 0.089,
+        "mean_se": 0.015,
+    },
+    {
+        "category": "EDUC",
+        "control": "Linear Education",
+        "n": 122,
+        "mean_effect": 0.040,
+        "sd_effect": 0.066,
+        "mean_se": 0.016,
+    },
+    {
+        "category": "EDUC",
+        "control": "Education FE",
+        "n": 32,
+        "mean_effect": 0.047,
+        "sd_effect": 0.033,
+        "mean_se": 0.021,
+    },
+    {
+        "category": "EDUC",
+        "control": "Education Transform",
+        "n": 61,
+        "mean_effect": 0.045,
+        "sd_effect": 0.064,
+        "mean_se": 0.017,
+    },
+    {
+        "category": "STATE/YEAR",
+        "control": "Linear Year",
+        "n": 79,
+        "mean_effect": 0.044,
+        "sd_effect": 0.140,
+        "mean_se": 0.037,
+    },
+    {
+        "category": "STATE/YEAR",
+        "control": "Year FE",
+        "n": 103,
+        "mean_effect": 0.047,
+        "sd_effect": 0.062,
+        "mean_se": 0.026,
+    },
+    {
+        "category": "STATE/YEAR",
+        "control": "State FE",
+        "n": 155,
+        "mean_effect": 0.046,
+        "sd_effect": 0.102,
+        "mean_se": 0.031,
+    },
+    {
+        "category": "STATE/YEAR",
+        "control": "State FE x Year FE",
+        "n": 56,
+        "mean_effect": 0.037,
+        "sd_effect": 0.027,
+        "mean_se": 0.018,
+    },
+    {
+        "category": "STATE/YEAR",
+        "control": "State FE x Linear Year",
+        "n": 23,
+        "mean_effect": 0.061,
+        "sd_effect": 0.133,
+        "mean_se": 0.017,
+    },
+]
+INVERSE_SE_FLOOR_QUANTILE = 0.05
+PUBLISHED_ROUNDED_ZERO_SE_DISPLAY_FLOOR = 0.0005
+BENCHMARK_TASK1_TABLE3 = {
+    # Published Task 1 summary statistics from Table 3 of I4R-DP209.pdf.
+    "effect_unweighted": {"min": -0.049, "p25": 0.014, "median": 0.030, "p75": 0.051, "max": 0.660},
+    "effect_weighted": {"min": -0.049, "p25": 0.012, "median": 0.026, "p75": 0.043, "max": 0.660},
+    "standard_error": {"min": 0.000, "p25": 0.005, "median": 0.007, "p75": 0.013, "max": 0.460},
+    "sample_size": {"min": 681, "p25": 61_600, "median": 179_960, "p75": 356_787, "max": 29_536_580},
+}
+EXCLUDED_ANALYSIS_MODELS = {"claude-haiku-4.5"}
 
 
 def load_and_filter_data(csv_path: Path, verbose: bool = False, max_abs_effect: float | None = 1.0) -> pd.DataFrame:
     df = pd.read_csv(csv_path)
     initial_n = len(df)
+    if "model_phase1" in df.columns:
+        # Exclude model cohorts that are not part of the paper's analysis
+        # sample before applying success/result filters, so every table,
+        # figure, and prose macro is based on the same retained model set.
+        df = df[~df["model_phase1"].isin(EXCLUDED_ANALYSIS_MODELS)].copy()
     if "spec_status" in df.columns:
         df = df[df["spec_status"] == "available"].copy()
     df = df[df["execution_status"] == "success"].copy()
     df["point_est"] = pd.to_numeric(df["point_est"], errors="coerce")
     df["SE"] = pd.to_numeric(df["SE"], errors="coerce")
     df["sample_size"] = pd.to_numeric(df["sample_size"], errors="coerce")
+    if "treated_group_size" in df.columns:
+        df["treated_group_size"] = pd.to_numeric(df["treated_group_size"], errors="coerce")
     df = df.dropna(subset=["point_est", "SE", "sample_size"])
     df = df[df["SE"] > 0]
     df = df[df["sample_size"] > 0]
@@ -52,6 +178,10 @@ def compute_filter_counts(csv_path: Path, max_abs_effect: float | None = 1.0) ->
     # Count every exclusion from the raw aggregate file. Keeping this logic in
     # Phase 4 prevents the paper from hard-coding sample-accounting numbers.
     raw = pd.read_csv(csv_path)
+    excluded_model = pd.Series(False, index=raw.index)
+    if "model_phase1" in raw.columns:
+        excluded_model = raw["model_phase1"].isin(EXCLUDED_ANALYSIS_MODELS)
+        raw = raw[~excluded_model].copy()
     point_est = pd.to_numeric(raw.get("point_est"), errors="coerce")
     se = pd.to_numeric(raw.get("SE"), errors="coerce")
     sample_size = pd.to_numeric(raw.get("sample_size"), errors="coerce")
@@ -69,6 +199,7 @@ def compute_filter_counts(csv_path: Path, max_abs_effect: float | None = 1.0) ->
         outlier_count = int((valid_success & point_est.abs().gt(max_abs_effect)).sum())
     return {
         "attempted": int(len(raw)),
+        "excluded_model": int(excluded_model.sum()),
         "recoverable_specs": int(raw.get("spec_status", pd.Series("", index=raw.index)).eq("available").sum()),
         "missing_specs": int(raw.get("spec_status", pd.Series("", index=raw.index)).eq("missing_spec").sum()),
         "failed_validation": int(raw.get("execution_status", pd.Series("", index=raw.index)).eq("failed_validation").sum()),
@@ -87,6 +218,10 @@ def split_terms(value: str) -> list[str]:
 def contains_term(terms: Iterable[str], needle: str) -> bool:
     needle_upper = needle.upper()
     return any(needle_upper in term.upper() for term in terms)
+
+
+def contains_any_term(terms: Iterable[str], needles: Iterable[str]) -> bool:
+    return any(contains_term(terms, needle) for needle in needles)
 
 
 def normalized_upper(value: object) -> str:
@@ -179,6 +314,44 @@ def classify_estimation_method(model_type: object, model_specification_line: obj
     return "Other"
 
 
+def classify_benchmark_method(model_type: object, model_specification_line: object, sample_weighting: object) -> str:
+    method = classify_estimation_method(model_type, model_specification_line, sample_weighting)
+    line_upper = normalized_upper(model_specification_line)
+
+    if method in {"OLS", "WLS"}:
+        return "Linear Regression"
+    if method == "Logit" or "PROBIT" in line_upper:
+        return "Logit/Probit"
+    if "MATCH" in line_upper or "PROPENSITY" in line_upper or "NEAREST" in line_upper:
+        return "Matching"
+    if any(token in line_upper for token in ["CALLAWAY", "SANT'ANNA", "CSDID", "DRDID", "DID2S"]):
+        return "New DID Estimator"
+    return "Other"
+
+
+def classify_table4_se_adjustment(value: object) -> str:
+    upper = normalized_upper(value)
+    if not upper or upper in {"NONE", "NO", "NA", "N/A"}:
+        return "None"
+    if "BOOT" in upper:
+        return "Other/Bootstrap"
+    if "CLUSTER" in upper:
+        has_state = any(token in upper for token in ["STATEFIP", "STATE_FIP", "STATE_FIPS", "STATE"])
+        has_year = "YEAR" in upper
+        if has_state and has_year:
+            return "Cluster (State & Year)"
+        if has_state:
+            return "Cluster (State)"
+        return "Cluster (ID/Strata/Other)"
+    if "ROBUST" in upper or "HC" in upper:
+        return "Het-Robust"
+    return "Other/Bootstrap"
+
+
+def classify_table4_weighting(value: object) -> str:
+    return "Sample Weights" if classify_weighting(value) != "None" else "No Sample Weights"
+
+
 def provider_display_name(value: str) -> str:
     mapping = {
         "gpt-5.1-codex-mini": "GPT 5.1 Codex Mini",
@@ -254,8 +427,61 @@ def weighted_stats(values: np.ndarray, weights: np.ndarray) -> dict[str, float]:
     }
 
 
+def weighted_boxplot_stats(values: np.ndarray, weights: np.ndarray, label: str) -> dict[str, object]:
+    # Matplotlib's regular boxplot does not accept observation weights, so we
+    # calculate the weighted quartiles here and pass them to bxp below.
+    stats = weighted_stats(values, weights)
+    return {
+        "label": label,
+        "whislo": stats["min"],
+        "q1": stats["p25"],
+        "med": stats["median"],
+        "q3": stats["p75"],
+        "whishi": stats["max"],
+        "fliers": [],
+    }
+
+
+def series_boxplot_stats(values: np.ndarray, label: str) -> dict[str, object]:
+    # Use min/max whiskers and the interquartile range for the box. This is the
+    # same summary available for the published NHK human benchmark.
+    finite = values[np.isfinite(values)]
+    return {
+        "label": label,
+        "whislo": float(np.min(finite)),
+        "q1": float(np.quantile(finite, 0.25)),
+        "med": float(np.median(finite)),
+        "q3": float(np.quantile(finite, 0.75)),
+        "whishi": float(np.max(finite)),
+        "fliers": [],
+    }
+
+
+def published_benchmark_boxplot_stats(series_key: str, label: str) -> dict[str, object]:
+    stats = BENCHMARK_TASK1_TABLE3[series_key]
+    return {
+        "label": label,
+        "whislo": stats["min"],
+        "q1": stats["p25"],
+        "med": stats["median"],
+        "q3": stats["p75"],
+        "whishi": stats["max"],
+        "fliers": [],
+    }
+
+
+def log_scale_safe_boxplot_stats(stats: dict[str, object], display_floor: float) -> dict[str, object]:
+    # A true log axis cannot display zero. Use only for visualizing published
+    # rounded summaries where a minimum is reported as 0.000.
+    adjusted = stats.copy()
+    adjusted["whislo"] = max(float(adjusted["whislo"]), display_floor)
+    return adjusted
+
+
 def inverse_se_weights(se: np.ndarray) -> np.ndarray:
-    se_floor = np.quantile(se, 0.25)
+    # Match NHK's inverse-SE weighting rule by preventing very small standard
+    # errors from receiving more weight than the 5th-percentile SE.
+    se_floor = np.quantile(se, INVERSE_SE_FLOOR_QUANTILE)
     return 1 / np.clip(se, se_floor, None)
 
 
@@ -269,7 +495,13 @@ def load_benchmark_task1_data(project_dir: Path) -> dict[str, np.ndarray]:
     """
     extracts_path = project_dir / "meta_analysis" / "benchmark_task1_osf_researcher_extracts.csv"
     if not extracts_path.exists():
-        return {"effect": np.array([], dtype=float), "sample": np.array([], dtype=float)}
+        return {
+            "effect": np.array([], dtype=float),
+            "weighted_effect": np.array([], dtype=float),
+            "weighted_effect_se": np.array([], dtype=float),
+            "se": np.array([], dtype=float),
+            "sample": np.array([], dtype=float),
+        }
 
     benchmark = pd.read_csv(extracts_path)
     effect = benchmark[
@@ -277,13 +509,34 @@ def load_benchmark_task1_data(project_dir: Path) -> dict[str, np.ndarray]:
         & benchmark["effect_estimate"].notna()
         & benchmark["effect_estimate"].abs().le(1)
     ]["effect_estimate"].to_numpy(dtype=float)
+    weighted_effect_frame = benchmark[
+        benchmark["effect_score"].fillna(0).ge(70)
+        & benchmark["se_score"].fillna(0).ge(70)
+        & benchmark["effect_estimate"].notna()
+        & benchmark["standard_error"].notna()
+        & benchmark["effect_estimate"].abs().le(1)
+        & benchmark["standard_error"].gt(0)
+    ]
+    weighted_effect = weighted_effect_frame["effect_estimate"].to_numpy(dtype=float)
+    weighted_effect_se = weighted_effect_frame["standard_error"].to_numpy(dtype=float)
+    se = benchmark[
+        benchmark["se_score"].fillna(0).ge(70)
+        & benchmark["standard_error"].notna()
+        & benchmark["standard_error"].gt(0)
+    ]["standard_error"].to_numpy(dtype=float)
     sample = benchmark[
         benchmark["sample_score"].fillna(0).ge(80)
         & benchmark["sample_size"].notna()
         & benchmark["sample_size"].gt(0)
         & benchmark["sample_size"].le(10_000_000)
     ]["sample_size"].to_numpy(dtype=float)
-    return {"effect": effect, "sample": sample}
+    return {
+        "effect": effect,
+        "weighted_effect": weighted_effect,
+        "weighted_effect_se": weighted_effect_se,
+        "se": se,
+        "sample": sample,
+    }
 
 
 def latex_escape(text: str) -> str:
@@ -380,6 +633,19 @@ def generate_table1(df: pd.DataFrame, output_path: Path) -> None:
         "p75": float(np.quantile(sample, 0.75)),
         "max": float(np.max(sample)),
     }
+    treated = pd.to_numeric(df.get("treated_group_size", pd.Series(dtype=float)), errors="coerce")
+    treated = treated[treated.notna() & treated.gt(0)].to_numpy(dtype=float)
+    treated_stats = None
+    if len(treated) > 0:
+        treated_stats = {
+            "mean": float(np.mean(treated)),
+            "sd": float(np.std(treated, ddof=1)) if len(treated) > 1 else 0.0,
+            "min": float(np.min(treated)),
+            "p25": float(np.quantile(treated, 0.25)),
+            "median": float(np.median(treated)),
+            "p75": float(np.quantile(treated, 0.75)),
+            "max": float(np.max(treated)),
+        }
 
     rows = [
         [
@@ -427,6 +693,20 @@ def generate_table1(df: pd.DataFrame, output_path: Path) -> None:
             format_int(sample_stats["max"]),
         ],
     ]
+    if treated_stats is not None:
+        rows.append(
+            [
+                "Treated-Group Size",
+                format_int(len(treated)),
+                format_int(treated_stats["mean"]),
+                format_int(treated_stats["sd"]),
+                format_int(treated_stats["min"]),
+                format_int(treated_stats["p25"]),
+                format_int(treated_stats["median"]),
+                format_int(treated_stats["p75"]),
+                format_int(treated_stats["max"]),
+            ]
+        )
     write_tabular(
         output_path,
         ["", "N", "Mean", "SD", "Min", "Pctl. 25", "Median", "Pctl. 75", "Max"],
@@ -437,74 +717,53 @@ def generate_table1(df: pd.DataFrame, output_path: Path) -> None:
 
 def generate_table4(df: pd.DataFrame, output_path: Path) -> None:
     df = df.copy()
-    df["estimation_method"] = [
-        classify_estimation_method(model_type, spec_line, sample_weighting)
+    df["table4_method"] = [
+        classify_benchmark_method(model_type, spec_line, sample_weighting)
         for model_type, spec_line, sample_weighting in zip(
             df["model_type"],
             df["model_specification_line"],
             df["sample_weighting"],
         )
     ]
-    df["weighting"] = df["sample_weighting"].apply(classify_weighting)
-    df["se_adjustment_group"] = df["se_adjustment"].apply(classify_se_adjustment)
-    fixed_terms = df["fixed_effects"].fillna("").apply(split_terms)
-    df["year_fe"] = [detect_fe(terms, "YEAR", ["TimeEffects"]) for terms in fixed_terms]
-    df["state_fe"] = [detect_fe(terms, "STATEFIP", ["EntityEffects"]) for terms in fixed_terms]
+    df["table4_se_adjustment"] = df["se_adjustment"].apply(classify_table4_se_adjustment)
+    df["table4_weighting"] = df["sample_weighting"].apply(classify_table4_weighting)
     rows = []
     total = len(df)
-    linear_count = sum(method in {"OLS", "WLS"} for method in df["estimation_method"])
-    method_rows = [
-        ("Estimation Method", "Linear model", linear_count),
-        ("Estimation Method", "OLS", int(df["estimation_method"].eq("OLS").sum())),
-        ("Estimation Method", "WLS", int(df["estimation_method"].eq("WLS").sum())),
-        ("Estimation Method", "Logit", int(df["estimation_method"].eq("Logit").sum())),
-    ]
-    for idx, (section, choice, count) in enumerate(method_rows):
-        if count == 0:
-            continue
-        benchmark = BENCHMARK_TASK1_METHOD_SHARES.get(choice)
-        rows.append([
-            section if idx == 0 else "",
-            choice,
-            format_int(count),
-            format_float(100 * count / total if total else 0, 1),
-            format_int(benchmark["n"]) if benchmark else "--",
-            format_float(benchmark["share"], 1) if benchmark else "--",
-        ])
     sections = [
-        ("Sample Weighting", "weighting", None),
-        ("SE Adjustment", "se_adjustment_group", None),
-        ("Fixed Effects", "year_fe", ["Included", "Not included"]),
-        ("Fixed Effects", "state_fe", ["Included", "Not included"]),
+        ("Method", "table4_method", [
+            "Linear Regression",
+            "Logit/Probit",
+            "Matching",
+            "New DID Estimator",
+            "Other",
+        ]),
+        ("S.E. Adjustment", "table4_se_adjustment", [
+            "Cluster (State)",
+            "Cluster (State & Year)",
+            "Cluster (ID/Strata/Other)",
+            "Het-Robust",
+            "Other/Bootstrap",
+            "None",
+        ]),
+        ("Weights", "table4_weighting", [
+            "No Sample Weights",
+            "Sample Weights",
+        ]),
     ]
-    for section, col, preferred_order in sections:
-        counts = df[col].value_counts().sort_index()
-        ordered_items: list[tuple[str, int]] = []
-        if preferred_order is not None:
-            ordered_items.extend((choice, counts[choice]) for choice in preferred_order if choice in counts)
-            ordered_items.extend((choice, count) for choice, count in counts.items() if choice not in preferred_order)
-        else:
-            ordered_items = list(counts.items())
-        for idx, (choice, count) in enumerate(ordered_items):
-            if col == "year_fe":
-                choice = f"Year: {choice}"
-            if col == "state_fe":
-                choice = f"State: {choice}"
-            label = section if idx == 0 and col != "state_fe" else ""
+    for section, col, order in sections:
+        counts = df[col].value_counts()
+        for idx, choice in enumerate(order):
+            count = int(counts.get(choice, 0))
+            label = section if idx == 0 else ""
             share = 100 * count / total if total else 0
-            benchmark_key = None
-            if col == "weighting" and choice == "PERWT":
-                benchmark_key = "Sample weights"
-            if col == "se_adjustment_group" and choice == "None":
-                benchmark_key = "No SE adjustment"
-            benchmark = BENCHMARK_TASK1_METHOD_SHARES.get(benchmark_key) if benchmark_key else None
+            benchmark = BENCHMARK_TABLE4_METHOD_SHARES[choice]
             rows.append([
                 label,
                 choice,
                 format_int(count),
                 format_float(share, 1),
-                format_int(benchmark["n"]) if benchmark else "--",
-                format_float(benchmark["share"], 1) if benchmark else "--",
+                format_int(benchmark["n"]),
+                format_float(benchmark["share"], 1),
             ])
     write_tabular(
         output_path,
@@ -519,63 +778,108 @@ def generate_table5(df: pd.DataFrame, output_path: Path) -> None:
     total_df = df.copy()
     control_terms = total_df["control_variables"].fillna("").apply(split_terms)
     fixed_terms = total_df["fixed_effects"].fillna("").apply(split_terms)
-    total_df["age_form"] = [
-        detect_age_form(c_terms, f_terms)
-        for c_terms, f_terms in zip(control_terms, fixed_terms)
-    ]
-    total_df["sex_form"] = [
-        detect_binary_fe(c_terms, f_terms, "SEX")
-        for c_terms, f_terms in zip(control_terms, fixed_terms)
-    ]
-    total_df["educ_form"] = [
-        detect_binary_fe(c_terms, f_terms, "EDUC")
-        for c_terms, f_terms in zip(control_terms, fixed_terms)
-    ]
-    total_df["year_fe"] = [
-        detect_fe(f_terms, "YEAR", ["TimeEffects"])
+    # Match NHK Table 5's construction: each row is an overlapping inclusion
+    # indicator for a functional form, not one cell of a mutually exclusive
+    # partition. For example, a model with state and year fixed effects appears
+    # in the "State FE", "Year FE", and "State FE x Year FE" rows.
+    age_quadratic = pd.Series([
+        any(
+            term_upper in {"AGE2", "AGESQ", "AGE_SQ", "AGE_SQUARED"}
+            or "AGE**2" in term_upper
+            or "I(AGE**2)" in term_upper
+            or "AGE^2" in term_upper
+            for term_upper in (term.upper().replace(" ", "") for term in c_terms)
+        )
+        for c_terms in control_terms
+    ], index=total_df.index)
+    age_fe = pd.Series([
+        contains_any_term(f_terms, ["C(AGE)", "AGE FE", "AGE_FIXED"])
         for f_terms in fixed_terms
-    ]
-    total_df["state_fe"] = [
-        detect_fe(f_terms, "STATEFIP", ["EntityEffects"])
+    ], index=total_df.index)
+    linear_age = pd.Series([
+        contains_term(c_terms, "AGE")
+        for c_terms in control_terms
+    ], index=total_df.index)
+
+    education_aliases = ["EDUC", "EDUCATION", "SCHOOL"]
+    educ_fe = pd.Series([
+        contains_any_term(f_terms, ["C(EDUC)", "C(EDUCD)", "C(SCHOOL)", "EDUC FE", "EDUCATION FE"])
         for f_terms in fixed_terms
+    ], index=total_df.index)
+    linear_educ = pd.Series([
+        contains_any_term(c_terms, education_aliases)
+        for c_terms in control_terms
+    ], index=total_df.index)
+    educ_transform = pd.Series([
+        any(
+            contains_any_term([term], education_aliases)
+            and any(marker in term.upper() for marker in ["**", "^", "LOG", "BIN", "GROUP", "DUMMY"])
+            for term in c_terms
+        )
+        for c_terms in control_terms
+    ], index=total_df.index)
+
+    linear_year = pd.Series([
+        contains_any_term(c_terms, ["YEAR", "YR"])
+        for c_terms in control_terms
+    ], index=total_df.index)
+    year_fe = pd.Series([
+        contains_any_term(f_terms, ["C(YEAR)", "C(YR)", "YEAR FE", "TIMEFFECTS", "TIME EFFECTS"])
+        for f_terms in fixed_terms
+    ], index=total_df.index)
+    state_fe = pd.Series([
+        contains_any_term(f_terms, ["C(STATEFIP)", "C(STATE)", "STATE FE", "ENTITYEFFECTS", "ENTITY EFFECTS"])
+        for f_terms in fixed_terms
+    ], index=total_df.index)
+
+    ai_row_masks = {
+        "Linear Age": linear_age,
+        "Age FE": age_fe,
+        "Age Quadratic": age_quadratic,
+        "Linear Education": linear_educ,
+        "Education FE": educ_fe,
+        "Education Transform": educ_transform,
+        "Linear Year": linear_year,
+        "Year FE": year_fe,
+        "State FE": state_fe,
+        "State FE x Year FE": state_fe & year_fe,
+        "State FE x Linear Year": state_fe & linear_year,
+    }
+    human_rows = {row["control"]: row for row in BENCHMARK_TABLE5_CONTROL_EFFECTS}
+
+    for human in BENCHMARK_TABLE5_CONTROL_EFFECTS:
+        mask = ai_row_masks[human["control"]]
+        subset = total_df[mask]
+        rows.append([
+            human["category"],
+            human["control"],
+            format_int(len(subset)),
+            format_float(subset["point_est"].mean()),
+            format_float(subset["point_est"].std()),
+            format_float(subset["SE"].mean()),
+            format_int(human_rows[human["control"]]["n"]),
+            format_float(human_rows[human["control"]]["mean_effect"]),
+            format_float(human_rows[human["control"]]["sd_effect"]),
+            format_float(human_rows[human["control"]]["mean_se"]),
+        ])
+
+    lines = [
+        r"\begin{tabular}{@{}l l r r r r r r r r@{}}",
+        r"\toprule",
+        r" &  & \multicolumn{4}{c}{AI agents} & \multicolumn{4}{c}{NHK humans} \\",
+        r"\cmidrule(lr){3-6}\cmidrule(lr){7-10}",
+        r"Category & Control & N & Mean Effect & SD & Mean SE & N & Mean Effect & SD & Mean SE \\",
+        r"\midrule",
     ]
-    sections = [
-        ("Age", "age_form", [
-            "Linear",
-            "Quadratic",
-            "Fixed effects",
-            "Not included",
-        ]),
-        ("Sex", "sex_form", ["Fixed effects", "Not included"]),
-        ("Education", "educ_form", ["Fixed effects", "Not included"]),
-        ("Year FE", "year_fe", ["Included", "Not included"]),
-        ("State FE", "state_fe", ["Included", "Not included"]),
-    ]
-    for section, col, order in sections:
-        counts = total_df[col].value_counts()
-        for choice in order:
-            if choice not in counts:
-                continue
-            subset = total_df[total_df[col] == choice]
-            rows.append([
-                section,
-                choice,
-                format_int(len(subset)),
-                format_float(subset["point_est"].mean()),
-                format_float(subset["point_est"].std()),
-            ])
-    write_tabular(
-        output_path,
-        ["Control Variable", "Functional Form", "N", "Mean Effect", "SD"],
-        rows,
-        "@{}l l r r r@{}",
-    )
+    for row in rows:
+        lines.append(" & ".join(latex_escape(cell) for cell in row) + r" \\")
+    lines.extend([r"\bottomrule", r"\end{tabular}"])
+    output_path.write_text("\n".join(lines), encoding="utf-8")
 
 
 def generate_table6(df: pd.DataFrame, output_path: Path) -> None:
     preferred_order = [
         "gpt-5.4-mini",
-        "claude-haiku-4.5",
         "claude-sonnet-4.6",
         "gpt-5.1-codex-mini",
         "codex-cli",
@@ -756,20 +1060,18 @@ def generate_economics_letters_figure(df: pd.DataFrame, output_path: Path) -> No
 
 def generate_comparison_boxplots(
     df: pd.DataFrame,
-    benchmark_data: dict[str, np.ndarray],
     output_path: Path,
 ) -> None:
-    """Draw human-vs-AI boxplots for effect estimates and sample sizes."""
+    """Draw human-vs-AI boxplots for effects, precision-weighted effects, SEs, and sample sizes."""
     import matplotlib.pyplot as plt
 
     ai_effect = df["point_est"].to_numpy(dtype=float)
-    human_effect = benchmark_data["effect"]
+    ai_se = df["SE"].to_numpy(dtype=float)
     ai_log_sample = np.log10(df["sample_size"].to_numpy(dtype=float))
-    human_sample = benchmark_data["sample"]
-    human_log_sample = np.log10(human_sample) if len(human_sample) else np.array([], dtype=float)
 
     plt.style.use("seaborn-v0_8-white")
-    fig, axes = plt.subplots(1, 2, figsize=(7.2, 3.2))
+    fig, axes = plt.subplots(2, 2, figsize=(7.2, 5.6))
+    axes = axes.ravel()
     box_style = {
         "patch_artist": True,
         "medianprops": {"color": "black", "linewidth": 1.2},
@@ -785,36 +1087,92 @@ def generate_comparison_boxplots(
         },
     }
 
-    effect_plot = axes[0].boxplot(
-        [ai_effect, human_effect],
-        tick_labels=["AI agents", "NHK humans"],
+    effect_stats_for_plot = [
+        series_boxplot_stats(ai_effect, "AI agents"),
+        published_benchmark_boxplot_stats("effect_unweighted", "Humans"),
+    ]
+    effect_plot = axes[0].bxp(
+        effect_stats_for_plot,
         vert=False,
         widths=0.55,
+        showfliers=False,
         **box_style,
     )
     for patch, color in zip(effect_plot["boxes"], ["#a6cee3", "#bdbdbd"]):
         patch.set_facecolor(color)
-    axes[0].axvline(0, color="black", linestyle="--", linewidth=0.8)
-    axes[0].set_xlabel("Estimated effect")
-    axes[0].set_xlim(-0.2, 0.35)
+    axes[0].set_xlabel("Estimated effect, unweighted")
+    effect_min = min(float(stats["whislo"]) for stats in effect_stats_for_plot)
+    effect_max = max(float(stats["whishi"]) for stats in effect_stats_for_plot)
+    effect_padding = max((effect_max - effect_min) * 0.04, 0.01)
+    axes[0].set_xlim(min(-0.2, effect_min - effect_padding), max(0.35, effect_max + effect_padding))
     axes[0].grid(False)
 
-    sample_series = [ai_log_sample]
-    sample_labels = ["AI agents"]
-    if len(human_log_sample):
-        sample_series.append(human_log_sample)
-        sample_labels.append("NHK humans")
-    sample_plot = axes[1].boxplot(
-        sample_series,
-        tick_labels=sample_labels,
+    weighted_stats_for_plot = [
+        weighted_boxplot_stats(ai_effect, inverse_se_weights(ai_se), "AI agents"),
+        published_benchmark_boxplot_stats("effect_weighted", "Humans"),
+    ]
+    weighted_plot = axes[1].bxp(
+        weighted_stats_for_plot,
         vert=False,
         widths=0.55,
+        showfliers=False,
+        **box_style,
+    )
+    for patch, color in zip(weighted_plot["boxes"], ["#a6cee3", "#bdbdbd"]):
+        patch.set_facecolor(color)
+    axes[1].set_xlabel("Estimated effect, inverse-SE weighted")
+    weighted_min = min(float(stats["whislo"]) for stats in weighted_stats_for_plot)
+    weighted_max = max(float(stats["whishi"]) for stats in weighted_stats_for_plot)
+    weighted_padding = max((weighted_max - weighted_min) * 0.04, 0.01)
+    axes[1].set_xlim(min(-0.2, weighted_min - weighted_padding), max(0.35, weighted_max + weighted_padding))
+    axes[1].grid(False)
+
+    se_stats_for_plot = [
+        series_boxplot_stats(ai_se, "AI agents"),
+        log_scale_safe_boxplot_stats(
+            published_benchmark_boxplot_stats("standard_error", "Humans"),
+            PUBLISHED_ROUNDED_ZERO_SE_DISPLAY_FLOOR,
+        ),
+    ]
+    se_plot = axes[2].bxp(
+        se_stats_for_plot,
+        vert=False,
+        widths=0.55,
+        showfliers=False,
+        **box_style,
+    )
+    for patch, color in zip(se_plot["boxes"], ["#a6cee3", "#bdbdbd"]):
+        patch.set_facecolor(color)
+    se_min = min(float(stats["whislo"]) for stats in se_stats_for_plot)
+    se_max = max(float(stats["whishi"]) for stats in se_stats_for_plot)
+    axes[2].set_xscale("log")
+    axes[2].set_xlim(se_min * 0.8, se_max * 1.25)
+    axes[2].set_xlabel("log(standard error)")
+    axes[2].grid(False)
+
+    human_sample_stats = published_benchmark_boxplot_stats("sample_size", "Humans")
+    human_log_sample_stats = {
+        **human_sample_stats,
+        "whislo": float(np.log10(human_sample_stats["whislo"])),
+        "q1": float(np.log10(human_sample_stats["q1"])),
+        "med": float(np.log10(human_sample_stats["med"])),
+        "q3": float(np.log10(human_sample_stats["q3"])),
+        "whishi": float(np.log10(human_sample_stats["whishi"])),
+    }
+    sample_plot = axes[3].bxp(
+        [
+            series_boxplot_stats(ai_log_sample, "AI agents"),
+            human_log_sample_stats,
+        ],
+        vert=False,
+        widths=0.55,
+        showfliers=False,
         **box_style,
     )
     for patch, color in zip(sample_plot["boxes"], ["#a6cee3", "#bdbdbd"]):
         patch.set_facecolor(color)
-    axes[1].set_xlabel(r"$\log_{10}$(sample size)")
-    axes[1].grid(False)
+    axes[3].set_xlabel("log(sample size)")
+    axes[3].grid(False)
 
     fig.tight_layout()
     fig.savefig(output_path, dpi=300, bbox_inches="tight")
@@ -857,6 +1215,7 @@ def build_paper_metrics(df: pd.DataFrame, filter_counts: dict[str, int]) -> dict
     )
     metrics = {
         "aiAttemptedRuns": str(filter_counts["attempted"]),
+        "aiExcludedModelRuns": str(filter_counts["excluded_model"]),
         "aiRecoverableSpecs": str(filter_counts["recoverable_specs"]),
         "aiMissingSpecRuns": str(filter_counts["missing_specs"]),
         "aiFailedValidationRuns": str(filter_counts["failed_validation"]),
@@ -893,7 +1252,6 @@ def build_paper_metrics(df: pd.DataFrame, filter_counts: dict[str, int]) -> dict
 
     model_groups = {
         "gpt-5.4-mini": "aiGptMini",
-        "claude-haiku-4.5": "aiClaudeHaiku",
         "claude-sonnet-4.6": "aiClaudeSonnet",
     }
     for model_name, prefix in model_groups.items():
@@ -980,8 +1338,9 @@ def main() -> None:
             r"Each observation is one AI-agent-generated specification applied to the same ACS extract. "
             r"The analytic sample excludes runs without recoverable specifications, execution failures, runs with "
             r"non-positive standard errors, and successful but degenerate executions with $|\hat{\theta}| > 1$. "
-            r"The inverse-SE weighted row uses weights $1/\max(\text{SE}, q_{0.25})$, where $q_{0.25}$ is the "
-            r"25th percentile of SE, to limit the influence of very small standard errors."
+            r"The treated-group-size row uses the subset of runs with conservatively recovered treated counts. "
+            r"The inverse-SE weighted row uses weights $1/\max(\text{SE}, q_{0.05})$, where $q_{0.05}$ is the "
+            r"5th percentile of SE, to limit the influence of very small standard errors."
         ),
         resize_to_textwidth=True,
     )
@@ -992,12 +1351,12 @@ def main() -> None:
         tabular_path="../NHK-replications/meta_analysis_expanded/table4_method_shares.tex",
         notes=(
             r"Estimation choices are inferred from each generated model specification and execution metadata. "
-            r"``PERWT'' is the ACS person weight. ``Clustered (state)'' indicates cluster-robust standard errors "
-            r"at the state level. Fixed-effects rows report whether the generated specification includes the listed "
-            r"fixed effect. Human columns report Task~1 statistics available from Table~3 of "
-            r"\citet{huntingtonklein2025sources}; rows marked ``--'' do not have a directly reported benchmark "
-            r"counterpart in that table."
+            r"Rows match the categories in Table~4 of \citet{huntingtonklein2025sources}; AI runs with no "
+            r"observed cases in a category are reported as zero rather than omitted. ``Sample Weights'' indicates "
+            r"any non-empty weighting expression in the generated specification. ``Cluster (State \& Year)'' "
+            r"indicates clustering on a combined state-year grouping."
         ),
+        resize_to_textwidth=True,
     )
     write_table_environment(
         output_dir / "paper_table3_models.tex",
@@ -1011,12 +1370,11 @@ def main() -> None:
     )
 
     if not args.no_figures:
-        benchmark_data = load_benchmark_task1_data(args.input.parent)
         generate_figure1(df, output_dir)
         generate_figure2(df, output_dir / "figure2_sample_size_distribution.png")
         generate_figure3(df, output_dir / "figure3_specification_curve.png")
         generate_economics_letters_figure(df, output_dir / "figure_econ_letters.png")
-        generate_comparison_boxplots(df, benchmark_data, output_dir / "figure4_comparison_boxplots.png")
+        generate_comparison_boxplots(df, output_dir / "figure4_comparison_boxplots.png")
 
     if args.verbose:
         print(f"Outputs written to {output_dir.resolve()}")

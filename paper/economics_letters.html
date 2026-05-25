@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="Brett A. McCully">
-<meta name="dcterms.date" content="2026-05-19">
+<meta name="dcterms.date" content="2026-05-22">
 
 <title>AI Agents as Stochastic Replicators: Measuring Researcher-Induced Estimation Uncertainty</title>
 <style>
@@ -67,7 +67,7 @@ div.csl-indent {
 \input{economics_letters_wordcount.tex}
 \newcommand{\titleaffiliation}{Collegio Carlo Alberto}
 \newcommand{\titledate}{May 19, 2026}
-\newcommand{\titlenote}{I thank Yagan Hazard for helpful conversations.}
+\newcommand{\titlenote}{brett.mccully@carloalberto.org. I thank Yagan Hazard for helpful conversations. Any errors are my own.}
 \makeatletter
 \renewcommand{\maketitle}{
   \thispagestyle{empty}
@@ -151,7 +151,7 @@ window.Quarto = {
     <div>
     <div class="quarto-title-meta-heading">Published</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">May 19, 2026</p>
+      <p class="date">May 22, 2026</p>
     </div>
   </div>
   
@@ -192,29 +192,22 @@ window.Quarto = {
 <h2 data-number="2.2" class="anchored" data-anchor-id="application"><span class="header-section-number">2.2</span> Application</h2>
 <p>I apply the pipeline to the question answered by many analysts in <span class="citation" data-cites="huntingtonklein2025sources">Huntington-Klein et al. (<a href="#ref-huntingtonklein2025sources" role="doc-biblioref">2025</a>)</span>. The authors recruit nearly 200 economists and ask each to independently answer the same causal question using the same instructions and raw data: how did eligibility for the Defferred Action for Childhood Arrivals immigration policy affect the probability of full-time employment among eligible immigrants? Participants are given a data codebook and the research question but otherwise exercise broad discretion over sample construction, variable definitions, and specification choices. In this study I replicate the initial task from <span class="citation" data-cites="huntingtonklein2025sources">Huntington-Klein et al. (<a href="#ref-huntingtonklein2025sources" role="doc-biblioref">2025</a>)</span> in which participants had maximum flexibility to make research choices.</p>
 <p>The computing pipeline works as follows. An AI agent is provided with the raw materials to answer the research question: an IPUMS extract and codebook with all variables used by human analysts in <span class="citation" data-cites="nickchk2022manyeconomists">Portner and Huntington-Klein (<a href="#ref-nickchk2022manyeconomists" role="doc-biblioref">2022</a>)</span> (derived from their public repository), a supplementary state policy dataset and codebook, and instructions adapted from those given to human analysts. Each AI agent is isolated to their own run directory, so they cannot learn from previous agent runs. The agent then writes a JSON file outlining their model specification, outcome definition, sample selection, and treatment definition. The agent then writes a Python script to implement their estimation and reports the resulting sample size and preferred coefficient.</p>
-<p>I use three frontier AI models—GPT-5.4-mini (OpenAI), Claude Haiku 4.5 and Claude Sonnet 4.6 (Anthropic)—accessed through GitHub Copilot CLI. Each run takes 2–10 minutes and has minimal cost when using a subscription, making large-scale replication affordable for individual researchers.</p>
+<p>I use two frontier AI models—GPT-5.4-mini (OpenAI) and Claude Sonnet 4.6 (Anthropic)—accessed through GitHub Copilot CLI. Each run takes 2–10 minutes and has minimal cost when using a subscription, making large-scale replication affordable for individual researchers.</p>
 </section>
 </section>
 <section id="sec-results" class="level1" data-number="3">
 <h1 data-number="3"><span class="header-section-number">3</span> Results</h1>
-<p>Of attempted runs, produce recoverable specifications. After excluding execution failures, runs with non-positive standard errors, and extreme outliers with point estimates exceeding <span class="math inline">\(\pm 1\)</span>, the final analytic sample contains estimates.</p>
 <section id="distribution-of-estimates" class="level2" data-number="3.1">
 <h2 data-number="3.1" class="anchored" data-anchor-id="distribution-of-estimates"><span class="header-section-number">3.1</span> Distribution of estimates</h2>
-<p>Table 1 reports the main results and Figure 1 displays the distribution. The point-estimate distribution has a median of , an IQR from to , and a mean of . The inverse-SE weighted mean is , indicating the central mass is not driven by low-precision runs. Sample sizes range from to , reflecting wide variation in how agents define the estimation sample; the extremes correspond to very tight eligibility filters and nearly unrestricted ACS panels, respectively.</p>
-<p>Figure 2 compares the box-and-whisker summaries for the retained AI analyses and the original NHK human Task 1 submissions. I compare these patterns to the benchmark on three dimensions. First, central tendency is similar: the AI median () is close to the Task 1 median () and both means are small and positive ( versus ). Second, both distributions are wide relative to individual standard errors, confirming that specification choices, not sampling noise, drive the spread. Third, the AI distribution is notably wider (IQR width versus ) and extends further into negative territory. This wider spread likely reflects the AI agents’ broader exploration of the specification space—for instance, fewer constraints on age bounds and eligibility definitions—and the fact that different specifications can target different estimands, inflating cross-specification dispersion. I characterize the resemblance as qualitative because the input specifications differ systematically (Table 2) and no formal distributional test is attempted.</p>
-<p>Figure 2 shows that the AI and human distributions overlap substantially, but the AI box extends farther into negative estimates. The sample-size panel reinforces that part of the induced uncertainty comes from sample construction rather than only from estimator choice: both humans and AI agents produce large variation in effective sample sizes from the same underlying research question.</p>
-<p>Figure 3 makes the sample-size heterogeneity explicit. The distribution is not a minor implementation detail: moving from tight DACA-eligibility filters to broad ACS panels changes precision and can also change the target population embedded in the estimate.</p>
-<p>Figure 4 shows that the retained AI specifications span negative, near-zero, and positive estimates even before any analyst selects among them. The curve is therefore a diagnostic for researcher-induced uncertainty: a conventional single-specification standard error would describe uncertainty around one point on this curve, not uncertainty over the curve itself.</p>
+<p>Figure~<span class="math inline">\(\ref{fig:comparison-boxplots}\)</span> compares the box-and-whisker summaries for the retained AI analyses and the original NHK human Task 1 submissions. I compare these patterns to the benchmark on three dimensions. First, central tendency is similar: the AI median () is close to the Task 1 median () and both means are small and positive ( versus ). Second, both distributions are wide relative to individual standard errors, confirming that specification choices, not sampling noise, drive the spread. Third, the AI distribution is notably wider (IQR width versus ) and extends further into negative territory. This wider spread likely reflects the AI agents’ broader exploration of the specification space—for instance, fewer constraints on age bounds and eligibility definitions—and the fact that different specifications can target different estimands, inflating cross-specification dispersion. I characterize the resemblance as qualitative because the input specifications differ systematically (Table~<span class="math inline">\(\ref{tab:methods}\)</span>) and no formal distributional test is attempted.</p>
+<p>Figure~<span class="math inline">\(\ref{fig:comparison-boxplots}\)</span> shows that the AI and human distributions overlap substantially, but the AI box extends farther into negative estimates. The sample-size panel reinforces that part of the induced uncertainty comes from sample construction rather than only from estimator choice: both humans and AI agents produce large variation in effective sample sizes from the same underlying research question.</p>
+<p>Figure~<span class="math inline">\(\ref{fig:specification-curve}\)</span> shows that the retained AI specifications span negative, near-zero, and positive estimates even before any analyst selects among them. The curve is therefore a diagnostic for researcher-induced uncertainty: a conventional single-specification standard error would describe uncertainty around one point on this curve, not uncertainty over the curve itself.</p>
 </section>
 <section id="specification-heterogeneity" class="level2" data-number="3.2">
 <h2 data-number="3.2" class="anchored" data-anchor-id="specification-heterogeneity"><span class="header-section-number">3.2</span> Specification heterogeneity</h2>
-<p>Table 2 shows that AI agents favor linear models (% of retained runs) and the ACS person weight (%). State-clustered standard errors are the modal choice (%), and roughly two-thirds of runs include year and state fixed effects. The benchmark human sample is more methodologically diverse: 82% use linear regression, 22% use no SE adjustment, and 25% use sample weights. The AI agents thus converge on a narrower set of input choices—more weighting, more clustering, more fixed effects—yet produce a wider distribution of output estimates, suggesting that sample-definition and variable-construction choices drive more dispersion than estimator choice alone.</p>
+<p>Table~<span class="math inline">\(\ref{tab:methods}\)</span> shows that AI agents favor linear models (% of retained runs) and the ACS person weight (%). State-clustered standard errors are the modal choice (%), and roughly two-thirds of runs include year and state fixed effects. The benchmark human sample is more methodologically diverse: 82% use linear regression, 22% use no SE adjustment, and 25% use sample weights. The AI agents thus converge on a narrower set of input choices—more weighting, more clustering, more fixed effects—yet produce a wider distribution of output estimates, suggesting that sample-definition and variable-construction choices drive more dispersion than estimator choice alone.</p>
 <p>Routine specification choices covary with estimates. Specifications with state fixed effects average versus without; those with year fixed effects average versus without. These are descriptive comparisons that conflate fixed-effects inclusion with other correlated choices, but they are directionally consistent with the benchmark finding that modeling choices materially affect point estimates.</p>
-<p>Table 3 shows that control choices are another channel through which otherwise routine decisions move estimates. Age controls, year fixed effects, and state fixed effects are especially consequential in this sample. The comparisons are descriptive, since specifications differ on many dimensions at once, but they identify which parts of the empirical template deserve closer auditing in future runs.</p>
-</section>
-<section id="differences-across-ai-models" class="level2" data-number="3.3">
-<h2 data-number="3.3" class="anchored" data-anchor-id="differences-across-ai-models"><span class="header-section-number">3.3</span> Differences across AI models</h2>
-<p>Table 4 reveals meaningful differences across models. GPT-5.4-mini (N=) and Claude Sonnet 4.6 (N=) produce estimates closer to the benchmark’s positive center, while Claude Haiku 4.5 (N=) centers near zero with a wider IQR. These differences likely reflect variation in model capacity and post-training emphasis across providers <span class="citation" data-cites="ouyang2022instructgpt">(<a href="#ref-ouyang2022instructgpt" role="doc-biblioref">Ouyang et al. 2022</a>)</span>. The within-pipeline comparison reinforces a key lesson: even after fixing the prompt and execution environment, the choice of frontier model materially affects the induced distribution of estimates.</p>
+<p>Table~<span class="math inline">\(\ref{tab:controls}\)</span> shows that control choices are another channel through which otherwise routine decisions move estimates. Age controls, year fixed effects, and state fixed effects are especially consequential in this sample. The comparisons are descriptive, since specifications differ on many dimensions at once, but they identify which parts of the empirical template deserve closer auditing in future runs.</p>
 </section>
 </section>
 <section id="sec-conclusion" class="level1" data-number="4">
@@ -259,9 +252,6 @@ Novy-Marx, Robert, and Mihail Velikov. 2026. <span>“Artificial Intelligence–
 </div>
 <div id="ref-olken2015promises" class="csl-entry" role="listitem">
 Olken, Benjamin A. 2015. <span>“Promises and Perils of Pre-Analysis Plans.”</span> <em>Journal of Economic Perspectives</em> 29 (3): 61–80.
-</div>
-<div id="ref-ouyang2022instructgpt" class="csl-entry" role="listitem">
-Ouyang, Long, Jeff Wu, Xu Jiang, Diogo Almeida, Carroll L. Wainwright, Pamela Mishkin, Chong Zhang, et al. 2022. <span>“Training Language Models to Follow Instructions with Human Feedback.”</span> arXiv preprint arXiv:2203.02155. <a href="https://arxiv.org/abs/2203.02155">https://arxiv.org/abs/2203.02155</a>.
 </div>
 <div id="ref-nickchk2022manyeconomists" class="csl-entry" role="listitem">
 Portner, Claus C., and Nick Huntington-Klein. 2022. <span>“Many Economists.”</span> OSF project. <a href="https://osf.io/9p7j6/">https://osf.io/9p7j6/</a>.

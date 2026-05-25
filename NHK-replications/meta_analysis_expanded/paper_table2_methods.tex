@@ -3,7 +3,7 @@
 \caption{Shares of estimation choices across \aiAnalyticN{} retained AI-agent specifications}
 \label{tab:methods}
 \small
-\input{../NHK-replications/meta_analysis_expanded/table4_method_shares.tex}
-\caption*{\textbf{Notes:} Estimation choices are inferred from each generated model specification and execution metadata. ``PERWT'' is the ACS person weight. ``Clustered (state)'' indicates cluster-robust standard errors at the state level. Fixed-effects rows report whether the generated specification includes the listed fixed effect. Human columns report Task~1 statistics available from Table~3 of \citet{huntingtonklein2025sources}; rows marked ``--'' do not have a directly reported benchmark counterpart in that table.}
+\resizebox{\textwidth}{!}{\input{../NHK-replications/meta_analysis_expanded/table4_method_shares.tex}}
+\caption*{\textbf{Notes:} Estimation choices are inferred from each generated model specification and execution metadata. Rows match the categories in Table~4 of \citet{huntingtonklein2025sources}; AI runs with no observed cases in a category are reported as zero rather than omitted. ``Sample Weights'' indicates any non-empty weighting expression in the generated specification. ``Cluster (State \& Year)'' indicates clustering on a combined state-year grouping.}
 \end{table}
 \FloatBarrier

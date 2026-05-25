@@ -223,6 +223,13 @@ def validate_results_payload(data: dict[str, Any]) -> str:
         return "invalid_results"
     if standard_error <= 0:
         return "nonpositive_se"
+    if "treated_group_size" in data:
+        try:
+            treated_group_size = float(data["treated_group_size"])
+        except (TypeError, ValueError):
+            return "invalid_results"
+        if not math.isfinite(treated_group_size) or treated_group_size < 0:
+            return "invalid_results"
     return "success"
 
 
@@ -466,6 +473,7 @@ def main() -> None:
         "point_est",
         "SE",
         "sample_size",
+        "treated_group_size",
         "execution_status",
     ]
 
@@ -575,10 +583,12 @@ def main() -> None:
             point_est = ""
             standard_error = ""
             sample_size = ""
+            treated_group_size = ""
             if results:
                 point_est = results.get("point_estimate", "")
                 standard_error = results.get("standard_error", "")
                 sample_size = results.get("sample_size", "")
+                treated_group_size = results.get("treated_group_size", "")
 
             # Write the row.
             writer.writerow(
@@ -604,6 +614,7 @@ def main() -> None:
                     "point_est": point_est,
                     "SE": standard_error,
                     "sample_size": sample_size,
+                    "treated_group_size": treated_group_size,
                     "execution_status": status,
                 }
             )

@@ -1,0 +1,7 @@
+{
+  "captured_nobs": 29108,
+  "treated_group_size": 17318,
+  "treated_column": "treated",
+  "treated_score": 155,
+  "capture_source": "local:read_sample:df"
+}

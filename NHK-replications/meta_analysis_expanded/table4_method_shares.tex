@@ -2,20 +2,18 @@
 \toprule
 Category & Choice & AI N & AI Share (\%) & Human N & Human Share (\%) \\
 \midrule
-Estimation Method & Linear model & 176 & 92.1 & 145 & 82.0 \\
- & OLS & 10 & 5.2 & -- & -- \\
- & WLS & 166 & 86.9 & -- & -- \\
- & Logit & 2 & 1.0 & -- & -- \\
-Sample Weighting & None & 25 & 13.1 & -- & -- \\
- & Other & 17 & 8.9 & -- & -- \\
- & PERWT & 149 & 78.0 & 145 & 25.0 \\
-SE Adjustment & Clustered & 7 & 3.7 & -- & -- \\
- & Clustered (state) & 119 & 62.3 & -- & -- \\
- & None & 42 & 22.0 & 145 & 22.0 \\
- & Robust (HC) & 23 & 12.0 & -- & -- \\
-Fixed Effects & Year: Included & 134 & 70.2 & -- & -- \\
- & Year: Not included & 57 & 29.8 & -- & -- \\
- & State: Included & 135 & 70.7 & -- & -- \\
- & State: Not included & 56 & 29.3 & -- & -- \\
+Method & Linear Regression & 153 & 98.1 & 358 & 82.0 \\
+ & Logit/Probit & 0 & 0.0 & 57 & 13.0 \\
+ & Matching & 0 & 0.0 & 11 & 3.0 \\
+ & New DID Estimator & 0 & 0.0 & 7 & 2.0 \\
+ & Other & 3 & 1.9 & 4 & 1.0 \\
+S.E. Adjustment & Cluster (State) & 127 & 81.4 & 118 & 27.0 \\
+ & Cluster (State \& Year) & 1 & 0.6 & 58 & 13.0 \\
+ & Cluster (ID/Strata/Other) & 0 & 0.0 & 65 & 15.0 \\
+ & Het-Robust & 23 & 14.7 & 76 & 17.0 \\
+ & Other/Bootstrap & 0 & 0.0 & 23 & 5.0 \\
+ & None & 5 & 3.2 & 98 & 22.0 \\
+Weights & No Sample Weights & 10 & 6.4 & 329 & 75.0 \\
+ & Sample Weights & 146 & 93.6 & 109 & 25.0 \\
 \bottomrule
 \end{tabular}

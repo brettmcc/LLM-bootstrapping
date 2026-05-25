@@ -193,4 +193,16 @@ For the Economics Letters draft, run Phase 4 on the expanded aggregate and then 
 python code/run_phase4_meta_analysis.py --input runs_complete_expanded.csv --output-dir meta_analysis_expanded
 ```
 
+To add the NHK-style `Treated-Group Size` line to Table 1 for current runs, first recover defensible treated counts and merge accepted values into `runs_complete_expanded.csv`:
+
+```powershell
+python code/recover_treated_group_sizes.py --runs-csv runs_complete_expanded.csv --acs replication-materials\ACS_extract_expanded.dat --output meta_analysis_expanded\treated_group_size_recovery.csv --update-runs-csv
+```
+
+The recovery script reruns archived `analysis.py` files with instrumentation that redirects missing local ACS paths to the supplied `--acs` file, intercepts estimator inputs, and counts the run's own constructed treatment column. A count is kept only when the captured estimator sample size matches the run's stored `sample_size` within tolerance. For faster local recovery, it is acceptable to pass a broad temporary ACS row subset, provided the same sample-size validation is retained. Phase 4 reports the treated-group row using the nonmissing recovered counts, so its `N` can be smaller than the main analytic-sample `N`; omit the row if recovery falls below the desired coverage threshold.
+
 Phase 4 applies the manuscript's analytic-sample filter by default: recoverable specification, successful execution, positive standard error, positive sample size, and `abs(point_est) <= 1`. Use `--max-abs-effect -1` only for diagnostics that intentionally retain extreme/degenerate executions.
+
+Phase 4 also excludes the exploratory `claude-haiku-4.5` cohort from the manuscript analysis sample before applying execution-result filters. This keeps all generated tables, figures, and paper-facing macros aligned with the paper's retained model set.
+
+Inverse-SE weighted summaries and figures use weights `1 / max(SE, q0.05)`, where `q0.05` is the 5th percentile of retained positive standard errors. This matches the NHK weighting convention while preventing near-zero standard errors from dominating the weighted distribution.
