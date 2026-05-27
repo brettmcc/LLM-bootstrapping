@@ -1,0 +1,67 @@
+control_set,n,share,share_pct
+age | age quadratic | sex FE | state FE | year FE,12,0.07692307692307693,7.6923076923076925
+state FE | year FE,9,0.057692307692307696,5.769230769230769
+,9,0.057692307692307696,5.769230769230769
+age FE | labor force participation rate | state FE | unemployment rate | year FE,8,0.05128205128205128,5.128205128205128
+age | age quadratic | labor force participation rate | sex FE | state FE | unemployment rate | year FE,7,0.04487179487179487,4.487179487179487
+age FE | state FE | year FE,7,0.04487179487179487,4.487179487179487
+age | age quadratic | labor force participation rate | sex | state FE | unemployment rate | year FE,6,0.038461538461538464,3.8461538461538463
+age | age quadratic | state FE | year FE,5,0.03205128205128205,3.205128205128205
+age | age quadratic | sex | state FE | year FE,5,0.03205128205128205,3.205128205128205
+age | age quadratic | driverslicenses | everify | higheredban | instatetuition | jail287g | labor force participation rate | limiteverify | omnibus | securecommunities | sex FE | state FE | statefinancialaid | task287g | unemployment rate | year FE,5,0.03205128205128205,3.205128205128205
+labor force participation rate | state FE | unemployment rate | year FE,4,0.02564102564102564,2.564102564102564
+birth-year FE | driverslicenses | everify | higheredban | instatetuition | jail287g | labor force participation rate | limiteverify | omnibus | securecommunities | sex FE | state FE | statefinancialaid | task287g | unemployment rate | year FE,4,0.02564102564102564,2.564102564102564
+age | age quadratic | driverslicenses | everify | higheredban | instatetuition | jail287g | labor force participation rate | limiteverify | omnibus | securecommunities | sex | state FE | statefinancialaid | task287g | unemployment rate | year FE,4,0.02564102564102564,2.564102564102564
+birth-year FE | labor force participation rate | state FE | unemployment rate | year FE,4,0.02564102564102564,2.564102564102564
+age | age quadratic | labor force participation rate | linear year | sex FE | state FE | unemployment rate | year quadratic,3,0.019230769230769232,1.9230769230769231
+age FE | driverslicenses | everify | higheredban | instatetuition | jail287g | labor force participation rate | limiteverify | omnibus | securecommunities | state FE | statefinancialaid | task287g | unemployment rate | year FE,3,0.019230769230769232,1.9230769230769231
+age FE | labor force participation rate | sex FE | state FE | unemployment rate | year FE,3,0.019230769230769232,1.9230769230769231
+birthyr_centered | i(birthyr_centered**2) | sex | state FE | year FE,2,0.01282051282051282,1.282051282051282
+birth-year FE | driverslicenses | everify | higheredban | instatetuition | jail287g | labor force participation rate | limiteverify | omnibus | securecommunities | state FE | statefinancialaid | task287g | unemployment rate | year FE,2,0.01282051282051282,1.282051282051282
+birthyr_centered | driverslicenses | everify | higheredban | i(birthyr_centered**2) | instatetuition | jail287g | labor force participation rate | limiteverify | omnibus | state FE | statefinancialaid | task287g | unemployment rate | year FE,2,0.01282051282051282,1.282051282051282
+birth-year FE | state FE | year FE,2,0.01282051282051282,1.282051282051282
+birth-year FE | labor force participation rate | sex FE | state FE | unemployment rate | year FE,2,0.01282051282051282,1.282051282051282
+age | age quadratic | driverslicenses | everify | higheredban | instatetuition | jail287g | labor force participation rate | limiteverify | omnibus | sex | state FE | statefinancialaid | unemployment rate | year FE,2,0.01282051282051282,1.282051282051282
+age | age_2012_c_sq | driverslicenses | everify | labor force participation rate | securecommunities | state FE | unemployment rate | year FE,2,0.01282051282051282,1.282051282051282
+age | age quadratic | state FE,2,0.01282051282051282,1.282051282051282
+age | state FE | year FE,2,0.01282051282051282,1.282051282051282
+sex | state FE | year FE,1,0.00641025641025641,0.641025641025641
+driverslicenses | everify | higheredban | i(running**2) | instatetuition | jail287g | labor force participation rate | limiteverify | omnibus | running | securecommunities | sex FE | state FE | statefinancialaid | task287g | unemployment rate | year FE,1,0.00641025641025641,0.641025641025641
+education | sex FE | state FE,1,0.00641025641025641,0.641025641025641
+age | age quadratic | sex | state FE | unemployment rate | year FE,1,0.00641025641025641,0.641025641025641
+age | education | sex | state FE | year FE,1,0.00641025641025641,0.641025641025641
+age | sex FE | state FE | year FE,1,0.00641025641025641,0.641025641025641
+age FE | education | sex | state FE | unemployment rate | year FE,1,0.00641025641025641,0.641025641025641
+age | education FE | sex FE | state FE | year FE,1,0.00641025641025641,0.641025641025641
+age FE | c(everify) | c(jail287g) | c(task287g) | driverslicenses | higheredban | instatetuition | labor force participation rate | limiteverify | omnibus | securecommunities | state FE | statefinancialaid | unemployment rate | year FE,1,0.00641025641025641,0.641025641025641
+age | age quadratic | everify | jail287g | labor force participation rate | limiteverify | omnibus | securecommunities | sex FE | state FE | task287g | unemployment rate | year FE,1,0.00641025641025641,0.641025641025641
+year FE,1,0.00641025641025641,0.641025641025641
+age | age_at_arrival | age_at_arrival_sq | driverslicenses | everify | labor force participation rate | securecommunities | sex | state FE | unemployment rate | year FE,1,0.00641025641025641,0.641025641025641
+age | age quadratic | c(everify) | c(jail287g) | driverslicenses | higheredban | instatetuition | labor force participation rate | limiteverify | omnibus | sex | state FE | statefinancialaid | unemployment rate | year FE,1,0.00641025641025641,0.641025641025641
+age | age quadratic | labor force participation rate | state FE | unemployment rate | year FE,1,0.00641025641025641,0.641025641025641
+age | age quadratic | c(everify) | c(jail287g) | c(task287g) | driverslicenses | higheredban | instatetuition | labor force participation rate | limiteverify | omnibus | securecommunities | sex FE | state FE | statefinancialaid | unemployment rate | year FE,1,0.00641025641025641,0.641025641025641
+age | age quadratic | labor force participation rate | sex FE | state FE | unemployment rate,1,0.00641025641025641,0.641025641025641
+driverslicenses | everify | higheredban | instatetuition | jail287g | labor force participation rate | limiteverify | omnibus | state FE | statefinancialaid | unemployment rate | year FE,1,0.00641025641025641,0.641025641025641
+age | sex | year FE,1,0.00641025641025641,0.641025641025641
+age | age quadratic | driverslicenses | everify | labor force participation rate | sex FE | state FE | unemployment rate | year FE,1,0.00641025641025641,0.641025641025641
+age | age quadratic | driverslicenses | everify | higheredban | instatetuition | jail287g | labor force participation rate | limiteverify | omnibus | sex | state FE | statefinancialaid | task287g | unemployment rate | year FE,1,0.00641025641025641,0.641025641025641
+age | driverslicenses | everify | higheredban | i(birthyr_c**2) | instatetuition | jail287g | labor force participation rate | limiteverify | omnibus | securecommunities | sex | state FE | statefinancialaid | task287g | unemployment rate,1,0.00641025641025641,0.641025641025641
+age FE | linear year | state FE,1,0.00641025641025641,0.641025641025641
+age | age quadratic | driverslicenses | everify | higheredban | instatetuition | jail287g | labor force participation rate | limiteverify | omnibus | state FE | statefinancialaid | unemployment rate | year FE,1,0.00641025641025641,0.641025641025641
+birthyr_centered | labor force participation rate | state FE | unemployment rate | year FE,1,0.00641025641025641,0.641025641025641
+age | age quadratic | state FE | year_centered,1,0.00641025641025641,0.641025641025641
+age | age quadratic | driverslicenses | everify | labor force participation rate | limiteverify | sex FE | state FE | unemployment rate | year FE,1,0.00641025641025641,0.641025641025641
+age FE | labor force participation rate | sex | state FE | unemployment rate | year FE,1,0.00641025641025641,0.641025641025641
+birth-year FE | everify | higheredban | instatetuition | jail287g | labor force participation rate | limiteverify | omnibus | securecommunities | state FE | statefinancialaid | task287g | unemployment rate | year FE,1,0.00641025641025641,0.641025641025641
+birthyr_centered | c(birthqtr) | i(birthyr_centered**2) | labor force participation rate | state FE | unemployment rate | year FE,1,0.00641025641025641,0.641025641025641
+age | age quadratic | everify | jail287g | labor force participation rate | sex FE | state FE | task287g | unemployment rate | year FE,1,0.00641025641025641,0.641025641025641
+age | driverslicenses | everify | i(birthyr_c**2) | jail287g | labor force participation rate | limiteverify | omnibus | securecommunities | sex FE | state FE | task287g | unemployment rate | year FE,1,0.00641025641025641,0.641025641025641
+age | age quadratic | driverslicenses | everify | higheredban | instatetuition | jail287g | labor force participation rate | limiteverify | omnibus | securecommunities | state FE | statefinancialaid | task287g | unemployment rate | year FE,1,0.00641025641025641,0.641025641025641
+birth-year FE | state FE | unemployment rate | year FE,1,0.00641025641025641,0.641025641025641
+age | i(age_2012_c**2) | labor force participation rate | sex FE | state FE | unemployment rate | year FE,1,0.00641025641025641,0.641025641025641
+age | age_at_arrival | driverslicenses | everify | higheredban | i(age_at_arrival**2) | i(birthyr**2) | instatetuition | jail287g | labor force participation rate | limiteverify | omnibus | securecommunities | state FE | statefinancialaid | task287g | unemployment rate | year FE,1,0.00641025641025641,0.641025641025641
+birth-year FE | state FE,1,0.00641025641025641,0.641025641025641
+age | age quadratic | driverslicenses | everify | higheredban | instatetuition | jail287g | labor force participation rate | limiteverify | omnibus | sex FE | state FE | statefinancialaid | task287g | unemployment rate | year FE,1,0.00641025641025641,0.641025641025641
+age | age quadratic | driverslicenses | everify | higheredban | i(age**3) | instatetuition | jail287g | labor force participation rate | limiteverify | omnibus | securecommunities | sex FE | state FE | statefinancialaid | task287g | unemployment rate | year FE,1,0.00641025641025641,0.641025641025641
+age FE | driverslicenses | everify | higheredban | instatetuition | jail287g | labor force participation rate | limiteverify | omnibus | securecommunities | state FE | statefinancialaid | task287g | unemployment rate | year_c,1,0.00641025641025641,0.641025641025641
+age | age quadratic | labor force participation rate | sex FE | unemployment rate | year FE,1,0.00641025641025641,0.641025641025641

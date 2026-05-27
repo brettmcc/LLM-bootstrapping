@@ -106,6 +106,8 @@ def parse_formula(model_spec: str) -> tuple[Optional[str], list[str]]:
 def infer_model_type(model_spec: str) -> str:
     # Infer model type from the specification line.
     lower = model_spec.lower()
+    if "fit_did_lpm" in lower or "estimate_did" in lower:
+        return "WLS"
     mapping = {
         "ols": "OLS",
         "wls": "WLS",
@@ -174,6 +176,11 @@ def infer_controls(terms: list[str]) -> list[str]:
 
 def infer_sample_weighting(model_spec: str) -> str:
     # Attempt to extract weights=... from the model specification line.
+    weight_col_match = re.search(r"weight_col\s*=\s*['\"]([^'\"]+)['\"]", model_spec)
+    if weight_col_match:
+        return weight_col_match.group(1).strip()
+    if "estimate_did" in model_spec.lower():
+        return "perwt"
     match = re.search(r"(?:sample_)?weights?\s*=\s*([^,\)]+)", model_spec)
     if match:
         return match.group(1).strip()
@@ -187,6 +194,9 @@ def infer_sample_weighting(model_spec: str) -> str:
 
 def infer_se_adjustment(model_spec: str) -> str:
     # Attempt to extract cov_type and grouping info from the model specification line.
+    lower = model_spec.lower()
+    if "fit_did_lpm" in lower or "estimate_did" in lower:
+        return "HC1"
     cov_type = ""
     group_info = ""
     cov_match = re.search(r"cov_type\s*=\s*['\"]([^'\"]+)['\"]", model_spec)
@@ -231,6 +241,22 @@ def validate_results_payload(data: dict[str, Any]) -> str:
         if not math.isfinite(treated_group_size) or treated_group_size < 0:
             return "invalid_results"
     return "success"
+
+
+def compute_t_stat(point_est: Any, standard_error: Any) -> str:
+    # Convert the coefficient and standard error to a t-statistic for rows with
+    # valid numeric results. Empty strings keep failed/missing rows easy to read
+    # in the aggregate CSV.
+    try:
+        point_value = float(point_est)
+        se_value = float(standard_error)
+    except (TypeError, ValueError):
+        return ""
+    # A non-positive or non-finite standard error cannot define a meaningful
+    # coefficient/SE statistic, so leave the CSV cell blank for those cases.
+    if not math.isfinite(point_value) or not math.isfinite(se_value) or se_value <= 0:
+        return ""
+    return f"{point_value / se_value:.10g}"
 
 
 def read_results(run_dirs: list[Path]) -> tuple[Optional[dict[str, Any]], str]:
@@ -472,6 +498,7 @@ def main() -> None:
         "se_adjustment",
         "point_est",
         "SE",
+        "t_stat",
         "sample_size",
         "treated_group_size",
         "execution_status",
@@ -589,6 +616,7 @@ def main() -> None:
                 standard_error = results.get("standard_error", "")
                 sample_size = results.get("sample_size", "")
                 treated_group_size = results.get("treated_group_size", "")
+            t_stat = compute_t_stat(point_est, standard_error)
 
             # Write the row.
             writer.writerow(
@@ -613,6 +641,7 @@ def main() -> None:
                     "se_adjustment": se_adjustment,
                     "point_est": point_est,
                     "SE": standard_error,
+                    "t_stat": t_stat,
                     "sample_size": sample_size,
                     "treated_group_size": treated_group_size,
                     "execution_status": status,

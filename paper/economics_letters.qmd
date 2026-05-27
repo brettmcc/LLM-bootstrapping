@@ -1,5 +1,5 @@
 ---
-title: "AI Agents as Stochastic Replicators: Measuring Researcher-Induced Estimation Uncertainty"
+title: "Measuring Researcher-Induced Estimation Uncertainty with Agentic AI"
 author:
   - name: Brett A. McCully
     affiliations:
@@ -71,18 +71,18 @@ abstract: |
 
 # Introduction {#sec-intro}
 
-Empirical papers routinely report standard errors that quantify sampling uncertainty. These standard errors are conditional on a set of researcher decisions: which dataset to analyze, how to define the estimation sample, how to construct outcomes and treatments, and which specification and standard-error adjustments to use. A growing body of evidence shows that researchers making different  decisions can produce meaningfully different estimates from the same underlying data[@silberzahn2018many; @huntington2021influence; @breznau2022observing]. This implies an additional source of uncertainty beyond standard errors capturing sampling variation: researcher degrees of freedom.
+Empirical papers routinely report standard errors that quantify sampling uncertainty. These standard errors are conditional on a set of researcher decisions: which dataset to analyze, how to define the estimation sample, how to construct outcomes and treatments, and which specification and standard-error adjustments to use. A growing body of evidence shows that researchers making different  decisions can produce meaningfully different estimates from the same underlying data [@silberzahn2018many; @huntington2021influence; @breznau2022observing]. This implies an additional source of uncertainty beyond standard errors capturing sampling variation: researcher degrees of freedom.
 
 Measuring parameter uncertainty due to researcher degrees of freedom at scale is challenging. Multi-analyst studies are expensive, requiring extensive recruitment and coordination. Pre-analysis plans constrain discretion but do not measure the sensitivity of results to alternative, still-defensible research choices [@olken2015promises]. Specification-curve and multiverse analyses require the original analyst to enumerate and implement various alternatives [@simonsohn2020specification; @steegen2016multiverse].
 
-I overcome these limitations using a novel approach: AI agents that perform empirical analyses at scale.\footnote{There are at least 3 other concurrent, unpublished papers that attempt to do broadly what I propose in this article: \citet{gao2026nonstandard}, \citet{grundl2026comparison}, and \citet{huang2026aierrors}. Given the timing of the release of these working papers and the work on my own public GitHub repository for this article dating back to January 2026 (see \url{https://github.com/brettmcc/LLM-bootstrapping}), this is a clear case of parallel invention.} Each agent receives the same natural-language research prompt and dataset but independently generates a complete empirical specification---sample restrictions, outcome and treatment definitions, controls, fixed effects, and standard-error adjustments. The inherent stochasticity of the large language models which power the AI agents ensures each agent makes different research choices.
+I overcome these limitations using a novel approach: AI agents that perform empirical analyses at scale.\footnote{There are at least 3 other concurrent, unpublished papers that attempt to do broadly what I propose in this article: \citet{gao2026nonstandard}, \citet{grundl2026comparison}, and \citet{huang2026aierrors}. Given the timing of the release of these working papers and the work on my own public GitHub repository for this article dating back to January 2026 (see \url{https://github.com/brettmcc/LLM-bootstrapping}), this is a clear case of parallel invention. In any case, the one paper to also look at \citet{huntingtonklein2025sources}, \citet{grundl2026comparison}, does not look at agent specification choices.} Each agent receives the same natural-language research prompt and dataset but independently generates a complete empirical specification---sample restrictions, outcome and treatment definitions, controls, fixed effects, and standard-error adjustments. The inherent stochasticity of the large language models which power the AI agents ensures each agent makes different research choices.
 
 I apply this approach to the question studied by many analysts in @huntingtonklein2025sources: how does eligibility for the Deferred Action for Childhood Arrivals program affect the probability of full-time employment?
 Across \aiAnalyticN{} agent-generated specifications, I obtain an interquartile range from \aiIqrLower{} to \aiIqrUpper{}, strongly resembling the human many-analyst coefficient distribution.
 
-This paper makes two main contributions. First, I provide an open-source, scalable approach to multi-analyst designs that lets researchers quantify researcher-induced uncertainty. Second, I show that repeated AI-agent runs provide a computationally tractable way to approximate the distribution of human research choices at scale: each run generates an interpretable, machine-readable specification that can be executed without human intervention.
+This paper makes two main contributions. First, I provide an open-source, scalable approach to multi-analyst designs that lets researchers quantify researcher-induced uncertainty. Second, I show that repeated AI-agent runs provide a computationally tractable way to approximate the distribution of human research choices at scale.
 
-Multi-analyst studies document how research choices affect results but are costly to run at scale [@silberzahn2018many; @breznau2022observing; @brownlees2024nonstandard]. Specification-curve and multiverse analyses automate the enumeration of alternatives but require the original analyst to define the choice set [@simonsohn2020specification; @steegen2016multiverse]. I introduce AI-agent-enumerated multiverses, in which the agents themselves define the choice set. Recent work uses LLMs as simulated economic agents [@horton2023large] and research tools [@korinek2023generative; @novymarx2026ai]; this paper applies them to measuring research-choice variation. @sec-method describes the agent pipeline and the DACA application; @sec-results reports the estimate distribution, specification heterogeneity, and the comparison to the benchmark.
+Multi-analyst studies document how research choices affect results but are costly to run at scale [@silberzahn2018many; @breznau2022observing; @brownlees2024nonstandard]. Specification-curve and multiverse analyses automate the enumeration of alternatives but require the original analyst to define the choice set [@simonsohn2020specification; @steegen2016multiverse]. I introduce AI-agent-enumerated multiverses, in which the agents themselves define the choice set. Recent work uses LLMs as simulated economic agents [@horton2023large] and research tools [@korinek2023generative; @novymarx2026ai]; this paper applies them to measuring research-choice variation. @sec-method describes the agent pipeline and the DACA application; @sec-results reports the estimate distribution, specification heterogeneity, and the comparison to the human analyst benchmark.
 
 # Method {#sec-method}
 
@@ -93,7 +93,7 @@ For example, in the empirical application below I consider the effect of the imm
 
 AI agents, such as ChatGPT or Claude Code, provide inherently take different approaches to a given research prompt. By construction, AI responses are non-deterministic: the same prompt can generate a range of responses. By submitting a prompt to estimate a given empirical parameter many times to an AI agent, I propose to simulate at much lower cost a many-analyst approach for generating bounds on the degree of researcher-induced parameter estimation uncertainty.\footnote{Other researchers have adopted the catchier  term 'non-standard' errors to describe the bounds resulting from this type of exercise [@brownlees2024nonstandard].}
 
-Differently from the trained human researchers involved in previous multi-analyst studies, AI agents may take research choices far outside disciplinary norms and may make a set of choices which are less internally coherent. The degree to which AI agents hew to human patterns of research choices is therefore an empirical question. This paper replicates an existing human multianalyst study by @nickchk2022manyeconomists and compares the distribution of research choices and the resulting estimates.
+Differently from the trained human researchers involved in previous multi-analyst studies, AI agents may take research choices far outside disciplinary norms and may make a set of choices which are less internally coherent. The degree to which AI agents hew to human patterns of research choices is therefore an empirical question. This paper replicates an existing human multianalyst study by @huntingtonklein2025sources and compares the distribution of research choices and the resulting estimates.
 
 Ex-ante, why might AI agents produce plausible research choices? Their underlying models are trained on academic articles, codebases, and empirical templates [@gao2020pile, @chen2021codex]---the same materials from which researchers learn to define samples, write regression equations, and choose standard-error adjustments. AI agent outputs can therefore be interpreted as draws from a compressed, noisy representation of standard empirical social science practice.
 
@@ -103,72 +103,83 @@ I apply the pipeline to the question answered by many analysts in @huntingtonkle
 
 The computing pipeline works as follows. An AI agent is provided with the raw materials to answer the research question: an IPUMS extract and codebook with all variables used by human analysts in @nickchk2022manyeconomists (derived from their public repository), a supplementary state policy dataset and codebook, and instructions adapted from those given to human analysts.\footnote{All material passed to AI agents are available at https://github.com/brettmcc/LLM-bootstrapping/tree/master/NHK-replications/replication-materials.} Each AI agent is isolated to their own run directory, so they cannot learn from previous agent runs. The agent then writes a JSON file outlining their model specification, outcome definition, sample selection, and treatment definition.\footnote{For example, one retained specification estimates \texttt{full\_time} on \texttt{treated\_post}, treatment and post indicators, age terms, sex indicators, state fixed effects, and year fixed effects; defines full-time work as usual hours worked greater than or equal to 35; restricts the sample by Hispanic origin, Mexican birthplace, non-citizenship, pre-2008 immigration, childhood arrival, birth cohort, group-quarters status, year, and working age; and defines treatment using the birth-year eligibility proxy.} The agent then writes a Python script to implement their estimation and reports the resulting sample size and preferred coefficient.
 
-I use two frontier AI models---GPT-5.4-mini (OpenAI) and Claude Sonnet 4.6 (Anthropic)\footnote{I exclude \aiExcludedModelRuns{} exploratory runs with Claude's smaller and less advanced Haiku 4.5 model from the analysis sample. That cohort yielded one run with standard error of 0 and two more with extremely high coefficient estimates. Researchers applying my approach should therefore take heed that smaller models with insufficient reasoning may not be suitable for this type of task.}---accessed through GitHub Copilot CLI. Each run takes 2--10 minutes and has minimal cost when using a subscription,\footnote{It's worth noting the amount of inference provided by Github Copilot is set to fall dramatically at the beginning of June, so researchers would likely do better to leverage Claude Code or OpenAI's Codex in the future.} making large-scale replication affordable for individual researchers.
+I use two frontier AI models---GPT-5.4 mini (OpenAI) and Claude Sonnet 4.6 (Anthropic)\footnote{I exclude \aiExcludedModelRuns{} exploratory runs with Claude's smaller and less advanced Haiku 4.5 model from the analysis sample. That cohort yielded one run with standard error of 0 and two more with extremely high coefficient estimates. Researchers applying my approach should therefore take heed that smaller models with insufficient reasoning may not be suitable for this type of task.}---accessed through GitHub Copilot CLI. I primarily rely on GTP-5.4 mini, as it is cheaper to run than Claude Sonnet 4.6. Each run takes 2--10 minutes and has minimal cost when using a subscription,\footnote{It's worth noting the amount of inference provided by Github Copilot is set to fall dramatically at the beginning of June, so researchers would likely do better to leverage Claude Code or OpenAI's Codex in the future.} making large-scale replication affordable for individual researchers.
 
 # Results {#sec-results}
 
+I compare 145 human analyses from @huntingtonklein2025sources to 153 AI agent-run analyses for the same researh question and using the same raw data. Both humans and agents had complete freedom to select their estimation sample, define dependent and independent variables, and choose specification.
+
 ## Distribution of estimates
 
+Figure \ref{fig:comparison-boxplots} depicts box-and-whisker plots for both human and AI analyses for weighted and unweighted effects, standard errors, and sample size. The left-most whisker depicts the minimum reported value, the box depicts the 25th percentile value, median, and 75th percentile, with the right-most whisker showing the maximum reported value. The exact values are reported in Table \ref{tab:appendix-summary-nhk}.
 
-
-Figure~\ref{fig:comparison-boxplots} compares the box-and-whisker summaries for the retained AI analyses and the original NHK human Task 1 submissions. I compare these patterns to the benchmark on three dimensions. First, central tendency is similar: the AI median (\aiMedianEffect{}) is close to the Task 1 median (\benchmarkMedianEffect{}) and both means are small and positive (\aiMeanEffect{} versus \benchmarkMeanEffect{}). Second, both distributions are wide relative to individual standard errors, confirming that specification choices, not sampling noise, drive the spread. Third, the AI distribution is notably wider (IQR width \aiIqrWidth{} versus \benchmarkIqrWidth{}) and extends further into negative territory. This wider spread likely reflects the AI agents' broader exploration of the specification space---for instance, fewer constraints on age bounds and eligibility definitions---and the fact that different specifications can target different estimands, inflating cross-specification dispersion. I characterize the resemblance as qualitative because the input specifications differ systematically (Table~\ref{tab:methods}) and no formal distributional test is attempted.
 
 ```{=latex}
 \begin{figure}[t]
 \centering
 \includegraphics[width=\textwidth]{../NHK-replications/meta_analysis_expanded/figure4_comparison_boxplots.png}
-\caption{AI-agent and NHK human Task~1 box-and-whisker comparisons}
-\caption*{\footnotesize \textbf{Notes:} Panels compare point-estimate distributions, point-estimate distributions weighted by inverse standard error, standard errors, and $\log$ sample sizes. The standard-error panel uses a log x-axis; the published human minimum is reported as 0.000 and is displayed at 0.0005, the three-decimal rounding boundary. AI boxes use the retained analytic sample. Human boxes use the published Task~1 summary statistics in Table~3 of \citet{huntingtonklein2025sources}. Boxes show the interquartile range, center lines show medians, and whiskers show published or sample minimum and maximum values. Grid lines are omitted to keep the box-and-whisker summaries visually dominant.}
+\caption{AI and \citet{huntingtonklein2025sources} estimation outcomes}
+\caption*{\footnotesize \textbf{Notes:} Panels compare point-estimate distributions, point-estimate distributions weighted by inverse standard error, standard errors, and $\log$ sample sizes between the human researcher sample of Task 1 from \citet{huntingtonklein2025sources} and the AI researcher sample from this paper. Boxes show the interquartile range, center lines show medians, and whiskers show published or sample minimum and maximum values.}
 \label{fig:comparison-boxplots}
 \end{figure}
 \FloatBarrier
 ```
 
-Figure~\ref{fig:comparison-boxplots} shows that the AI and human distributions overlap substantially, but the AI box extends farther into negative estimates. The sample-size panel reinforces that part of the induced uncertainty comes from sample construction rather than only from estimator choice: both humans and AI agents produce large variation in effective sample sizes from the same underlying research question.
-
 ```{=latex}
-\begin{figure}[t]
+\begin{table}[!htbp]
 \centering
-\includegraphics[width=\textwidth]{../NHK-replications/meta_analysis_expanded/figure3_specification_curve.png}
-\caption{Specification curve for AI-agent-generated estimates}
-\caption*{\footnotesize \textbf{Notes:} Estimates are sorted by point estimate. Vertical lines are 95\% confidence intervals computed from each agent-generated standard error. The figure excludes estimates outside the displayed range for visual readability; Table~\ref{tab:summary} reports the full retained distribution.}
-\label{fig:specification-curve}
-\end{figure}
+\caption{Summary statistics on estimation outcomes}
+\label{tab:appendix-summary-nhk}
+\small
+\resizebox{\textwidth}{!}{\input{../NHK-replications/meta_analysis_expanded/table1_summary_stats_with_nhk_task1.tex}}
+\caption*{\footnotesize \textbf{Notes:} Panel A reports outcomes from the AI agent sample. Panel B restates the published Task 1 panel of Table 3 of \citet{huntingtonklein2025sources}.}
+\end{table}
 \FloatBarrier
 ```
 
-Figure~\ref{fig:specification-curve} shows that the retained AI specifications span negative, near-zero, and positive estimates even before any analyst selects among them. The curve is therefore a diagnostic for researcher-induced uncertainty: a conventional single-specification standard error would describe uncertainty around one point on this curve, not uncertainty over the curve itself.
+Across all four outcomes, means and medians are fairly similar between human and AI researchers. Moreover both humans and AI agents exhibit substantial dispersion in their estimation outcomes.
+
+For the unweighted effect size, AI obtains a mean of 0.064 and a median of \aiMedianEffect{} and humans a mean of 0.053 and median of \benchmarkMedianEffect{}. The 25th percentile estimates are identical at 0.014, while the 75th percentile effect is substantially larger for AI agents at 0.099 relative to humans' 0.051. AI agents also obtained a much lower minimum estimate of -0.148 compared to humans' -0.049, while the AI's maximum estimate is also much lower than humans'. For standard errors, the minimum, 25th percentile, and median are identical across humans and AI, while humans exhibit higher standard errors at the 75th percentile and maximum. As a result, AI agents obtain coefficients statistically significantly different from 0 about 90\% of the time, compared to 78\% time among humans.
+
+The range of sample sizes chosen by human researchers---between 681 and over 29 million observations---is several orders of magnitudes larger than what the AI agents chose. Still, the interquartile range are roughly comparable: 75 to 248 thousand for the AI, and 61 to 357 thousand for the humans. A potential explanation for the divergence in sample size at the upper end of the distribution is better compliance among AI agents with the reseach question. Given the unbounded nature of the problem, @huntingtonklein2025sources note that "some researchers used nearly the entire ACS sample, including people very unlike the DACA-eligible [treatment] group." (p. 24) It is plausible that the AI agents better adhered to the research instructions about constructing a control group.\footnote{For both humans and AI agents, the research questions starts with the proviso, "Among ethnically Hispanic-Mexican Mexican-born people living in the United States..."}
 
 ## Specification heterogeneity
+
+Did AI and human researchers arrive at their estimates through a similar array or forking paths? We answer this question by examining the prevalence of model specification choices between AI and human runs, summarized in Table \ref{tab:methods}.
 
 ```{=latex}
 \input{../NHK-replications/meta_analysis_expanded/paper_table2_methods.tex}
 ```
 
-Table~\ref{tab:methods} shows that AI agents favor linear models (\aiLinearModelShare{}\% of retained runs) and the ACS person weight (\aiPerwtShare{}\%). State-clustered standard errors are the modal choice (\aiClusterStateShare{}\%). The benchmark human sample is more methodologically diverse: 82\% use linear regression, 22\% use no SE adjustment, and 25\% use sample weights. The AI agents thus converge on a narrower set of input choices---more weighting and more clustering---yet produce a wider distribution of output estimates, suggesting that sample-definition and variable-construction choices drive more dispersion than estimator choice alone.
+I find that AI agents make notably different model specification choices relative to human economists. AI agents overwhelmingly favor linear models, and never chose nonlinear models, in contrast to 13\% of human runs. AI agents also overwhelmingly converged on clustering standard errors at the state level, with 81\% of agents choosing to do so compared to 27\% of human runs. Humans made other standard error clustering choices, such as state-by-year or on ID or strata. The share of runs featuring heteroskedasticity robust standard errors was quite similar between AI and humans. 
 
-Routine specification choices covary with estimates. Specifications with state fixed effects average \aiStateFeMean{} versus \aiNoStateFeMean{} without; those with year fixed effects average \aiYearFeMean{} versus \aiNoYearFeMean{} without. These are descriptive comparisons that conflate fixed-effects inclusion with other correlated choices, but they are directionally consistent with the benchmark finding that modeling choices materially affect point estimates.
+AI agents almost exclusively used sample weights, while a majority of human researchers did not. Using weights is in line with IPUMS instructions, a fact highlighted also by @huntingtonklein2025sources.
 
 ```{=latex}
 \begin{table}[!htbp]
 \centering
-\caption{Mean effects by control functional form: AI agents and NHK humans}
+\caption{Control variable choices}
 \label{tab:controls}
 \small
 \resizebox{\textwidth}{!}{\input{../NHK-replications/meta_analysis_expanded/table5_control_effects.tex}}
-\caption*{\footnotesize \textbf{Notes:} Rows follow the construction of Table~5 in \citet{huntingtonklein2025sources}: each row is an overlapping indicator for specifications including the listed functional form, so counts do not sum to the number of estimates. AI-agent rows classify retained generated specifications using their recorded controls and fixed effects. Human columns reproduce the NHK Task~1 Table~5 counts, mean effects, standard deviations of reported effects, and mean reported standard errors.}
+\caption*{\footnotesize \textbf{Notes:} The table presents the number and share of AI and human estimation specificaitons which included various controls.}
 \end{table}
 \FloatBarrier
 ```
 
-Table~\ref{tab:controls} shows that control choices are another channel through which otherwise routine decisions move estimates. As in the human benchmark, rows are descriptive comparisons across overlapping specification features rather than causal effects of adding one control. AI agents use year and state fixed effects much more frequently than the NHK humans, while humans use education controls far more often. Mean effects for state/year specifications are nonetheless broadly similar across the two samples.
+Choice of control variables differed substantially between humans and AI, as shown in Table \ref{tab:controls}. AI agents included an age control more frequently than humans did, while AI almost never controlled for education while humans did in over a third of specifications. Nearly 90\% of AI agents included year fixed effects, compared to just 24\% of human runs. Similarly, nearly 90\% of AIs included state fixed effects compared to 36\% of human runs. Using a fully-saturated difference-in-difference diminishes the downsides of linear probability models, the choice of every AI agent. Overall, AI agents agreed on the set of controls much more often than human researchers. Just 25\% of AI agent runs used a unique set of controls, compared to 64\% of humans.
 
 # Conclusion {#sec-conclusion}
 
-The dispersion across agent-generated specifications---spanning negative to meaningfully positive effects, with wide variation in sample sizes and modeling choices---mirrors the pattern a large team of human analysts produces. Temperature-driven variation in AI research choices appears to capture a similar space of defensible decisions, offering a scalable complement to costly multi-analyst exercises.
+This paper develops a novel, scalable approach to multi-analyst studies leveraging new breakthroughs in agentic artificial intelligence. Across runs, frontier AI agents generate a dispersion of typically reasonable research choices. These choices differ systematically from those of human researchers. The multi-AI agent approach introduced in this paper is therefore not a perfect substitute for multi-human analyst studies. Given the high coordination and time cost difference, however, many-AI agent runs may still be useful to quickly and cheaply get a handle on researcher-choice induced uncertainty---so-called "non-standard errors."
 
-Four limitations bear emphasis. First, the @huntingtonklein2025sources benchmark materials---including codebooks, instructions, and human submissions---were public on OSF and GitHub before these runs, and the AI models are trained on large public web corpora [@brown2020gpt3; @chen2021codex]. The prompt used here was written independently of the benchmark's prepared-data documentation and asks the agent to work from a raw ACS extract rather than the benchmark's pre-processed dataset, but I cannot rule out that the models memorized human specifications from their training corpora. Validation on a question absent from public corpora is needed. Second, different specifications can target different estimands, so the distribution mixes variation in estimation strategies with variation in targeted causal parameters. Third, model choice materially affects the induced distribution, as illustrated by the excluded Haiku exploratory cohort. Fourth, execution selection could matter in future applications if more unusual specifications are disproportionately likely to fail, even though all \aiAttemptedRuns{} runs in the retained two-model cohort produced recoverable specifications and valid numeric outputs.
+Two limitations are worth emphasizing. First, the @huntingtonklein2025sources benchmark materials---including codebooks, instructions, and human submissions---were public on the Open Science Framework website and GitHub before these runs, and AI models are trained on large public web corpora [@brown2020gpt3; @chen2021codex]. Future work using a novel research question simultaneously delivered to human researchers and AI agents would help clarify the importance of this issue. Second, the choice of AI model (e.g., GPT-5.4 mini) and harness (e.g., GitHub Copilot + VSCode) may be important---other models and harnesses may perform closer to humans. For example, while I dropped runs using the less-sophisticated Claude Haiku model, several of those dropped runs used nonlinear models compared to 0 of the retained AI runs. Further research should explore how variations in model choice and harness matter for AI agent decisions.\footnote{I would have done more of this, but doing so can become quite costly to obtain a sufficient number of runs per model-harness pair.}
 
-For empirical practice, the pipeline offers a diagnostic: researchers can run it on their own question and data to assess sensitivity to defensible alternatives. Applying the method to other multi-analyst benchmarks---such as the immigration-attitudes study of @breznau2022observing---would test whether the AI-agent distribution generalizes beyond the DACA context.
+```{=latex}
+\appendix
+\setcounter{table}{0}
+\renewcommand{\thetable}{A.\arabic{table}}
+```
+
 
 <!-- References are generated automatically by Quarto/natbib -->

@@ -146,7 +146,7 @@ Output:
 - `runs_complete.csv` for the legacy cohort (`--data-profile legacy`)
 - `runs_complete_all.csv` when explicitly aggregating both profiles (`--data-profile all`)
 
-The aggregator records both `spec_status` (recoverable spec versus missing spec) and `execution_status` (`success`, `failed_validation`, `no_results`, or `nonpositive_se`). It also writes a `data_profile` column so downstream analysis can distinguish the legacy and expanded cohorts. For runs with recoverable specs, it also imputes derived fields (model type, inferred controls, fixed effects, weighting, and SE adjustment) from the `model_specification_line`.
+The aggregator records both `spec_status` (recoverable spec versus missing spec) and `execution_status` (`success`, `failed_validation`, `no_results`, or `nonpositive_se`). It also writes a `data_profile` column so downstream analysis can distinguish the legacy and expanded cohorts. For successful rows with positive standard errors, it writes `t_stat = point_est / SE`. For runs with recoverable specs, it also imputes derived fields (model type, inferred controls, fixed effects, weighting, and SE adjustment) from the `model_specification_line`.
 
 For the current paper revision, `runs_complete.csv` is built from `--data-profile legacy --spec-provider phase12/copilot`. The new expanded test cohort should be aggregated with `--data-profile expanded --spec-provider phase12/copilot`, which writes `runs_complete_expanded.csv` by default.
 
@@ -204,5 +204,7 @@ The recovery script reruns archived `analysis.py` files with instrumentation tha
 Phase 4 applies the manuscript's analytic-sample filter by default: recoverable specification, successful execution, positive standard error, positive sample size, and `abs(point_est) <= 1`. Use `--max-abs-effect -1` only for diagnostics that intentionally retain extreme/degenerate executions.
 
 Phase 4 also excludes the exploratory `claude-haiku-4.5` cohort from the manuscript analysis sample before applying execution-result filters. This keeps all generated tables, figures, and paper-facing macros aligned with the paper's retained model set.
+
+Phase 4 writes manuscript macros for the fraction of retained runs whose coefficient differs from zero under two-sided normal critical values at the 10% and 5% significance levels (`\aiSigTenPctFraction` and `\aiSigFivePctFraction`).
 
 Inverse-SE weighted summaries and figures use weights `1 / max(SE, q0.05)`, where `q0.05` is the 5th percentile of retained positive standard errors. This matches the NHK weighting convention while preventing near-zero standard errors from dominating the weighted distribution.

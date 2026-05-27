@@ -1,0 +1,71 @@
+NHK-style cleaned control-set variation
+=======================================
+
+Retained runs: 156
+Unique cleaned control sets: 66
+Share with a control set no other retained run used: 25.6%
+Share with exactly one other retained run using the same set: 11.5%
+Share with two or three other retained runs using the same set: 16.0%
+Share with more than three other retained runs using the same set: 46.8%
+
+Most common cleaned control sets:
+- 12 (7.7%): age | age quadratic | sex FE | state FE | year FE
+- 9 (5.8%): state FE | year FE
+- 9 (5.8%): (none)
+- 8 (5.1%): age FE | labor force participation rate | state FE | unemployment rate | year FE
+- 7 (4.5%): age | age quadratic | labor force participation rate | sex FE | state FE | unemployment rate | year FE
+- 7 (4.5%): age FE | state FE | year FE
+- 6 (3.8%): age | age quadratic | labor force participation rate | sex | state FE | unemployment rate | year FE
+- 5 (3.2%): age | age quadratic | state FE | year FE
+- 5 (3.2%): age | age quadratic | sex | state FE | year FE
+- 5 (3.2%): age | age quadratic | driverslicenses | everify | higheredban | instatetuition | jail287g | labor force participation rate | limiteverify | omnibus | securecommunities | sex FE | state FE | statefinancialaid | task287g | unemployment rate | year FE
+- 4 (2.6%): labor force participation rate | state FE | unemployment rate | year FE
+- 4 (2.6%): birth-year FE | driverslicenses | everify | higheredban | instatetuition | jail287g | labor force participation rate | limiteverify | omnibus | securecommunities | sex FE | state FE | statefinancialaid | task287g | unemployment rate | year FE
+
+Most common included controls/fixed effects:
+- 92.3%: state FE (144)
+- 86.5%: year FE (135)
+- 58.3%: unemployment rate (91)
+- 56.4%: labor force participation rate (88)
+- 51.3%: age (80)
+- 42.9%: age quadratic (67)
+- 32.7%: sex FE (51)
+- 26.3%: driverslicenses (41)
+- 26.3%: everify (41)
+- 25.0%: limiteverify (39)
+- 24.4%: omnibus (38)
+- 23.1%: higheredban (36)
+- 23.1%: instatetuition (36)
+- 23.1%: jail287g (36)
+- 23.1%: statefinancialaid (36)
+- 20.5%: securecommunities (32)
+- 20.5%: task287g (32)
+- 18.6%: sex (29)
+- 16.7%: age FE (26)
+- 10.9%: birth-year FE (17)
+
+Controls/fixed effects with inclusion rates between 20% and 80%: 15
+- 58.3%: unemployment rate (91)
+- 56.4%: labor force participation rate (88)
+- 51.3%: age (80)
+- 42.9%: age quadratic (67)
+- 32.7%: sex FE (51)
+- 26.3%: driverslicenses (41)
+- 26.3%: everify (41)
+- 25.0%: limiteverify (39)
+- 24.4%: omnibus (38)
+- 23.1%: higheredban (36)
+- 23.1%: instatetuition (36)
+- 23.1%: jail287g (36)
+- 23.1%: statefinancialaid (36)
+- 20.5%: securecommunities (32)
+- 20.5%: task287g (32)
+
+Phase 3 first-RHS-term parser diagnostics:
+- likely treatment/post: 147 (94.2%)
+- no parsed RHS term: 8 (5.1%)
+- likely normal control: 1 (0.6%)
+- Retained runs with treatment/post terms still present in raw control_variables: 58 (37.2%)
+
+Examples where Phase 3 appears to drop a normal control as the first RHS term:
+- run_20260512T165453Z_c32ba8: C(birthyr)

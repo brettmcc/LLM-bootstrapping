@@ -39,6 +39,7 @@ BENCHMARK_TABLE4_METHOD_SHARES = {
     "No Sample Weights": {"n": 329, "share": 75.0},
     "Sample Weights": {"n": 109, "share": 25.0},
 }
+BENCHMARK_TABLE4_METHOD_TOTAL = 437
 BENCHMARK_TABLE5_CONTROL_EFFECTS = [
     # Published Table 5 in I4R-DP209.pdf. Rows are overlapping indicators:
     # each row includes every human estimate whose specification contains the
@@ -135,6 +136,8 @@ BENCHMARK_TABLE5_CONTROL_EFFECTS = [
 ]
 INVERSE_SE_FLOOR_QUANTILE = 0.05
 PUBLISHED_ROUNDED_ZERO_SE_DISPLAY_FLOOR = 0.0005
+TWO_SIDED_TEN_PERCENT_CRITICAL_VALUE = 1.6448536269514722
+TWO_SIDED_FIVE_PERCENT_CRITICAL_VALUE = 1.959963984540054
 BENCHMARK_TASK1_TABLE3 = {
     # Published Task 1 summary statistics from Table 3 of I4R-DP209.pdf.
     "effect_unweighted": {"min": -0.049, "p25": 0.014, "median": 0.030, "p75": 0.051, "max": 0.660},
@@ -158,6 +161,12 @@ def load_and_filter_data(csv_path: Path, verbose: bool = False, max_abs_effect: 
     df = df[df["execution_status"] == "success"].copy()
     df["point_est"] = pd.to_numeric(df["point_est"], errors="coerce")
     df["SE"] = pd.to_numeric(df["SE"], errors="coerce")
+    if "t_stat" in df.columns:
+        df["t_stat"] = pd.to_numeric(df["t_stat"], errors="coerce")
+    else:
+        # Older aggregate files did not include t_stat. Recompute it here so
+        # Phase 4 remains backward-compatible with archived CSVs.
+        df["t_stat"] = df["point_est"] / df["SE"]
     df["sample_size"] = pd.to_numeric(df["sample_size"], errors="coerce")
     if "treated_group_size" in df.columns:
         df["treated_group_size"] = pd.to_numeric(df["treated_group_size"], errors="coerce")
@@ -568,6 +577,24 @@ def write_tabular(path: Path, header: list[str], rows: list[list[str]], column_s
     path.write_text("\n".join(lines), encoding="utf-8")
 
 
+def write_grouped_share_tabular(path: Path, rows: list[list[str]], second_column: str = "Choice") -> None:
+    # Use a two-row header so the AI and human counts/shares are visibly paired.
+    # The row labels remain separate because categories often span blocks of
+    # choices, while the count/share cells describe each individual choice.
+    lines = [
+        r"\begin{tabular}{@{}l l r r r r@{}}",
+        r"\toprule",
+        r" &  & \multicolumn{2}{c}{AI} & \multicolumn{2}{c}{Humans} \\",
+        r"\cmidrule(lr){3-4}\cmidrule(lr){5-6}",
+        rf"Category & {second_column} & N & Share (\%) & N & Share (\%) \\",
+        r"\midrule",
+    ]
+    for row in rows:
+        lines.append(" & ".join(latex_escape(cell) for cell in row) + r" \\")
+    lines.extend([r"\bottomrule", r"\end{tabular}"])
+    path.write_text("\n".join(lines), encoding="utf-8")
+
+
 def write_table_environment(
     path: Path,
     *,
@@ -765,17 +792,14 @@ def generate_table4(df: pd.DataFrame, output_path: Path) -> None:
                 format_int(benchmark["n"]),
                 format_float(benchmark["share"], 1),
             ])
-    write_tabular(
-        output_path,
-        ["Category", "Choice", "AI N", "AI Share (%)", "Human N", "Human Share (%)"],
-        rows,
-        "@{}l l r r r r@{}",
-    )
+    write_grouped_share_tabular(output_path, rows)
 
 
 def generate_table5(df: pd.DataFrame, output_path: Path) -> None:
     rows = []
     total_df = df.copy()
+    ai_total = len(total_df)
+    human_total = BENCHMARK_TABLE4_METHOD_TOTAL
     control_terms = total_df["control_variables"].fillna("").apply(split_terms)
     fixed_terms = total_df["fixed_effects"].fillna("").apply(split_terms)
     # Match NHK Table 5's construction: each row is an overlapping inclusion
@@ -854,27 +878,12 @@ def generate_table5(df: pd.DataFrame, output_path: Path) -> None:
             human["category"],
             human["control"],
             format_int(len(subset)),
-            format_float(subset["point_est"].mean()),
-            format_float(subset["point_est"].std()),
-            format_float(subset["SE"].mean()),
+            format_float(100 * len(subset) / ai_total if ai_total else 0, 1),
             format_int(human_rows[human["control"]]["n"]),
-            format_float(human_rows[human["control"]]["mean_effect"]),
-            format_float(human_rows[human["control"]]["sd_effect"]),
-            format_float(human_rows[human["control"]]["mean_se"]),
+            format_float(100 * human_rows[human["control"]]["n"] / human_total, 1),
         ])
 
-    lines = [
-        r"\begin{tabular}{@{}l l r r r r r r r r@{}}",
-        r"\toprule",
-        r" &  & \multicolumn{4}{c}{AI agents} & \multicolumn{4}{c}{NHK humans} \\",
-        r"\cmidrule(lr){3-6}\cmidrule(lr){7-10}",
-        r"Category & Control & N & Mean Effect & SD & Mean SE & N & Mean Effect & SD & Mean SE \\",
-        r"\midrule",
-    ]
-    for row in rows:
-        lines.append(" & ".join(latex_escape(cell) for cell in row) + r" \\")
-    lines.extend([r"\bottomrule", r"\end{tabular}"])
-    output_path.write_text("\n".join(lines), encoding="utf-8")
+    write_grouped_share_tabular(output_path, rows, second_column="Control")
 
 
 def generate_table6(df: pd.DataFrame, output_path: Path) -> None:
@@ -1184,6 +1193,7 @@ def build_paper_metrics(df: pd.DataFrame, filter_counts: dict[str, int]) -> dict
     # macro. That keeps the manuscript synchronized with the generated tables.
     point = df["point_est"]
     se = df["SE"]
+    t_stat = df["t_stat"]
     sample = df["sample_size"]
     weights = inverse_se_weights(se.to_numpy())
     weighted = weighted_stats(point.to_numpy(), weights)
@@ -1205,6 +1215,8 @@ def build_paper_metrics(df: pd.DataFrame, filter_counts: dict[str, int]) -> dict
         )
     ]
     linear_share = 100 * sum(method in {"OLS", "WLS"} for method in methods) / len(df)
+    sig_ten_fraction = float(t_stat.abs().ge(TWO_SIDED_TEN_PERCENT_CRITICAL_VALUE).mean())
+    sig_five_fraction = float(t_stat.abs().ge(TWO_SIDED_FIVE_PERCENT_CRITICAL_VALUE).mean())
 
     dropped = (
         filter_counts["missing_specs"]
@@ -1233,6 +1245,8 @@ def build_paper_metrics(df: pd.DataFrame, filter_counts: dict[str, int]) -> dict
         "aiSampleMin": format_int(float(sample.min())),
         "aiSampleMax": format_int(float(sample.max())),
         "aiSeMean": format_math_float(float(se.mean())),
+        "aiSigTenPctFraction": format_math_float(sig_ten_fraction),
+        "aiSigFivePctFraction": format_math_float(sig_five_fraction),
         "aiLinearModelShare": format_math_float(linear_share, 1),
         "aiPerwtShare": format_math_float(100 * float(uses_perwt.mean()), 1),
         "aiClusterStateShare": format_math_float(100 * float(clustered_state.mean()), 1),
