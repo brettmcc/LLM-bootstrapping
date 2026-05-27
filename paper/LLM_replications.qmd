@@ -17,7 +17,8 @@ header-includes:
     \input{../NHK-replications/meta_analysis_expanded/paper_macros.tex}
     \input{LLM_replications_wordcount.tex}
     \newcommand{\titleaffiliation}{Collegio Carlo Alberto}
-    \newcommand{\titledate}{May 19, 2026}
+    \newcommand{\titlefirstdraft}{First draft: April 10, 2026}
+    \newcommand{\titledate}{This draft: \today}
     \newcommand{\titlenote}{brett.mccully@carloalberto.org. I thank Yagan Hazard for helpful conversations. Any errors are my own.}
     \makeatletter
     \renewcommand{\maketitle}{
@@ -29,6 +30,8 @@ header-includes:
       \vspace{0.5em}
       {\normalsize \titleaffiliation \par}
       \vspace{0.75em}
+      {\normalsize \titlefirstdraft \par}
+      \vspace{0.25em}
       {\normalsize \titledate \par}
       \vspace{0.75em}
       {\footnotesize \textit{Word count (main text):} \MainTextWordCount \par}
@@ -45,7 +48,7 @@ format:
     cite-method: natbib
     biblio-style: ecca
 bibliography: bibliography.bib
-date: "May 22, 2026"
+date: last-modified
 number-sections: true
 number-depth: 2
 abstract: |

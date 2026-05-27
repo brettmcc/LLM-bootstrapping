@@ -57,3 +57,6 @@ NHK-replications/meta_analysis/Submitted Replications/
 
 # Archives
 NHK-replications/archive/
+
+# settings files
+.vscode/
