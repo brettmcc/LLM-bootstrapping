@@ -1,4 +1,0 @@
-Rc files read:
-  NONE
-Latexmk: This is Latexmk, John Collins, 29 September 2020, version: 4.70b.
-Latexmk: All targets (main.pdf) are up-to-date

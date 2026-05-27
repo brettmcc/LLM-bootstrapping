@@ -1,6 +1,0 @@
-round,variable,series_key,n,mean,sd,min,p25,median,p75,max,gather_process,source_table,source_paper
-Task 1,Effect Size (Unweighted),effect_unweighted,145,0.053,0.095,-0.049,0.014,0.03,0.051,0.66,manual_from_converted_pdf,Table 3,replication-materials/I4R-DP209.pdf
-Task 1,Effect Size (Weighted),effect_weighted,138,0.044,0.092,-0.049,0.012,0.026,0.043,0.66,manual_from_converted_pdf,Table 3,replication-materials/I4R-DP209.pdf
-Task 1,Standard Error,standard_error,139,0.019,0.055,0.0,0.005,0.007,0.013,0.46,manual_from_converted_pdf,Table 3,replication-materials/I4R-DP209.pdf
-Task 1,Sample Size,sample_size,145,828318.0,3056037.0,681.0,61600.0,179960.0,356787.0,29536580.0,manual_from_converted_pdf,Table 3,replication-materials/I4R-DP209.pdf
-Task 1,Treated-Group Size,treated_group_size,141,96395.0,648493.0,270.0,17950.0,34435.0,52581.0,7727201.0,manual_from_converted_pdf,Table 3,replication-materials/I4R-DP209.pdf
