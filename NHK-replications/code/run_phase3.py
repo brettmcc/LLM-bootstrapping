@@ -1,4 +1,4 @@
-"""Aggregate specs + execution results into runs_complete.csv."""
+"""Aggregate expanded Phase 12 Copilot outputs into runs_complete_expanded.csv."""
 
 from __future__ import annotations
 
@@ -14,65 +14,10 @@ from typing import Any, Optional
 from data_profiles import (
     DEFAULT_DATA_PROFILE,
     aggregate_output_path,
-    conversations_root,
-    data_profile_choices,
     executions_root,
-    specs_base_dir,
+    specs_dir,
 )
 from path_utils import resolve_path
-
-
-def normalize_spec(spec: dict[str, Any]) -> str:
-    # Normalize JSON so matching is stable across whitespace/key ordering.
-    return json.dumps(spec, sort_keys=True, separators=(",", ":"))
-
-
-def extract_json_object(text: str) -> Optional[dict[str, Any]]:
-    # Attempt to extract a JSON object from arbitrary text.
-    decoder = json.JSONDecoder()
-    # Find all positions where a JSON object could start.
-    starts = [match.start() for match in re.finditer(r"{", text)]
-    # Try parsing from the end to prefer the most complete object.
-    for start in reversed(starts):
-        try:
-            obj, _ = decoder.raw_decode(text[start:])
-        except json.JSONDecodeError:
-            continue
-        if isinstance(obj, dict):
-            return obj
-    return None
-
-
-def parse_run_log(path: Path) -> tuple[dict[str, Any], Optional[dict[str, Any]]]:
-    # Parse a Phase 1 API run log into metadata and a spec JSON object.
-    text = path.read_text(encoding="utf-8", errors="replace")
-    # Split into metadata and response sections.
-    if "RUN METADATA" not in text or "LLM RESPONSE" not in text:
-        return {}, None
-    # Extract metadata lines between headers.
-    metadata_block = text.split("RUN METADATA", 1)[1].split("LLM RESPONSE", 1)[0]
-    # Extract response content after the response header.
-    response_block = text.split("LLM RESPONSE", 1)[1]
-    metadata: dict[str, Any] = {}
-    # Parse metadata lines like "key: value".
-    for line in metadata_block.splitlines():
-        if ":" not in line:
-            continue
-        key, value = line.split(":", 1)
-        key = key.strip()
-        value = value.strip()
-        if not key:
-            continue
-        metadata[key] = value
-    # Try to parse the response as JSON, allowing fenced or extra text.
-    response_text = response_block.strip()
-    if response_text.startswith("```json"):
-        response_text = response_text[7:]
-    if response_text.endswith("```"):
-        response_text = response_text[:-3]
-    response_text = response_text.strip()
-    spec = extract_json_object(response_text)
-    return metadata, spec
 
 
 def parse_datetime_from_run_id(run_id: str) -> Optional[str]:
@@ -125,7 +70,7 @@ def infer_model_type(model_spec: str) -> str:
     if match:
         name = match.group(1)
         return mapping.get(name, name.upper())
-    # Many Copilot runs use the non-formula statsmodels API instead.
+    # Many Copilot runs use the non-formula statsmodels interface instead.
     match = re.search(r"\bsm\.([a-z_]+)\s*\(", lower)
     if match:
         name = match.group(1)
@@ -309,7 +254,7 @@ def read_spec_metadata(spec_path: Path) -> dict[str, Any]:
 
 
 def canonicalize_model_label(label: str, provider: str) -> str:
-    # Treat legacy GitHub Copilot labels as GPT 5.1 Codex Mini for consistency.
+    # Treat older GitHub Copilot labels as GPT 5.1 Codex Mini for consistency.
     normalized = label.strip()
     if not normalized:
         return ""
@@ -319,79 +264,15 @@ def canonicalize_model_label(label: str, provider: str) -> str:
     return normalized
 
 
-def build_metadata_index(log_paths: list[Path]) -> dict[str, list[dict[str, Any]]]:
-    # Build a mapping from normalized spec JSON to a list of metadata dicts.
-    mapping: dict[str, list[dict[str, Any]]] = {}
-    for path in log_paths:
-        metadata, spec = parse_run_log(path)
-        if not spec:
-            continue
-        spec_key = normalize_spec(spec)
-        mapping.setdefault(spec_key, []).append(metadata)
-    return mapping
-
-
-def load_spec_files(spec_root: Path, phase12_spec_root: Path, providers: list[str]) -> list[Path]:
-    # Collect spec files from the non-phase12 and phase12 spec trees.
-    files: list[Path] = []
-    if providers:
-        for provider in providers:
-            parts = provider_filter_parts(provider)
-            if parts and parts[0] == "phase12":
-                provider_dir = phase12_spec_root.joinpath(*parts[1:]) if len(parts) > 1 else phase12_spec_root
-            else:
-                provider_dir = spec_root / provider
-            if provider_dir.exists():
-                files.extend(sorted(provider_dir.rglob("*.json")))
-        return files
-    # If no providers specified, scan all non-phase12 provider folders first.
-    if spec_root.exists():
-        for subdir in sorted(spec_root.iterdir()):
-            if not subdir.is_dir() or subdir.name == "phase12":
-                continue
-            files.extend(sorted(subdir.rglob("*.json")))
-    # Then scan the dedicated phase12 provider folders.
-    if phase12_spec_root.exists():
-        for subdir in sorted(phase12_spec_root.iterdir()):
-            if subdir.is_dir():
-                files.extend(sorted(subdir.rglob("*.json")))
-    return files
-
-
-def provider_filter_parts(provider: str) -> list[str]:
-    return [part for part in provider.replace("\\", "/").split("/") if part]
-
-
-def include_phase12_run(run_dir: Path, providers: list[str]) -> bool:
-    # Mirror provider filtering for archived phase12 run directories.
-    if not providers:
-        return True
-    metadata = read_run_metadata([run_dir])
-    cli_provider = str(metadata.get("cli_provider", "")).strip()
-    for provider in providers:
-        parts = provider_filter_parts(provider)
-        if not parts:
-            continue
-        if parts[0] == "phase12":
-            if len(parts) == 1:
-                return True
-            if cli_provider and parts[1] == cli_provider:
-                return True
-        elif cli_provider and parts[-1] == cli_provider:
-            return True
-    return False
-
-
-def load_phase12_run_dirs(phase12_root: Path, providers: list[str]) -> dict[str, Path]:
-    # Collect archived phase12 run directories that match the provider filter.
+def load_phase12_run_dirs(phase12_root: Path) -> dict[str, Path]:
+    # Collect archived expanded Phase 12 run directories.
     runs: dict[str, Path] = {}
     if not phase12_root.exists():
         return runs
     for run_dir in sorted(phase12_root.iterdir()):
         if not run_dir.is_dir():
             continue
-        if include_phase12_run(run_dir, providers):
-            runs[run_dir.name] = run_dir
+        runs[run_dir.name] = run_dir
     return runs
 
 
@@ -408,68 +289,33 @@ def read_spec_from_run_dir(run_dir: Path) -> Optional[dict[str, Any]]:
 
 def main() -> None:
     # Parse command-line arguments.
-    parser = argparse.ArgumentParser(description="Aggregate Phase 1+2 outputs.")
+    parser = argparse.ArgumentParser(description="Aggregate expanded Phase 12 Copilot outputs.")
     parser.add_argument(
         "--output",
         type=Path,
         default=None,
-        help="Output CSV path (default depends on --data-profile)",
-    )
-    parser.add_argument(
-        "--spec-provider",
-        action="append",
-        default=[],
-        help="Limit to specific providers (e.g., codex, mistral, gemini_api, gemini_cli)",
-    )
-    parser.add_argument(
-        "--data-profile",
-        choices=[*data_profile_choices(), "all"],
-        default=DEFAULT_DATA_PROFILE,
-        help="Which ACS extract cohort to aggregate (default: expanded)",
-    )
-    parser.add_argument(
-        "--phase2-model",
-        type=str,
-        default="",
-        help="Label for the Phase 2 execution model (e.g., codex-cli, gemini-cli)",
+        help="Output CSV path (default: runs_complete_expanded.csv)",
     )
     args = parser.parse_args()
 
     project_root = resolve_path(".")
     if args.output is None:
-        if args.data_profile == "all":
-            args.output = project_root / "runs_complete_all.csv"
-        else:
-            args.output = aggregate_output_path(project_root, args.data_profile)
+        args.output = aggregate_output_path(project_root, DEFAULT_DATA_PROFILE)
 
-    selected_profiles = list(data_profile_choices()) if args.data_profile == "all" else [args.data_profile]
+    data_profile = DEFAULT_DATA_PROFILE
 
-    # Collect log files from Phase 1 API runs.
-    log_paths = []
-    for profile_name in selected_profiles:
-        profile_conversations_root = conversations_root(project_root, profile_name)
-        if not profile_conversations_root.exists():
-            continue
-        for subdir in profile_conversations_root.iterdir():
-            if not subdir.is_dir():
-                continue
-            log_paths.extend(sorted(subdir.glob("run_*_B_*.txt")))
-    metadata_index = build_metadata_index(log_paths)
-
-    # Collect spec files.
+    # Collect expanded Phase 12 Copilot spec files and run directories.
     spec_paths_by_key: dict[tuple[str, str], Path] = {}
     phase12_run_dirs: dict[tuple[str, str], Path] = {}
-    for profile_name in selected_profiles:
-        spec_root = specs_base_dir(project_root, profile_name, phase12=False)
-        phase12_spec_root = specs_base_dir(project_root, profile_name, phase12=True)
-        spec_files = load_spec_files(spec_root, phase12_spec_root, args.spec_provider)
-        for spec_path in spec_files:
+    spec_root = specs_dir(project_root, "copilot", data_profile, phase12=True)
+    if spec_root.exists():
+        for spec_path in sorted(spec_root.glob("spec_*.json")):
             run_id = spec_path.stem.replace("spec_", "")
-            spec_paths_by_key.setdefault((profile_name, run_id), spec_path)
+            spec_paths_by_key.setdefault((data_profile, run_id), spec_path)
 
-        phase12_root = executions_root(project_root, profile_name, phase12=True)
-        for run_id, run_dir in load_phase12_run_dirs(phase12_root, args.spec_provider).items():
-            phase12_run_dirs.setdefault((profile_name, run_id), run_dir)
+    phase12_root = executions_root(project_root, data_profile, phase12=True)
+    for run_id, run_dir in load_phase12_run_dirs(phase12_root).items():
+        phase12_run_dirs.setdefault((data_profile, run_id), run_dir)
 
     candidate_keys = sorted(set(spec_paths_by_key) | set(phase12_run_dirs))
     if not candidate_keys:
@@ -511,20 +357,10 @@ def main() -> None:
         for data_profile, run_id in candidate_keys:
             spec_path = spec_paths_by_key.get((data_profile, run_id))
             phase12_run_dir = phase12_run_dirs.get((data_profile, run_id))
-            is_phase12 = phase12_run_dir is not None or (
-                spec_path is not None and any(parent.name == "phase12" for parent in spec_path.parents)
-            )
-            run_dirs: list[Path] = []
-            if is_phase12:
-                run_dirs.append(phase12_run_dir or (executions_root(project_root, data_profile, phase12=True) / run_id))
-            base_run_dir = executions_root(project_root, data_profile) / run_id
-            if not is_phase12 or base_run_dir.exists():
-                run_dirs.append(base_run_dir)
-            deduped_run_dirs: list[Path] = []
-            for run_dir in run_dirs:
-                if run_dir not in deduped_run_dirs:
-                    deduped_run_dirs.append(run_dir)
-            run_dirs = deduped_run_dirs
+            run_dirs = [
+                phase12_run_dir
+                or (executions_root(project_root, data_profile, phase12=True) / run_id)
+            ]
 
             run_metadata = read_run_metadata(run_dirs)
             provider = str(run_metadata.get("cli_provider", "")).strip()
@@ -532,20 +368,13 @@ def main() -> None:
             spec_data: Optional[dict[str, Any]] = None
             if spec_path is not None:
                 spec_data = json.loads(spec_path.read_text(encoding="utf-8"))
-                spec_key = normalize_spec(spec_data)
-                if spec_key in metadata_index and metadata_index[spec_key]:
-                    metadata = metadata_index[spec_key].pop(0)
                 sidecar_metadata = read_spec_metadata(spec_path)
                 for key, value in sidecar_metadata.items():
                     metadata.setdefault(key, value)
                 if not provider:
-                    provider = spec_path.parent.name
+                    provider = "copilot"
             elif phase12_run_dir is not None:
                 spec_data = read_spec_from_run_dir(phase12_run_dir)
-                if spec_data is not None:
-                    spec_key = normalize_spec(spec_data)
-                    if spec_key in metadata_index and metadata_index[spec_key]:
-                        metadata = metadata_index[spec_key].pop(0)
             spec_status = "available" if spec_data is not None else "missing_spec"
 
             # Fill metadata fields with best-available data.
@@ -557,16 +386,13 @@ def main() -> None:
             random_seed = metadata.get("random_seed", "") or run_metadata.get("random_seed", "")
             temperature = metadata.get("temperature", "") or run_metadata.get("temperature", "")
             prompt_variant = metadata.get("prompt_variant", "") or run_metadata.get("prompt_variant", "")
-            provider_fallback = f"{provider}-cli" if provider else ""
             model_phase1 = (
                 metadata.get("model", "")
                 or metadata.get("model_phase1", "")
                 or run_metadata.get("model_phase1", "")
                 or run_metadata.get("requested_model_phase1", "")
+                or "copilot-cli"
             )
-            if not model_phase1 and provider_fallback:
-                # For CLI specs, mark the provider explicitly.
-                model_phase1 = provider_fallback
 
             # Pull spec fields.
             sample_selection = ""
@@ -589,22 +415,13 @@ def main() -> None:
             sample_weighting = infer_sample_weighting(model_spec) if model_spec else ""
             se_adjustment = infer_se_adjustment(model_spec) if model_spec else ""
 
-            # Load execution results (Phase 2 or Phase 1+2).
-            if is_phase12 and model_phase1 == provider_fallback:
-                model_phase1 = (
-                    run_metadata.get("model_phase1", "")
-                    or run_metadata.get("requested_model_phase1", "")
-                    or run_metadata.get("model_phase2", "")
-                    or model_phase1
-                )
+            # Load execution results from the archived Phase 12 run.
             model_phase1 = canonicalize_model_label(model_phase1, provider)
             model_phase2 = (
-                args.phase2_model
-                or run_metadata.get("model_phase2", "")
+                run_metadata.get("model_phase2", "")
                 or run_metadata.get("requested_model_phase2", "")
+                or model_phase1
             )
-            if not model_phase2 and is_phase12 and provider_fallback:
-                model_phase2 = provider_fallback
             model_phase2 = canonicalize_model_label(model_phase2, provider)
             results, status = read_results(run_dirs)
             point_est = ""

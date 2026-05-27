@@ -24,7 +24,7 @@ Additional background notes:
 
 ## Data
 
-Data for analysis will come from the American Community Survey (ACS) as provided by [IPUMS USA](https://usa.ipums.org/usa/acs.shtml), in addition to a provided supplemental file of state demographic and policy information. Please do not retrieve any other data for analysis other than what's in [usa_00042.dat](usa_00042.dat) and [policy_labor_market_data.csv](policy_labor_market_data.csv) (the latter is described in [State-Level Data Documentation.md](State-Level Data Documentation.md)). You are not required to use any of the supplemental state-level information, but may do so.
+Data for analysis will come from the American Community Survey (ACS) as provided by [IPUMS USA](https://usa.ipums.org/usa/acs.shtml), in addition to a provided supplemental file of state demographic and policy information. Please do not retrieve any other data for analysis other than what's in [ACS_extract_expanded.dat](ACS_extract_expanded.dat) and [policy_labor_market_data.csv](policy_labor_market_data.csv) (the latter is described in [State-Level Data Documentation.md](State-Level Data Documentation.md)). You are not required to use any of the supplemental state-level information, but may do so.
 
 The data were constructed as follows:
 - Using “USA Samples”
@@ -32,7 +32,7 @@ The data were constructed as follows:
 - Not using any files newer than 2016. 
 - Not using any files older than 2006. This is to avoid data definition inconsistencies, and to ensure that the variables necessary for identifying DACA eligibility are all present. You are not required to use all files back to 2006, but will not be using any older than that. 
 - On the “Select Variables” page, only Harmonized Variables were selected
-- See use_00042.cbk for a plain-text codebook of the data. usa_00042.do is the Stata do-file that can be used to read the raw usa_00042.dat file into Stata as well as understand the underlying data structure; usa_00042.xml provides an alternative xml-formatted codebook.
+- See ACS_extract_expanded_codebook.txt for a plain-text codebook of the data. acs_extra_expanded.do is the Stata do-file that can be used to read the raw ACS_extract_expanded.dat file into Stata and understand the underlying data structure.
 
 - DACA eligibility and whether someone was Hispanic and born in Mexico can be determined using:
     - Census year (included in data extract by default)
@@ -48,8 +48,8 @@ The data were constructed as follows:
 - Unless necessary, we ask that you try not to ask for clarification on how the analysis should be done, as the analysis should be independent. Similarly, do not try to guess how other researchers will approach this task in order to match (or avoid matching) their approach. The idea is that we want to see how you would estimate this effect, if you’d had this question, this idea for identification, and had chosen this particular sample.
 - There are already published studies that use various methods to look at the effect of DACA or other immigration reforms on different outcomes, including employment. Some of these studies use ACS data as well. You may, if you like, seek out existing literature for background. However, do not assume that these published studies are “the right answer” and attempt to directly copy them just because they are published. This research task is not designed as a replication of any particular study, so there is no “right answer” study to emulate. The idea is that we want to see how you would estimate this effect, if you’d had this question, this idea for identification, and had chosen this particular sample. At most this would be informed by prior research, but not directed by it, as you might be informed by a literature review when writing a paper.
 - You are fully autonomous on this task. Do not ask permission to 'proceed' or to execute a command.
-- Efficiency and Memory Usage: The analysis environment has 96GB of RAM. While ample for the provided usa_00042.dat (~6GB), inefficient coding practices (e.g. creating multiple copies of the full dataframe) can still cause memory exhaustion. Please implement your analysis with memory efficiency in mind—for example by using in-place operations, deleting start-up dataframes once filtered—without artificially restricting the sample size or scope of your analysis. Your goal is still to complete the analysis, just implemented efficiently.
-- delete the raw .dat file when your run is complete, but save the cleaned data used in your analysis.
+- Efficiency and Memory Usage: The analysis environment has 96GB of RAM. While ample for the provided ACS_extract_expanded.dat, inefficient coding practices (e.g. creating multiple copies of the full dataframe) can still cause memory exhaustion. Please implement your analysis with memory efficiency in mind—for example by using in-place operations, deleting start-up dataframes once filtered—without artificially restricting the sample size or scope of your analysis. Your goal is still to complete the analysis, just implemented efficiently.
+- Leave input files in place. The runner cleans up run-local data links after the run is complete.
 
 ## Turn in When Done
 

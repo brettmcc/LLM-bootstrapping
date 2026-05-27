@@ -1,4 +1,4 @@
-"""Helpers for switching between the legacy and expanded ACS extracts."""
+"""Helpers for the expanded ACS extract used by the current pipeline."""
 
 from __future__ import annotations
 
@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-LEGACY_DATA_PROFILE = "legacy"
 EXPANDED_DATA_PROFILE = "expanded"
 DEFAULT_DATA_PROFILE = EXPANDED_DATA_PROFILE
 
@@ -24,15 +23,6 @@ class DataProfile:
 
 
 DATA_PROFILES: dict[str, DataProfile] = {
-    LEGACY_DATA_PROFILE: DataProfile(
-        name=LEGACY_DATA_PROFILE,
-        description="Legacy ACS extract based on usa_00042.",
-        data_file_name="usa_00042.dat",
-        layout_file_name="usa_00042.do",
-        run_data_file_name="usa_00042.dat",
-        run_layout_excerpt_name="usa_00042_layout_excerpt.do",
-        aggregate_csv_name="runs_complete.csv",
-    ),
     EXPANDED_DATA_PROFILE: DataProfile(
         name=EXPANDED_DATA_PROFILE,
         description="Expanded ACS extract covering the superset of submitted-replication variables.",
@@ -43,11 +33,6 @@ DATA_PROFILES: dict[str, DataProfile] = {
         aggregate_csv_name="runs_complete_expanded.csv",
     ),
 }
-
-
-def data_profile_choices() -> tuple[str, ...]:
-    # argparse wants a stable iterable of allowed profile names.
-    return tuple(DATA_PROFILES)
 
 
 def get_data_profile(name: str) -> DataProfile:
@@ -77,43 +62,32 @@ def layout_file_path(project: Path, profile_name: str) -> Path:
 
 
 def specs_base_dir(project: Path, profile_name: str, *, phase12: bool = False) -> Path:
-    # Legacy specs stay in the historical location; expanded specs live under an explicit subfolder.
-    base = project / "specs"
+    # Current Phase 12 specs live directly under specs/spec_<run_id>.json.
     if phase12:
-        base = base / "phase12"
+        get_data_profile(profile_name)
+        return project / "specs"
+
+    base = project / "specs"
     profile = get_data_profile(profile_name)
-    if profile.name == LEGACY_DATA_PROFILE:
-        return base
     return base / profile.name
 
 
 def specs_dir(project: Path, provider: str, profile_name: str, *, phase12: bool = False) -> Path:
     # Provider-specific spec directory for the selected data profile.
+    if phase12:
+        return specs_base_dir(project, profile_name, phase12=True)
     return specs_base_dir(project, profile_name, phase12=phase12) / provider
 
 
-def conversations_root(project: Path, profile_name: str) -> Path:
-    # Keep legacy API logs in the existing root; expanded logs get their own namespace.
-    base = project / "runs" / "conversations"
-    profile = get_data_profile(profile_name)
-    if profile.name == LEGACY_DATA_PROFILE:
-        return base
-    return base / profile.name
-
-
-def conversations_dir(project: Path, model_dir: str, profile_name: str) -> Path:
-    # Raw Phase 1 API logs are grouped by model inside the profile-specific root.
-    return conversations_root(project, profile_name) / model_dir
-
-
 def executions_root(project: Path, profile_name: str, *, phase12: bool = False) -> Path:
-    # Legacy execution runs stay where they are; expanded runs live under dedicated subfolders.
-    base = project / "runs" / "executions"
+    # Current Phase 12 run directories live directly under runs/<run_id>.
     if phase12:
-        base = base / "phase12"
+        get_data_profile(profile_name)
+        return project / "runs"
+
+    # Keep the historical non-Phase-12 layout for any older helper callers.
+    base = project / "runs" / "executions"
     profile = get_data_profile(profile_name)
-    if profile.name == LEGACY_DATA_PROFILE:
-        return base
     return base / profile.name
 
 

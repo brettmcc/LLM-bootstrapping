@@ -23,6 +23,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from data_profiles import executions_root
+
 
 CAPTURE_SITE_CUSTOMIZE = r'''
 from __future__ import annotations
@@ -574,14 +576,7 @@ def analytic_runs(csv_path: Path) -> pd.DataFrame:
 def run_directory(project_root: Path, row: pd.Series) -> Path:
     data_profile = str(row.get("data_profile", "expanded"))
     run_id = str(row["run_id"])
-    candidates = [
-        project_root / "runs" / "executions" / "phase12" / data_profile / run_id,
-        project_root / "runs" / "executions" / data_profile / run_id,
-    ]
-    for candidate in candidates:
-        if (candidate / "analysis.py").exists():
-            return candidate
-    return candidates[0]
+    return executions_root(project_root, data_profile, phase12=True) / run_id
 
 
 def recover_counts_by_execution(

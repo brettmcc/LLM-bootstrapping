@@ -1,27 +1,15 @@
 # Overview
-Quantify the spread of LLM choices and outcomes when asking it to estimate a causal economics question. That is, when asking an LLM to complete a research task (what is the effect of DACA on full-time employment), what choices does it make to filter the sample? To construct variables? What model does it estimate? What control variables (if any) does it include?
 
-We answer this question by sampling a given LLM(s) $N$ times with the exact same prompt.
-
-## Architecture
+Quantify the spread of LLM choices and outcomes when asking it to estimate a causal economics question. Each run uses the same prompt and the same expanded ACS extract; variation should come from the LLM's stochastic choices.
 
 See [task.md](task.md) for the canonical, up-to-date pipeline documentation.
 
-**Phase 1 — Specification Generation** (two parallel approaches):
-| Approach | Tool | Seed/Temp Control | Output |
-|----------|------|-------------------|--------|
-| A | Devstral API (Mistral) | ✓ | JSON in `runs/` |
-| B | Google API (Gemini Flash) | ✓ | JSON in `runs/` |
-| C | Codex/Copilot/Gemini CLI | ✗ | JSON in `specs/<provider>/` for the legacy cohort or `specs/expanded/<provider>/` for the expanded cohort |
+## Current Architecture
 
-**Phase 2 — Implementation + Execution**:
-- Codex CLI (`--full-auto`) implements each spec as Python
-- Codex executes, self-corrects errors, re-runs until success
-- Output: legacy runs in `runs/executions/{run_id}/...`; expanded runs in `runs/executions/expanded/{run_id}/...`
+| Step | Script | Input | Output |
+|------|--------|-------|--------|
+| Phase 12 | `code/run_phase12.py` | `PROMPT_JSON.md` and expanded ACS materials | `specs/spec_<run_id>.json` and `runs/<run_id>/` |
+| Phase 3 | `code/run_phase3.py` | Expanded Phase 12 Copilot specs and results | `runs_complete_expanded.csv` |
+| Phase 4 | `code/run_phase4_meta_analysis.py` | `runs_complete_expanded.csv` | `meta_analysis_expanded/` |
 
-**Phase 3 — Aggregation**:
-- Combine specs + execution results into a profile-specific aggregate CSV (`runs_complete.csv` for legacy, `runs_complete_expanded.csv` for expanded)
-- Impute control_variables, fixed_effects, etc. from `model_specification_line`
-
-**Phase 4 — Meta-analysis**:
-- Use the chosen aggregate CSV to generate publication-ready tables/figures under `meta_analysis/`.
+Only the expanded data profile is supported. GitHub Copilot CLI is the only LLM runner used by the current pipeline.

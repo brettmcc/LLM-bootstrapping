@@ -368,9 +368,6 @@ def provider_display_name(value: str) -> str:
         "gpt-5.4-mini": "GPT-5.4-mini",
         "claude-haiku-4.5": "Claude Haiku 4.5",
         "claude-sonnet-4.6": "Claude Sonnet 4.6",
-        "codex-cli": "OpenAI Codex CLI",
-        "devstral-medium-latest": "Mistral Devstral Medium",
-        "gemini-3-flash-preview": "Google Gemini 3 Flash",
     }
     return mapping.get(value, value)
 
@@ -499,8 +496,7 @@ def load_benchmark_task1_data(project_dir: Path) -> dict[str, np.ndarray]:
 
     The published NHK table reports aggregate moments, which are enough for
     prose and benchmark bands but not enough to draw boxplots. For boxplots we
-    use the local OSF extraction file created by run_task1_benchmark_overlay.py
-    and apply the same score thresholds used by that script's overlay figures.
+    use the local benchmark extraction file when available.
     """
     extracts_path = project_dir / "meta_analysis" / "benchmark_task1_osf_researcher_extracts.csv"
     if not extracts_path.exists():
@@ -891,9 +887,6 @@ def generate_table6(df: pd.DataFrame, output_path: Path) -> None:
         "gpt-5.4-mini",
         "claude-sonnet-4.6",
         "gpt-5.1-codex-mini",
-        "codex-cli",
-        "devstral-medium-latest",
-        "gemini-3-flash-preview",
     ]
     observed = [value for value in df["model_phase1"].dropna().unique().tolist() if value]
     provider_specs = [(value, provider_display_name(value)) for value in preferred_order if value in observed]
@@ -1300,13 +1293,13 @@ def main() -> None:
     parser.add_argument(
         "--input",
         type=Path,
-        default=Path("runs_complete.csv"),
-        help="Path to runs_complete.csv",
+        default=Path("runs_complete_expanded.csv"),
+        help="Path to runs_complete_expanded.csv",
     )
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path("meta_analysis"),
+        default=Path("meta_analysis_expanded"),
         help="Output directory for tables/figures/report",
     )
     parser.add_argument("--no-figures", action="store_true", help="Skip figure generation")
