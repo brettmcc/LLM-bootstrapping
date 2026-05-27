@@ -15,7 +15,7 @@ header-includes:
     \usepackage[section]{placeins}
     \usepackage[dvipsnames]{xcolor}
     \input{../NHK-replications/meta_analysis_expanded/paper_macros.tex}
-    \input{economics_letters_wordcount.tex}
+    \input{LLM_replications_wordcount.tex}
     \newcommand{\titleaffiliation}{Collegio Carlo Alberto}
     \newcommand{\titledate}{May 19, 2026}
     \newcommand{\titlenote}{brett.mccully@carloalberto.org. I thank Yagan Hazard for helpful conversations. Any errors are my own.}

@@ -1031,8 +1031,8 @@ def generate_figure3(df: pd.DataFrame, output_path: Path) -> None:
     plt.close(fig)
 
 
-def generate_economics_letters_figure(df: pd.DataFrame, output_path: Path) -> None:
-    # Compact single-panel figure used in the Economics Letters draft. Use an
+def generate_compact_density_figure(df: pd.DataFrame, output_path: Path) -> None:
+    # Compact single-panel figure for short manuscript drafts. Use an
     # Epanechnikov kernel with a narrower-than-Scott bandwidth so the figure
     # does not visually erase the multimodality present in the older draft.
     import matplotlib.pyplot as plt
@@ -1380,7 +1380,7 @@ def main() -> None:
         generate_figure1(df, output_dir)
         generate_figure2(df, output_dir / "figure2_sample_size_distribution.png")
         generate_figure3(df, output_dir / "figure3_specification_curve.png")
-        generate_economics_letters_figure(df, output_dir / "figure_econ_letters.png")
+        generate_compact_density_figure(df, output_dir / "figure_compact_density.png")
         generate_comparison_boxplots(df, output_dir / "figure4_comparison_boxplots.png")
 
     if args.verbose:
