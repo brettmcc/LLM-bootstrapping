@@ -55,6 +55,9 @@ runs/
 # NHK replications
 NHK-replications/meta_analysis/Submitted Replications/
 
+# scratch notes
+notes/
+
 # Archives
 NHK-replications/archive/
 

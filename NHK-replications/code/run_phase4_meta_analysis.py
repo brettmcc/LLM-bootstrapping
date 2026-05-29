@@ -25,19 +25,19 @@ BENCHMARK_TASK1_METHOD_SHARES = {
     "No SE adjustment": {"n": 145, "share": 22.0},
 }
 BENCHMARK_TABLE4_METHOD_SHARES = {
-    "Linear Regression": {"n": 358, "share": 82.0},
-    "Logit/Probit": {"n": 57, "share": 13.0},
-    "Matching": {"n": 11, "share": 3.0},
-    "New DID Estimator": {"n": 7, "share": 2.0},
-    "Other": {"n": 4, "share": 1.0},
-    "Cluster (State)": {"n": 118, "share": 27.0},
-    "Cluster (State & Year)": {"n": 58, "share": 13.0},
-    "Cluster (ID/Strata/Other)": {"n": 65, "share": 15.0},
-    "Het-Robust": {"n": 76, "share": 17.0},
-    "Other/Bootstrap": {"n": 23, "share": 5.0},
-    "None": {"n": 98, "share": 22.0},
-    "No Sample Weights": {"n": 329, "share": 75.0},
-    "Sample Weights": {"n": 109, "share": 25.0},
+    "Linear Regression": {"n": 358},
+    "Logit/Probit": {"n": 57},
+    "Matching": {"n": 11},
+    "New DID Estimator": {"n": 7},
+    "Other": {"n": 4},
+    "Cluster (State)": {"n": 118},
+    "Cluster (State & Year)": {"n": 58},
+    "Cluster (ID/Strata/Other)": {"n": 65},
+    "Het-Robust": {"n": 76},
+    "Other/Bootstrap": {"n": 23},
+    "None": {"n": 98},
+    "No Sample Weights": {"n": 329},
+    "Sample Weights": {"n": 109},
 }
 BENCHMARK_TABLE4_METHOD_TOTAL = 437
 BENCHMARK_TABLE5_CONTROL_EFFECTS = [
@@ -780,13 +780,18 @@ def generate_table4(df: pd.DataFrame, output_path: Path) -> None:
             label = section if idx == 0 else ""
             share = 100 * count / total if total else 0
             benchmark = BENCHMARK_TABLE4_METHOD_SHARES[choice]
+            # The published NHK table reports human shares as whole-number
+            # percentages.  Recompute the one-decimal display value from the
+            # benchmark count and total so this table is internally consistent
+            # with the requested precision.
+            human_share = 100 * benchmark["n"] / BENCHMARK_TABLE4_METHOD_TOTAL
             rows.append([
                 label,
                 choice,
                 format_int(count),
                 format_float(share, 1),
                 format_int(benchmark["n"]),
-                format_float(benchmark["share"], 1),
+                format_float(human_share, 1),
             ])
     write_grouped_share_tabular(output_path, rows)
 
