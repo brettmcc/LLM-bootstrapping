@@ -41,6 +41,7 @@ desktop.ini
 # unnecessary replication docs
 *.cbk
 *.xml
+coarse-output/
 
 # Experiment runs (temporary outputs)
 runs/
@@ -53,7 +54,7 @@ runs/
 *.zip
 
 # NHK replications
-NHK-replications/meta_analysis/Submitted Replications/
+Submitted Replications/
 
 # scratch notes
 notes/

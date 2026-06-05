@@ -389,7 +389,7 @@ quietly infix                    ///
   long    repwtp80    1533-1538  ///
   byte    spmpov      1539-1539  ///
   byte    offpov      1540-1540  ///
-  using `"usa_00045.dat"'
+  using `"ACS_extract_expanded.dat"'
 
 replace hhwt       = hhwt       / 100
 replace cpi99      = cpi99      / 1000
