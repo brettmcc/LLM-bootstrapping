@@ -1,0 +1,9 @@
+{
+  "cli_provider": "copilot",
+  "data_profile": "expanded",
+  "model_phase1": "claude-sonnet-4.6",
+  "model_phase2": "claude-sonnet-4.6",
+  "phase": "phase12",
+  "requested_model_phase1": "claude-sonnet-4.6",
+  "requested_model_phase2": "claude-sonnet-4.6"
+}

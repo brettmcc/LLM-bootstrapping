@@ -1,0 +1,14 @@
+{
+  "model_specification_line": "wls('full_time ~ daca_eligible + post_daca + eligible_x_post', data=df, weights=perwt/mean(perwt)).fit()",
+  "outcome_definition": "uhrswork >= 35 (usually working 35+ hours per week)",
+  "sample_selection": [
+    "hispan==1 or bpl==200 (Mexican-origin)",
+    "citizen in [3,4,5] (Noncitizen or unknown citizenship)",
+    "age between 16 and 65 (Working age)",
+    "empstat==1 (Employed)",
+    "uhrswork > 0 (Positive hours worked)",
+    "year between 2006 and 2016",
+    "perwt > 0 (positive person weight)"
+  ],
+  "treatment_definition": "DACA eligible indicator: birth year >= 1982 (would be <=30 on June 15, 2012)"
+}

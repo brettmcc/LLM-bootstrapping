@@ -1,0 +1,13 @@
+{
+  "sample_selection": [
+    "Country of birth: Mexico (BPL == 200)",
+    "Citizenship status: Non-citizen (CITIZEN in [3, 4, 5])",
+    "Age: 16-35 years old",
+    "Valid person weight (perwt > 0)",
+    "Valid employment status (empstat > 0)",
+    "Years: 2006-2016"
+  ],
+  "outcome_definition": "(df['empstat'] == 1) & (df['uhrswork'] >= 35)",
+  "treatment_definition": "post_daca = (year >= 2013)",
+  "model_specification_line": "outcome = post_daca + age_centered + state_FE + year_FE, weighted by perwt"
+}

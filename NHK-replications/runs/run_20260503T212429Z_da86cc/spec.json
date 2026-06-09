@@ -1,0 +1,16 @@
+{
+  "model_specification_line": "smf.wls('full_time ~ treated_post + treated + post + age + age2 + C(sex) + C(state) + C(yr)', data=df, weights=df['perwt']).fit(cov_type='cluster', cov_kwds={'groups': df['state']})",
+  "outcome_definition": "(df['uhrswork'] >= 35).astype(int)",
+  "sample_selection": [
+    "HISPAN == 1 (Mexican-origin Hispanic)",
+    "BPL == 200 (born in Mexico)",
+    "CITIZEN in [3, 4] (non-citizen)",
+    "YRIMMIG > 0 AND YRIMMIG <= 2007 (immigrated to US by 2007)",
+    "YRIMMIG - BIRTHYR < 16 (arrived before age 16)",
+    "BIRTHYR between 1977 and 1996 (DiD age comparison window)",
+    "GQ in [1, 2] (non-institutional household)",
+    "YEAR in [2009, 2010, 2011, 2013, 2014, 2015, 2016] (pre- and post-DACA years, excluding 2012)",
+    "AGE between 18 and 40 (working age)"
+  ],
+  "treatment_definition": "(df['birthyr'] >= 1982).astype(int)"
+}

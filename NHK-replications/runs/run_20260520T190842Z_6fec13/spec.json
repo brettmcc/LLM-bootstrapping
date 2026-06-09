@@ -1,0 +1,14 @@
+{
+  "sample_selection": [
+    "year in 2013-2016",
+    "hispan == 1 (Mexican origin)",
+    "bpl == 200 (born in Mexico)",
+    "citizen == 3 (not a citizen proxy for undocumented status)",
+    "age between 16 and 35",
+    "yrimmig > 0 and birthyr > 0",
+    "age_at_arrival >= 0"
+  ],
+  "outcome_definition": "((df['empstat'] == 1) & (df['uhrswork'] >= 35)).astype(float)",
+  "treatment_definition": "((df['yrimmig'] <= 2007) & ((df['yrimmig'] - df['birthyr']) <= 15) & (df['birthyr'] >= 1982)).astype(float)",
+  "model_specification_line": "model = smf.wls('full_time ~ daca_eligible + age + I(age ** 2) + sex_female + C(year) + C(statefip) + UNEMP + LFPR', data=sample, weights=sample['perwt']).fit(cov_type='cluster', cov_kwds={'groups': sample['statefip']})"
+}

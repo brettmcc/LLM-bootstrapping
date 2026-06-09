@@ -1,0 +1,12 @@
+{
+  "model_specification_line": "model.fit(X[['post_daca']], y); point_estimate = model.coef_[0]",
+  "outcome_definition": "fulltime = 1 if uhrswork >= 35 hours per week, else 0",
+  "sample_selection": [
+    "Hispanic origin = Mexican (hispan == 1)",
+    "Birthplace = Mexico (bpl == 200)",
+    "Not a citizen (citizen in [3, 5] - not a citizen or citizenship status not reported)",
+    "Valid employment status reported (empstat in [1, 2, 3])",
+    "Non-missing usual hours worked per week (uhrswork > 0)"
+  ],
+  "treatment_definition": "post_daca = 1 if year >= 2013 (post-DACA implementation in June 2012), else 0"
+}

@@ -1,0 +1,9 @@
+{
+  "cli_provider": "copilot",
+  "data_profile": "expanded",
+  "model_phase1": "claude-haiku-4.5",
+  "model_phase2": "claude-haiku-4.5",
+  "phase": "phase12",
+  "requested_model_phase1": "claude-haiku-4.5",
+  "requested_model_phase2": "claude-haiku-4.5"
+}

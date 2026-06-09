@@ -1,0 +1,9 @@
+[2026-05-08T03:58:17Z] Attempt 1/15 started.
+[2026-05-08T04:13:30Z] Attempt 1/15 hit a rate limit; waiting 305s before retry 1/12.
+[2026-05-08T04:20:16Z] Attempt 1/15 hit a rate limit; waiting 605s before retry 2/12.
+[2026-05-08T04:32:09Z] Attempt 1/15 hit a rate limit; waiting 1205s before retry 3/12.
+[2026-05-08T04:53:55Z] Attempt 1/15 hit a rate limit; waiting 2405s before retry 4/12.
+[2026-05-08T05:35:40Z] Attempt 1/15 hit a rate limit; waiting 4805s before retry 5/12.
+[2026-05-08T06:57:38Z] Attempt 1/15 hit a rate limit; waiting 9605s before retry 6/12.
+[2026-05-08T09:42:36Z] Attempt 1/15 produced a valid spec.
+[2026-05-08T09:45:50Z] Attempt 1/15 succeeded.

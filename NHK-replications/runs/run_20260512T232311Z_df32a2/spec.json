@@ -1,0 +1,14 @@
+{
+  "sample_selection": [
+    "hispan == 1 (Mexican Hispanic origin)",
+    "bpl == 200 (born in Mexico)",
+    "citizen == 3 (not a US citizen)",
+    "age >= 18 and age <= 45 (working-age adults)",
+    "year in [2009, 2010, 2011, 2013, 2014, 2015, 2016] (pre-DACA: 2009-2011, post-DACA: 2013-2016; 2012 excluded as transition year)",
+    "arrival_age = yrimmig - birthyr, restricted to 0 <= arrival_age < 16 (arrived in US before age 16, matching DACA criterion)",
+    "birthyr in 1982-1986 (treated) or 1977-1981 (control), symmetric 5-year bandwidth around the age-31 DACA eligibility cutoff"
+  ],
+  "outcome_definition": "(df['empstat'] == 1) & (df['uhrswork'] >= 35)",
+  "treatment_definition": "(df['birthyr'] >= 1982).astype(int)",
+  "model_specification_line": "result = smf.ols('full_time ~ treated * post + C(year) + C(statefip) + age + I(age ** 2) + C(sex)', data=df).fit(cov_type='cluster', cov_kwds={'groups': df['statefip'].astype(int)})"
+}

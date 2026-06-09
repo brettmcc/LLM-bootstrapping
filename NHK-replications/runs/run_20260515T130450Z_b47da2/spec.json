@@ -1,0 +1,13 @@
+{
+  "model_specification_line": "model = smf.wls(\"full_time ~ eligible * post + C(age2012) + year + C(statefip)\", data=df, weights=df[\"weight\"]).fit(cov_type=\"cluster\", cov_kwds={\"groups\": df[\"statefip\"]})",
+  "outcome_definition": "(uhrswork >= 35).astype(int)",
+  "sample_selection": [
+    "year >= 2006 and year <= 2016",
+    "hispan == 1",
+    "bpld == 20000",
+    "citizen == 3",
+    "yrimmig >= 1900 and yrimmig <= 2007",
+    "age + 2012 - year >= 16 and age + 2012 - year <= 35"
+  ],
+  "treatment_definition": "(((age + 2012 - year) <= 30) & ((age - (year - yrimmig)) < 16)).astype(int)"
+}

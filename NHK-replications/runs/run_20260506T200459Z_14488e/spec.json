@@ -1,0 +1,14 @@
+{
+  "model_specification_line": "sm.Logit(y, sm.add_constant(X)).fit()",
+  "outcome_definition": "(EMPSTAT == 1) & (UHRSWORK >= 35)",
+  "sample_selection": [
+    "HISPAN == 1 (Mexican)",
+    "BPL == 200 (Mexico-born)",
+    "CITIZEN in [3, 4, 5] (noncitizen)",
+    "Year in [2013, 2014, 2015, 2016] (post-DACA)",
+    "Age in [18, 31]",
+    "EMPSTAT in [1, 2, 3] (valid employment status)",
+    "UHRSWORK in [1, 99] (valid hours worked)"
+  ],
+  "treatment_definition": "(birth_year >= 1982) & (birth_year <= 1994)"
+}

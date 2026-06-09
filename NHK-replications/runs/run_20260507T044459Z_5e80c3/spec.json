@@ -1,0 +1,12 @@
+{
+  "model_specification_line": "model = ols('full_time ~ daca_eligible + C(year_fe) + C(state)', data=df).fit(weights=df['perwt'] / 100)",
+  "outcome_definition": "(empstat == 1) & (uhrswork >= 35)",
+  "sample_selection": [
+    "hispan == 1",
+    "bpl == 200",
+    "citizen in (3, 4, 5)",
+    "age >= 16",
+    "year in (2013, 2014, 2015, 2016)"
+  ],
+  "treatment_definition": "yrimmig <= 2007"
+}

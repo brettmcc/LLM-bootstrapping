@@ -1,0 +1,14 @@
+{
+  "sample_selection": [
+    "hispan == 1",
+    "bpl == 200",
+    "citizen == 3",
+    "age >= 18 and age <= 45",
+    "year in [2009, 2010, 2011, 2013, 2014, 2015, 2016]",
+    "0 <= age - (year - yrimmig) < 16",
+    "birthyr >= 1977 and birthyr <= 1986"
+  ],
+  "outcome_definition": "(df['uhrswork'] >= 35).astype(int)",
+  "treatment_definition": "(df['birthyr'] >= 1982).astype(int)",
+  "model_specification_line": "result = smf.ols('full_time ~ treated * post + C(year) + C(statefip) + age + I(age**2) + C(sex)', data=df).fit(cov_type='cluster', cov_kwds={'groups': df['statefip'].astype(int)})"
+}

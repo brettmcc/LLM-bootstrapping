@@ -1,0 +1,14 @@
+{
+  "model_specification_line": "WLS(fulltime_employed, add_constant(daca_eligible), weights=perwt).fit()",
+  "outcome_definition": "(empstat == 1) & (uhrswork >= 35)",
+  "sample_selection": [
+    "hispan == 1",
+    "bpl == 200",
+    "citizen in [3, 4, 5]",
+    "year >= 2013",
+    "year <= 2016",
+    "age >= 16",
+    "age <= 50"
+  ],
+  "treatment_definition": "(birthyr >= 1982) & (birthyr <= 1998)"
+}

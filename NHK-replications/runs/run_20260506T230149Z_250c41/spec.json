@@ -1,0 +1,14 @@
+{
+  "model_specification_line": "beta = np.linalg.solve(XtWX, Xtwy)  # WLS with treatment, post_daca, interaction, and year FE",
+  "outcome_definition": "fulltime = (uhrswork >= 35)",
+  "sample_selection": [
+    "hispan == 1 (Mexican)",
+    "bpl == 200 (Mexico)",
+    "year >= 2013 and year <= 2016",
+    "age > 0 and uhrswork > 0 and empstat == 1",
+    "birth_year_approx >= 1981 (not yet 31 as of June 15, 2012)",
+    "arrival_age < 16 and yrimmig > 0 (arrived before age 16)",
+    "citizen in [3, 4, 5] (not a citizen or status uncertain)"
+  ],
+  "treatment_definition": "daca_eligible = (age_cutoff_eligible AND arrival_age_eligible AND legal_status_eligible)"
+}

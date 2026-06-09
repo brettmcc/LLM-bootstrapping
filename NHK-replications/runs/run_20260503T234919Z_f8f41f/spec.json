@@ -1,0 +1,18 @@
+{
+  "model_specification_line": "model = smf.ols(formula='full_time ~ treat * post + age + age_sq + C(year) + C(statefip) + C(sex)', data=df).fit(cov_type='HC1')",
+  "outcome_definition": "(df['empstat'] == 1) & (df['uhrswork'] >= 35)",
+  "sample_selection": [
+    "bpl == 200 (born in Mexico)",
+    "hispan == 1 (Mexican Hispanic ethnicity)",
+    "citizen == 3 (non-citizen, proxy for undocumented status)",
+    "yrimmig > 0 and yrimmig <= 2007 (immigrated by 2007, at least 5 years in US by June 2012)",
+    "(yrimmig - birthyr) < 16 (arrived before age 16, DACA requirement)",
+    "age >= 18 and age <= 40 at survey year",
+    "sex in (1, 2) (non-missing sex)",
+    "empstat in (1, 2, 3) (non-missing employment status)",
+    "not (empstat == 1 and uhrswork == 0) (drop employed with missing hours)",
+    "year in (2009, 2010, 2011, 2013, 2014, 2015, 2016) (pre-DACA 2009-2011, post-DACA 2013-2016; exclude 2012 transition year)",
+    "birthyr >= 1982 (treat=1: under 31 on June 15, 2012) OR birthyr in [1972, 1981] (treat=0: 31-40 on June 15, 2012)"
+  ],
+  "treatment_definition": "(df['birthyr'] >= 1982).astype(int)"
+}

@@ -1,0 +1,16 @@
+{
+  "sample_selection": [
+    "hispan == 1 OR bpl == 200",
+    "citizen IN [3, 4, 5]",
+    "yrimmig <= 2007",
+    "yrimmig - (year - age) < 16",
+    "2012 - (year - age) >= 0 AND 2012 - (year - age) <= 30",
+    "year BETWEEN 2006 AND 2016",
+    "age BETWEEN 18 AND 35",
+    "empstat > 0",
+    "yrimmig > 0 AND yrimmig <= year"
+  ],
+  "outcome_definition": "empstat == 1 AND uhrswork >= 35",
+  "treatment_definition": "year >= 2013",
+  "model_specification_line": "WLS(full_time_employed, [1, post_daca], weights=perwt/100)"
+}

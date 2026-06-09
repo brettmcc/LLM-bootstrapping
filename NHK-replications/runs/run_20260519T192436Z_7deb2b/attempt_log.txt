@@ -1,0 +1,3 @@
+[2026-05-19T19:24:36Z] Attempt 1/15 started.
+[2026-05-19T20:08:20Z] Attempt 1/15 produced a valid spec.
+[2026-05-19T20:13:56Z] Attempt 1/15 succeeded.

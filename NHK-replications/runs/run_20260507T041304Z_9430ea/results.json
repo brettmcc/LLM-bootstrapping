@@ -1,0 +1,17 @@
+{
+  "coefficients": {
+    "daca_eligible": -0.07355159334749314,
+    "eligible_x_post": 0.04207313778389439,
+    "intercept": 0.7696624656977018,
+    "post_daca": 0.002261549620332419
+  },
+  "point_estimate": 0.04207313778389439,
+  "sample_size": 301772,
+  "standard_error": 0.003380159394232473,
+  "standard_errors": {
+    "daca_eligible": 0.0021311648420193636,
+    "eligible_x_post": 0.003380159394232473,
+    "intercept": 0.0011809431600317943,
+    "post_daca": 0.0021278417239703985
+  }
+}

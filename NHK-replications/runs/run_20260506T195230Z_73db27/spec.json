@@ -1,0 +1,11 @@
+{
+  "model_specification_line": "weighted OLS: full_time_employed = beta_0 + beta_1 * eligible_for_daca, weights=perwt",
+  "outcome_definition": "(empstat == 1) & (uhrswork >= 35)",
+  "sample_selection": [
+    "Survey years 2013-2016 (post-DACA implementation in June 2012)",
+    "Working-age population: aged 16-65",
+    "Mexican-origin respondents: bpl==200 (Mexico) or hispan==1 (Mexican)",
+    "Valid responses: age > 0, perwt > 0, empstat in [1,2], uhrswork > 0"
+  ],
+  "treatment_definition": "(bpl == 200) & (hispan == 1) & (citizen in [3, 5]) & (birth_year >= 1982) & (birth_year <= 1996)"
+}

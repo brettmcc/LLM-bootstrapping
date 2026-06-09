@@ -1,0 +1,13 @@
+{
+  "model_specification_line": "logit(formula='outcome ~ treatment', data=df, weights=perwt/100).fit()",
+  "outcome_definition": "uhrswork >= 35",
+  "sample_selection": [
+    "hispan == 1",
+    "bpl == 200",
+    "citizen in [3, 4, 5]",
+    "age >= 13",
+    "age <= 30",
+    "year in [2013, 2014, 2015, 2016]"
+  ],
+  "treatment_definition": "year - 2012"
+}

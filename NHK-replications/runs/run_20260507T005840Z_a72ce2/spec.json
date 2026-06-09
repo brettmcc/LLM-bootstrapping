@@ -1,0 +1,13 @@
+{
+  "model_specification_line": "beta = np.linalg.inv(X_arr.T @ np.diag(weights) @ X_arr) @ (X_arr.T @ np.diag(weights) @ y)",
+  "outcome_definition": "(uhrswork >= 35).astype(int)",
+  "sample_selection": [
+    "year >= 2013 and year <= 2016",
+    "hispan == 1 (Mexican)",
+    "bpl == 200 (Mexico)",
+    "citizen in [3, 4, 5] (non-citizen)",
+    "age >= 15 and age <= 35",
+    "empstat in [1, 2] (in labor force)"
+  ],
+  "treatment_definition": "((age - (year - 2012) + (152/365) >= 16) & (age - (year - 2012) + (152/365) <= 30)).astype(int)"
+}

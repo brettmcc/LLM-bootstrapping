@@ -1,0 +1,17 @@
+{
+  "spec": {
+    "sample_selection": [
+      "2013 <= year <= 2016",
+      "hispan == 1",
+      "bpl == 200",
+      "citizen in {3, 4, 5}",
+      "16 <= age <= 35",
+      "perwt > 0",
+      "birthyr is observed",
+      "yrimmig is observed"
+    ],
+    "outcome_definition": "int(empstat == 1 and uhrswork >= 35)",
+    "treatment_definition": "int(birthyr >= 1982 and yrimmig <= 2007 and (age - (year - yrimmig)) < 16)",
+    "model_specification_line": "model = smf.wls(\"full_time ~ eligible + C(year) + C(statefip)\", data=df, weights=df[\"perwt\"]).fit(cov_type=\"HC1\")"
+  }
+}

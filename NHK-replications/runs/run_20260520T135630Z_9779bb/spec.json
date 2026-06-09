@@ -1,0 +1,23 @@
+{
+  "model_specification_line": "model = sm.WLS(sample[\"full_time\"], exog, weights=sample[\"perwt\"]).fit(cov_type=\"cluster\", cov_kwds={\"groups\": sample[\"statefip\"]})",
+  "outcome_definition": "((empstat == 1) & (uhrswork >= 35)).astype(float)",
+  "sample_selection": [
+    "year >= 2006",
+    "year <= 2016",
+    "year != 2012",
+    "hispan == 1",
+    "bpl == 200",
+    "citizen == 3",
+    "yrimmig > 0",
+    "birthyr >= 1982",
+    "age >= 16",
+    "age <= 40",
+    "statefip >= 1",
+    "statefip <= 56",
+    "empstat != 0",
+    "empstat != 9",
+    "(yrimmig - birthyr) >= 13",
+    "(yrimmig - birthyr) <= 18"
+  ],
+  "treatment_definition": "((yrimmig - birthyr) <= 15).astype(int)"
+}

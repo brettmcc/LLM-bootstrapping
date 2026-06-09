@@ -1,0 +1,16 @@
+{
+  "sample_selection": [
+    "HISPAN == 1 (Mexican Hispanic origin)",
+    "BPL == 200 (born in Mexico)",
+    "CITIZEN == 3 (not a citizen; undocumented proxy)",
+    "YRIMMIG > 0 and YRIMMIG <= 2007 (arrived by 2007 and not missing)",
+    "YRIMMIG <= BIRTHYR + 15 (arrived before age 16)",
+    "BIRTHYR between 1972 and 1997 (cohort window for treated and control groups)",
+    "AGE >= 18 (adult labor-market sample)",
+    "YEAR in {2009, 2010, 2011, 2013, 2014, 2015, 2016} (pre/post DACA window; 2012 excluded)",
+    "PERWT > 0 (valid survey weight)"
+  ],
+  "outcome_definition": "((df['empstat'] == 1) & (df['uhrswork'] >= 35)).astype(int)",
+  "treatment_definition": "(df['birthyr'] >= 1982).astype(int)",
+  "model_specification_line": "smf.wls('full_time ~ treated * post + age + I(age ** 2) + C(sex) + C(year) + C(statefip)', data=df, weights=df['perwt']).fit(cov_type='cluster', cov_kwds={'groups': df['statefip']})"
+}

@@ -1,0 +1,15 @@
+{
+  "sample_selection": [
+    "statefip between 1 and 56",
+    "year in 2006-2011 or 2013-2016",
+    "hispan == 1",
+    "bpl == 200",
+    "citizen in {3, 4, 5}",
+    "age between 16 and 40",
+    "yrimmig between 1790 and 2007",
+    "age + 2012 - year between 16 and 35"
+  ],
+  "outcome_definition": "((uhrswork >= 35).astype(int))",
+  "treatment_definition": "((hispan == 1) & (bpl == 200) & (citizen.isin([3, 4, 5])) & (yrimmig.between(1790, 2007)) & ((age + 2012 - year).between(16, 30)) & ((age - (year - yrimmig)) < 16))",
+  "model_specification_line": "result = smf.wls(\"full_time ~ eligible + eligible:post + age + I(age ** 2) + C(year) + C(statefip) + lfpr + unemp\", data=df, weights=df[\"perwt\"]).fit(cov_type=\"cluster\", cov_kwds={\"groups\": df[\"statefip\"]})"
+}

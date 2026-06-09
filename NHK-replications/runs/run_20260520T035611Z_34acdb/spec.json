@@ -1,0 +1,15 @@
+{
+  "sample_selection": [
+    "2006 <= year <= 2016",
+    "hispan == 1",
+    "bpl == 200",
+    "citizen == 3",
+    "yrimmig > 0 and yrimmig <= 2007",
+    "yrimmig - birthyr < 16",
+    "1976 <= birthyr <= 1986 and birthyr != 1981",
+    "perwt > 0"
+  ],
+  "outcome_definition": "(uhrswork >= 35).astype(int)",
+  "treatment_definition": "(birthyr >= 1982).astype(int)",
+  "model_specification_line": "result = smf.wls(\"full_time ~ treated:post + C(birthyr) + C(year) + C(statefip) + DRIVERSLICENSES + INSTATETUITION + STATEFINANCIALAID + HIGHEREDBAN + EVERIFY + LIMITEVERIFY + OMNIBUS + TASK287G + JAIL287G + SECURECOMMUNITIES + LFPR + UNEMP\", data=df, weights=df[\"perwt\"]).fit(cov_type=\"cluster\", cov_kwds={\"groups\": df[\"statefip\"]})"
+}

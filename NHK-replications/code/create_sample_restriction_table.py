@@ -111,32 +111,90 @@ def contains_any(text: str, patterns: tuple[str, ...]) -> bool:
     return any(re.search(pattern, text) for pattern in patterns)
 
 
+def has_code_condition(text: str, variable: str, codes: tuple[int, ...]) -> bool:
+    """Return True when a codebook variable is restricted to one of ``codes``.
+
+    The saved specs are free-form text, but the reliable information is usually
+    still an ACS variable name plus an ACS numeric code.  This helper accepts the
+    common code styles agents used, such as ``hispan == 1``,
+    ``citizen in [3, 4]``, and ``df["bpld"].isin({20000})``.
+    """
+    var = re.escape(variable.lower())
+    var_ref = rf"(?:\b{var}\b|[\"']{var}[\"'])"
+    code_alternatives = "|".join(str(code) for code in codes)
+    bracketed_codes = rf"[\[\{{\(][^\]\}}\)]*\b(?:{code_alternatives})\b[^\]\}}\)]*[\]\}}\)]"
+    return contains_any(
+        text,
+        (
+            rf"{var_ref}\s*(?:==|=)\s*(?:{code_alternatives})\b",
+            rf"{var_ref}\s+in\s+{bracketed_codes}",
+            rf"{var_ref}\s*\]?\s*\.isin\(\s*{bracketed_codes}\s*\)",
+        ),
+    )
+
+
+def has_variable(text: str, variable: str) -> bool:
+    """Return True when a codebook variable name appears as a token."""
+    return bool(re.search(rf"\b{re.escape(variable.lower())}\b", text))
+
+
 def classify_hispanic(text: str) -> str:
-    if not contains_any(text, (r"\bhispan", r"hispanic")):
-        return "None"
-    if contains_any(text, (r"mex", r"hispand", r"\bhispan\b\s*(==|=|in)\s*1\b")):
+    # Codebook: HISPAN 1 is Mexican; HISPAND 100/102-107 are Mexican-origin
+    # detailed codes.
+    mexican_hispand_codes = (100, 102, 103, 104, 105, 106, 107)
+    if has_code_condition(text, "hispan", (1,)) or has_code_condition(text, "hispand", mexican_hispand_codes):
         return "Hispanic-Mexican"
+    if contains_any(text, (r"\bhispan(?:d)?\b\s*>=\s*0\b",)):
+        return "None"
+    if has_code_condition(text, "hispan", (0,)) or has_code_condition(text, "hispand", (0,)):
+        return "None"
+    if contains_any(text, (r"\bhispan(?:d)?\b\s*(?:!=|>)\s*0", r"\bhispan(?:d)?\b\s+in\s+[\[\{\(]")):
+        return "Hispanic-Any"
+    if not has_variable(text, "hispan") and not has_variable(text, "hispand"):
+        return "None"
     return "Hispanic-Any"
 
 
 def classify_birthplace(text: str) -> str:
-    if contains_any(text, (r"\bbpl\b.*(200|mex)", r"born in mexico", r"mexican-born")):
+    # Codebook: BPL 200 and BPLD 20000 are Mexico.
+    if has_code_condition(text, "bpl", (200,)) or has_code_condition(text, "bpld", (20000,)):
         return "Mexican-Born"
-    if contains_any(text, (r"non-us born", r"foreign[- ]born", r"\bbpl\b.*(not|!=).*united states")):
-        return "Non-US Born"
-    if contains_any(text, (r"central america",)):
+    # Codebook: BPL 211-219 and corresponding BPLD 21010-21090 detail codes
+    # are Central America.
+    central_america_bpl_codes = tuple(range(211, 220))
+    central_america_bpld_codes = (21000, 21010, 21020, 21030, 21040, 21050, 21060, 21070, 21071, 21090)
+    if has_code_condition(text, "bpl", central_america_bpl_codes) or has_code_condition(text, "bpld", central_america_bpld_codes):
         return "Central America-Born"
+    # Codebook: BPL 001-099 and BPLD 00100-09900 are U.S. birthplaces; BPL
+    # 100-120 and BPLD 10000-12092 are U.S. outlying areas/territories.  Treat
+    # broad numeric thresholds as foreign-born only when they start after those
+    # domestic and territory codes.
+    if contains_any(
+        text,
+        (
+            r"\bbpl\b\s*(?:>|>=)\s*1[2-9][1-9]\b",
+            r"\bbpl\b\s*>\s*120\b",
+            r"\bbpl\b\s*(?:>|>=)\s*(?:150|199|200|210)\b",
+            r"\bbpld\b\s*(?:>|>=)\s*1[3-9]\d{3}\b",
+            r"\bbpld\b\s*>\s*12092\b",
+            r"\bbpld\b\s*(?:>|>=)\s*(?:15000|19900|20000|21000)\b",
+            r"\bbpld?\b\s*(?:!=|not in)",
+        ),
+    ):
+        return "Non-US Born"
     return "None"
 
 
 def classify_citizenship(text: str, birthplace_choice: str) -> str:
-    if contains_any(text, (r"naturalized.*2012", r"post-2012", r"yrnatur")):
+    # Codebook: CITIZEN 3 and 4 are non-citizen categories.  CITIZEN 5 is
+    # foreign-born with citizenship status not reported, so leave it as Other.
+    if has_variable(text, "yrnatur"):
         return "Non-Cit or Natlzd post-2012"
-    if contains_any(text, (r"\bcitizen\b.*==\s*3", r"\bcitizen\b.*\[3,\s*4\]", r"\bcitizen\b.*3.*4", r"\bcitizen\b.*non", r"non-citizen")):
+    if has_code_condition(text, "citizen", (3, 4)):
         return "Non-Citizen"
     if birthplace_choice in {"Mexican-Born", "Non-US Born", "Central America-Born"}:
         return "Foreign-Born"
-    if contains_any(text, (r"\bcitizen\b",)):
+    if has_variable(text, "citizen"):
         return "Other"
     return "None"
 
@@ -167,7 +225,7 @@ def classify_age_in_2012(text: str) -> str:
     if contains_any(text, (r"birthyr", r"birth year", r"born")):
         return "Year-Only Age"
     if contains_any(text, (r"\bage\b",)):
-        return "Other"
+        return "Year-Only Age"
     return "None"
 
 
@@ -188,9 +246,21 @@ def classify_year_of_immigration(text: str) -> str:
 
 
 def classify_education_veteran(text: str) -> str:
-    has_high_school = contains_any(text, (r"hs grad", r"high school", r"educ"))
-    has_veteran = contains_any(text, (r"veteran", r"vetstat"))
-    has_non_veteran = contains_any(text, (r"non-veteran", r"non veteran"))
+    # These are the education-related variables present in the ACS extract
+    # codebook.  Do not match historical aliases that are not available here.
+    has_education_variable = contains_any(
+        text,
+        (
+            r"(?<!high )(?<!high-)\bschool\b",
+            r"\beducd?\b",
+            r"\bgradeattd?\b",
+            r"\bschltype\b",
+            r"\bdegfieldd?\b",
+        ),
+    )
+    has_veteran = has_variable(text, "vetstat") or has_variable(text, "vetstatd")
+    has_high_school = has_education_variable and contains_any(text, (r"hs grad", r"high school", r"12th grade", r"\beducd?\b"))
+    has_non_veteran = has_veteran and contains_any(text, (r"non-veteran", r"non veteran", r"vetstatd?\b\s*(?:==|=)\s*(?:1|10|11)\b"))
     if has_high_school and has_non_veteran:
         return "HS Grad or Non-Veteran"
     if has_high_school and has_veteran:

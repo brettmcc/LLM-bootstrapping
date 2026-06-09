@@ -1,0 +1,13 @@
+{
+  "model_specification_line": "X = np.column_stack([np.ones(len(df)), df['daca_eligible'], df['post_daca'], df['daca_eligible']*df['post_daca']])",
+  "outcome_definition": "(df['uhrswork'] >= 35).astype(int)",
+  "sample_selection": [
+    "hispan == 1",
+    "bpl == 200",
+    "citizen in [3, 4, 5]",
+    "age >= 18 and age <= 60",
+    "empstat in [1, 2, 3]",
+    "uhrswork > 0"
+  ],
+  "treatment_definition": "(df['age'] >= 15) & (df['age'] <= 30)"
+}

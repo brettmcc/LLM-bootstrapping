@@ -1,0 +1,11 @@
+{
+  "model_specification_line": "sm.WLS(ftemployed, sm.add_constant(df[['daca_eligible', 'post_daca', 'eligible_x_post']]), weights=perwt).fit()",
+  "outcome_definition": "1 if uhrswork >= 35 and uhrswork != 99, else 0",
+  "sample_selection": [
+    "bpl == 200 (Mexico)",
+    "hispan == 1 (Mexican)",
+    "citizen in [3,4,5] (noncitizen/status not reported)",
+    "age 18-65"
+  ],
+  "treatment_definition": "1 if age_in_2012 in [16,31] and arrival_year <= 2007, else 0"
+}

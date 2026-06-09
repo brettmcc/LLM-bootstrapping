@@ -1,0 +1,16 @@
+{
+  "sample_selection": [
+    "year in {2013, 2014, 2015, 2016}",
+    "hispan == 1",
+    "bpl == 200",
+    "citizen == 3",
+    "yrimmig > 0 and yrimmig <= 2007",
+    "yrimmig - birthyr < 16",
+    "birthyr between 1977 and 1986",
+    "perwt > 0",
+    "uhrswork is observed"
+  ],
+  "outcome_definition": "(df[\"uhrswork\"] >= 35).astype(int)",
+  "treatment_definition": "(df[\"birthyr\"] >= 1982).astype(int)",
+  "model_specification_line": "result = smf.wls(\"full_time ~ DACA_eligible + birthyr_centered + I(birthyr_centered ** 2) + C(year) + C(statefip) + UNEMP + LFPR + DRIVERSLICENSES + INSTATETUITION + STATEFINANCIALAID + HIGHEREDBAN + EVERIFY + LIMITEVERIFY + OMNIBUS + TASK287G + JAIL287G\", data=df, weights=df[\"perwt\"]).fit(cov_type=\"cluster\", cov_kwds={\"groups\": df[\"statefip\"]})"
+}

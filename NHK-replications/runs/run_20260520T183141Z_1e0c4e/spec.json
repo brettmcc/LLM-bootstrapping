@@ -1,0 +1,16 @@
+{
+  "model_specification_line": "model = smf.wls(\"full_time ~ did + daca_eligible + C(year) + C(sex) + age + I(age ** 2) + unemp + lfpr\", data=sample, weights=sample[\"perwt\"]).fit(cov_type=\"cluster\", cov_kwds={\"groups\": sample[\"statefip\"]})",
+  "outcome_definition": "((empstat == 1) & (uhrswork >= 35)).astype(float)",
+  "sample_selection": [
+    "year in {2006, 2007, 2008, 2009, 2010, 2011, 2013, 2014, 2015, 2016}",
+    "statefip between 1 and 56",
+    "hispan == 1",
+    "bpl == 200",
+    "citizen == 3",
+    "age >= 18",
+    "birthyr >= 1982",
+    "yrimmig >= birthyr",
+    "yrimmig <= 2016"
+  ],
+  "treatment_definition": "((yrimmig <= 2007) & ((yrimmig - birthyr) <= 15)).astype(float)"
+}

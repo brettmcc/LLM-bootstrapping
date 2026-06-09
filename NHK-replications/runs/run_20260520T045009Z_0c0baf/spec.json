@@ -1,0 +1,14 @@
+{
+  "sample_selection": [
+    "2006 <= year <= 2016",
+    "year != 2012",
+    "1 <= statefip <= 56",
+    "hispan == 1",
+    "bpl == 200",
+    "citizen == 3",
+    "16 <= age <= 34"
+  ],
+  "outcome_definition": "((empstat == 1) & (uhrswork >= 35) & (uhrswork <= 98))",
+  "treatment_definition": "((age - yrsusa1) < 16) & ((birthyr > 1981) | ((birthyr == 1981) & (birthqtr >= 3)))",
+  "model_specification_line": "result = smf.wls(\"full_time ~ eligible + eligible:post + C(statefip) + C(year) + LFPR + UNEMP\", data=model_df, weights=model_df[\"perwt\"]).fit(cov_type=\"cluster\", cov_kwds={\"groups\": model_df[\"statefip\"]})"
+}

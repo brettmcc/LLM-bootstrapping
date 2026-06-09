@@ -1,0 +1,14 @@
+{
+  "sample_selection": [
+    "2013 <= year <= 2016",
+    "hispan == 1 and bpl == 200",
+    "18 <= age <= 35",
+    "citizen in {3, 4, 5}",
+    "yrimmig is observed and yrimmig <= year",
+    "birthyr and birthqtr are observed",
+    "perwt is positive"
+  ],
+  "outcome_definition": "((empstat == 1) & (wrklstwk == 1) & (uhrswork >= 35)).astype(int)",
+  "treatment_definition": "(((birthyr > 1981) | ((birthyr == 1981) & (birthqtr >= 3))) & (yrimmig <= 2007) & ((yrimmig - birthyr) <= 15)).astype(int)",
+  "model_specification_line": "smf.wls(\"full_time ~ daca_eligible + C(year)\", data=df, weights=df[\"perwt\"])"
+}

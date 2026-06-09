@@ -1,0 +1,15 @@
+{
+  "model_specification_line": "smf.wls('full_time ~ daca_eligible * post + C(year) + C(statefip) + age + age_sq', data=df, weights=df['perwt']).fit(cov_type='HC1')",
+  "outcome_definition": "(df['uhrswork'] >= 35).astype(int)",
+  "sample_selection": [
+    "hispan == 1 (Hispanic origin: Mexican)",
+    "bpld == 20000 (born in Mexico, detailed birthplace code)",
+    "citizen in [3, 4] (not a US citizen)",
+    "yrimmig > 0 and yrimmig <= 2007 (immigrated by 2007, continuous US residence since then)",
+    "yrimmig <= (year - age) + 15 (arrived before 16th birthday)",
+    "birth_year (year - age) in [1977, 1986] (bandwidth around DACA age cutoff)",
+    "age between 18 and 40 (working-age adults)",
+    "survey year in {2009, 2010, 2011, 2013, 2014, 2015, 2016} (pre/post periods; 2012 excluded as transition year)"
+  ],
+  "treatment_definition": "((df['year'] - df['age']) >= 1982).astype(int)"
+}

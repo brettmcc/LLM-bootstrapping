@@ -43,9 +43,6 @@ desktop.ini
 *.xml
 coarse-output/
 
-# Experiment runs (temporary outputs)
-runs/
-
 # Binary files
 *.docx
 

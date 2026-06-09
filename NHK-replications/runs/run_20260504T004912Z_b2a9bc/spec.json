@@ -1,0 +1,15 @@
+{
+  "model_specification_line": "smf.ols('full_time ~ daca_eligible * post + C(statefip) + C(year) + age', data=df).fit(cov_type='HC1')",
+  "outcome_definition": "((df['empstat'] == 1) & (df['uhrswork'] >= 35)).astype('int8')",
+  "sample_selection": [
+    "Hispanic of Mexican origin: hispan == 1",
+    "Born in Mexico: bpl == 200",
+    "Not a US citizen (proxy for undocumented): citizen == 3",
+    "Survey years 2009-2011 (pre-DACA) and 2013-2016 (post-DACA); excludes 2012",
+    "Immigrated to the US between 1970 and 2007 (yrimmig >= 1970 and yrimmig <= 2007)",
+    "Age at arrival 0-21 years (treatment: arrived before 16; control: arrived at 16-21)",
+    "Born 1982 or later (birthyr >= 1982; under 31 as of June 15, 2012)",
+    "Working age at survey time: 18-35 years old"
+  ],
+  "treatment_definition": "(df['age_at_arrival'] <= 15).astype('int8')  # age_at_arrival = yrimmig - birthyr; sample restricted to birthyr >= 1982 (under 31 on June 15, 2012)"
+}

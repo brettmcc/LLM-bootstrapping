@@ -1,0 +1,12 @@
+{
+  "model_specification_line": "LogisticRegression(model.fit(X, y, sample_weight=perwt/100)) with X=[daca_eligible, scaled_unemp, scaled_lfpr]",
+  "outcome_definition": "(empstat == 1) & (uhrswork >= 35)",
+  "sample_selection": [
+    "hispan == 1 (Mexican ethnicity)",
+    "bpl == 200 (Mexican-born)",
+    "citizen in [3, 4, 5] (non-citizen status)",
+    "age between 16 and 65",
+    "year in [2013, 2014, 2015, 2016] (post-DACA implementation)"
+  ],
+  "treatment_definition": "birth_year in [1982, 1996] (would be age 16-30 on June 15, 2012)"
+}

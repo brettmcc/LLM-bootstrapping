@@ -1,0 +1,15 @@
+{
+  "sample_selection": [
+    "2006 <= year <= 2016",
+    "year != 2012",
+    "hispan == 1",
+    "bpl == 200",
+    "citizen == 3",
+    "yrimmig > 0",
+    "yrimmig <= 2006",
+    "16 <= age <= 40"
+  ],
+  "outcome_definition": "((empstat == 1) & (uhrswork >= 35)).astype(int)",
+  "treatment_definition": "((year - age) >= 1982) & ((yrimmig - (year - age)) < 16)",
+  "model_specification_line": "smf.wls(\"full_time ~ eligible_2012 + eligible_2012:post + C(year) + C(statefip) + C(age) + LFPR + UNEMP\", data=df, weights=df[\"perwt\"]).fit(cov_type=\"HC1\")"
+}

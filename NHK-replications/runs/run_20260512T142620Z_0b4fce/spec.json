@@ -1,0 +1,19 @@
+{
+  "sample_selection": [
+    "2006 <= year <= 2016",
+    "year != 2012",
+    "hispan == 1",
+    "bpl == 200",
+    "citizen == 3",
+    "yrimmig > 0",
+    "yrimmig <= 2007",
+    "0 <= yrimmig - birthyr <= 15",
+    "18 <= age <= 45",
+    "empstat in {1, 2, 3}",
+    "0 <= uhrswork <= 98",
+    "perwt > 0"
+  ],
+  "outcome_definition": "((sample[\"empstat\"] == 1) & (sample[\"uhrswork\"] >= 35)).astype(int)",
+  "treatment_definition": "((sample[\"birthyr\"] >= 1982) & (sample[\"yrimmig\"] > 0) & (sample[\"yrimmig\"] <= 2007) & ((sample[\"yrimmig\"] - sample[\"birthyr\"]) <= 15)).astype(int)",
+  "model_specification_line": "result = smf.wls(\"full_time ~ daca_eligible + daca_eligible_post + age + I(age ** 2) + C(sex) + C(year) + C(statefip) + lfpr + unemp\", data=sample, weights=sample[\"perwt\"] / 100.0).fit(cov_type=\"cluster\", cov_kwds={\"groups\": sample[\"statefip\"]})"
+}

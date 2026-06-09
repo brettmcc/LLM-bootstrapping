@@ -1,0 +1,17 @@
+{
+  "model_specification_line": "np.linalg.solve(X.T @ np.diag(PERWT/100) @ X, X.T @ np.diag(PERWT/100) @ y) for y = fultime_employed, X = [1, high_exposure]",
+  "outcome_definition": "(UHRSWORK >= 35) & (EMPSTAT == 1)",
+  "sample_selection": [
+    "Ethnically Hispanic-Mexican (HISPAN == 1)",
+    "Mexico-born (BPL == 200)",
+    "Non-citizen (CITIZEN in [3, 4, 5])",
+    "Survey years 2013-2016 (post-DACA implementation)",
+    "Age at immigration < 16 years",
+    "Year of immigration <= 2007",
+    "Birth year > 1981 (under 31 on June 15, 2012)",
+    "Birth year < 1996 (at least 17 in 2013)",
+    "Employment status data available (EMPSTAT in [1, 2, 3])",
+    "Non-zero usual hours worked (UHRSWORK > 0)"
+  ],
+  "treatment_definition": "(YRIMMIG >= 1997) & (YRIMMIG <= 2002)"
+}

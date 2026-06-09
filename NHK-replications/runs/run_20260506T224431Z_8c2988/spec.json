@@ -1,0 +1,12 @@
+{
+  "model_specification_line": "WLS regression: y = const + beta * daca_eligible, weights=perwt/100",
+  "outcome_definition": "(empstat == 1) & (uhrswork >= 35)",
+  "sample_selection": [
+    "year in (2013, 2014, 2015, 2016)",
+    "hispan == 1 (Mexican)",
+    "bpl == 200 (Mexico)",
+    "citizen in (3, 4, 5) (noncitizen)",
+    "age in 2012 between 16 and 65 (working age)"
+  ],
+  "treatment_definition": "(age - (year - 2012) >= 15) & (age - (year - 2012) <= 30)"
+}

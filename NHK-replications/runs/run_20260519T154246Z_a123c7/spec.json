@@ -1,0 +1,15 @@
+{
+  "sample_selection": [
+    "gq == 1",
+    "hispan == 1",
+    "bpld == 20000",
+    "citizen == 3",
+    "yrimmig > 0",
+    "18 <= age <= 35",
+    "2006 <= year <= 2016",
+    "1 <= state_fip <= 56"
+  ],
+  "outcome_definition": "(df[\"uhrswork\"] >= 35).astype(int)",
+  "treatment_definition": "((df[\"age\"] + (2012 - df[\"year\"]) < 31) & ((df[\"age\"] - (df[\"year\"] - df[\"yrimmig\"])) <= 15) & (df[\"yrimmig\"] <= 2007)).astype(int)",
+  "model_specification_line": "smf.wls(\"full_time ~ eligible + eligible:post + C(year) + C(state_fip) + C(age) + C(sex) + LFPR + UNEMP\", data=df.assign(post=(df[\"year\"] >= 2013).astype(int)), weights=df[\"perwt\"]).fit(cov_type=\"cluster\", cov_kwds={\"groups\": df[\"state_fip\"]})"
+}

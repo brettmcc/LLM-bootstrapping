@@ -1,0 +1,15 @@
+{
+  "model_specification_line": "np.column_stack([np.ones(len(df)), df['daca_eligible'].values]); OLS with weights",
+  "outcome_definition": "(EMPSTAT == 1) & (UHRSWORK >= 35)",
+  "sample_selection": [
+    "YEAR in [2013, 2014, 2015, 2016]",
+    "HISPAN == 1 (Mexican)",
+    "BPL == 200 (Mexico birthplace)",
+    "CITIZEN in [3, 4, 5] (noncitizen or status not reported)",
+    "birth_year >= 1980 and birth_year <= 1996",
+    "YRIMMIG <= birth_year + 16",
+    "YRIMMIG <= 2007",
+    "AGE in [16, 40] (working age)"
+  ],
+  "treatment_definition": "birth_year >= 1981"
+}

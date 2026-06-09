@@ -1,0 +1,9 @@
+{
+  "cli_provider": "copilot",
+  "data_profile": "expanded",
+  "model_phase1": "gpt-5.4-mini",
+  "model_phase2": "gpt-5.4-mini",
+  "phase": "phase12",
+  "requested_model_phase1": "gpt-5.4-mini",
+  "requested_model_phase2": "gpt-5.4-mini"
+}

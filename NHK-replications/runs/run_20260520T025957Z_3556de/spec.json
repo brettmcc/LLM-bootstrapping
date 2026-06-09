@@ -1,0 +1,16 @@
+{
+  "model_specification_line": "model = sm.WLS(model_df[\"full_time\"], exog, weights=model_df[\"cell_weight\"]).fit(cov_type=\"cluster\", cov_kwds={\"groups\": model_df[\"state_year\"]})",
+  "outcome_definition": "((sample[\"empstat\"] == 1) & (sample[\"uhrswork\"] >= 35)).astype(float)",
+  "sample_selection": [
+    "year >= 2006 and year <= 2016 and year != 2012",
+    "hispan == 1",
+    "bpl == 200",
+    "citizen == 3",
+    "birthyr >= 1972 and birthyr <= 1990",
+    "age >= 16",
+    "yrimmig <= 2007",
+    "age_at_arrival >= 0",
+    "empstat in {1, 2, 3}"
+  ],
+  "treatment_definition": "(sample[\"birthyr\"].between(1982, 1990)).astype(float)"
+}

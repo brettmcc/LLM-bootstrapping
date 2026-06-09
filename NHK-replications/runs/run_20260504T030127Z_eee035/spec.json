@@ -1,0 +1,16 @@
+{
+  "model_specification_line": "model = smf.wls('full_time ~ treated + post + treated:post + C(sex) + educ + C(statefip)', data=df, weights=df['perwt']).fit(cov_type='HC1')",
+  "outcome_definition": "(df['uhrswork'] >= 35).astype('int8')",
+  "sample_selection": [
+    "hispan == 1 (Mexican-Hispanic)",
+    "bpl == 200 (born in Mexico)",
+    "citizen == 3 (not a citizen, undocumented proxy)",
+    "yrimmig > 0 and yrimmig <= 2007 (immigrated by 2007, continuous US residence criterion)",
+    "yrimmig <= birthyr + 15 (arrived before 16th birthday)",
+    "birthyr between 1975 and 1996 (cohort window: control born 1975-1981, treated born 1982-1996)",
+    "age >= 16 (working age)",
+    "year in [2009, 2010, 2011, 2013, 2014, 2015, 2016] (pre-DACA and post-DACA periods; 2012 excluded as transition year)",
+    "perwt > 0 (valid survey weight)"
+  ],
+  "treatment_definition": "(df['birthyr'] >= 1982).astype('int8')"
+}

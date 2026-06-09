@@ -1,0 +1,13 @@
+{
+  "model_specification_line": "np.linalg.lstsq((W @ X), (W @ y))[0] with W = diag(sqrt(perwt))",
+  "outcome_definition": "fulltime = 1 if uhrswork >= 35 else 0",
+  "sample_selection": [
+    "hispan == 1 (Mexican)",
+    "bpl == 200 (Mexico born)",
+    "citizen in [3, 4, 5] (non-citizen)",
+    "age >= 16 and age <= 45",
+    "empstat in [1, 2] (in labor force)",
+    "year >= 2006 and year <= 2016"
+  ],
+  "treatment_definition": "post_daca = 1 if year >= 2013 else 0"
+}

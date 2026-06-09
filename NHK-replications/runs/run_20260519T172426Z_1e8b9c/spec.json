@@ -1,0 +1,18 @@
+{
+  "model_specification_line": "fit = smf.wls(formula, data=cells, weights=cells[\"weight_sum\"]).fit(cov_type=\"cluster\", cov_kwds={\"groups\": cells[\"statefip\"]})",
+  "outcome_definition": "((empstat == 1) & (uhrswork >= 35)).astype(int)",
+  "sample_selection": [
+    "2006 <= year <= 2016 and year != 2012",
+    "1 <= statefip <= 56",
+    "16 <= age <= 40",
+    "1975 <= birthyr <= 1995",
+    "birthqtr in {1, 2, 3, 4}",
+    "hispan == 1",
+    "bpl == 200",
+    "citizen == 3",
+    "yrimmig > 0 and yrimmig <= year",
+    "empstat in {1, 2, 3}",
+    "perwt > 0"
+  ],
+  "treatment_definition": "((yrimmig <= 2007) & ((yrimmig - birthyr) <= 15) & ((birthyr > 1981) | ((birthyr == 1981) & (birthqtr >= 3))))"
+}

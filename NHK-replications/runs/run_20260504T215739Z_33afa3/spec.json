@@ -1,0 +1,14 @@
+{
+  "sample_selection": [
+    "year in {2006, 2007, 2008, 2009, 2010, 2011, 2013, 2014, 2015, 2016}",
+    "hispan == 1",
+    "bpl == 200",
+    "citizen in {3, 4, 5}",
+    "1900 <= yrimmig <= 2007",
+    "age - (year - yrimmig) < 16",
+    "15 <= age - (year - 2012) <= 35"
+  ],
+  "outcome_definition": "((uhrswork >= 35).astype(int))",
+  "treatment_definition": "((age - (year - 2012)) <= 30)",
+  "model_specification_line": "result = smf.wls(\"full_time ~ eligible * C(year, Treatment(reference=2011)) + age_2012 + I(age_2012 ** 2) + C(sex) + C(statefip) + lfpr + unemp\", data=analysis_df, weights=analysis_df['perwt']).fit(cov_type='cluster', cov_kwds={'groups': analysis_df['statefip']})"
+}

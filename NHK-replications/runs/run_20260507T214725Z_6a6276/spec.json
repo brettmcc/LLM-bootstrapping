@@ -1,0 +1,17 @@
+{
+  "sample_selection": [
+    "year between 2013 and 2016",
+    "hispan == 1",
+    "bpl == 200",
+    "citizen in {3, 4}",
+    "age between 16 and 64",
+    "birthyr between 1978 and 1985",
+    "birthqtr in {1, 2, 3, 4}",
+    "yrimmig > 0 and yrimmig <= 2007",
+    "yrimmig <= birthyr + 15",
+    "perwt > 0"
+  ],
+  "outcome_definition": "((empstat == 1) & (uhrswork >= 35)).astype(int)",
+  "treatment_definition": "((birthyr > 1981) | ((birthyr == 1981) & (birthqtr >= 3)))",
+  "model_specification_line": "result = smf.wls(\"full_time ~ daca_eligible + birthyr_centered + unemp + lfpr + C(year) + C(statefip)\", data=df, weights=df[\"perwt\"]).fit(cov_type=\"HC1\")"
+}

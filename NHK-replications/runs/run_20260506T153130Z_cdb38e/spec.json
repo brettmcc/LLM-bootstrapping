@@ -1,0 +1,13 @@
+{
+  "model_specification_line": "sm.WLS(y, X, weights=perwt/100).fit() where X includes: const, daca_eligible, post_2012, daca_x_post (treatment effect), UNEMP, LFPR, male, age, and state fixed effects",
+  "outcome_definition": "fulltime = 1 if UHRSWORK >= 35 (usually working 35+ hours per week), 0 otherwise",
+  "sample_selection": [
+    "Hispanic ethnicity: HISPAN==1 (Mexican)",
+    "Birthplace: BPL==200 (Mexico)",
+    "Citizenship: CITIZEN in [3,4,5] (Noncitizen or status not reported)",
+    "Years: 2013, 2014, 2015, 2016 (post-DACA implementation)",
+    "Age: 15-35 years old",
+    "DACA eligibility criteria: Arrived before age 16 (YRIMMIG<=1996) AND born after 1981"
+  ],
+  "treatment_definition": "daca_eligible = 1 if arrived unlawfully before age 16 (by June 1996) AND not yet age 31 as of June 2012 (born after June 1981), 0 otherwise"
+}
