@@ -34,8 +34,8 @@ header-includes:
       {\normalsize \titlefirstdraft \par}
       \vspace{0.25em}
       {\normalsize \titledate \par}
-      \vspace{0.75em}
-      {\footnotesize \textit{Word count (main text):} \MainTextWordCount \par}
+     % \vspace{0.75em}
+     % {\footnotesize \textit{Word count (main text):} \MainTextWordCount \par}
       \end{center}
       \vspace{1.5em}
     }
@@ -59,10 +59,10 @@ abstract: |
 ```{=latex}
 \begin{quotation}
 \footnotesize
-\noindent \textbf{Keywords:} Researcher degrees of freedom, multi-analyst studies, specification uncertainty, AI agents
+\noindent \textbf{Keywords:} Non-standard errors, multi-analyst studies, AI agents
 
 \medskip
-\noindent \textbf{JEL Codes:} C12, C15, C18
+\noindent \textbf{JEL Codes:} C6, C12, C15
 \end{quotation}
 
 \vfill
@@ -80,12 +80,12 @@ Empirical papers routinely report standard errors that quantify sampling uncerta
 I assess a novel approach: AI agents that perform empirical analyses at scale.\footnote{There are at least 3 other concurrent, unpublished papers that attempt to do broadly what I propose in this article: \citet{gao2026nonstandard}, \citet{grundl2026comparison}, and \citet{huang2026aierrors}. Given the timing of the release of these working papers and the work on my own public GitHub repository for this article dating back to January 2026 (see \url{https://github.com/brettmcc/LLM-bootstrapping}), this is a clear case of parallel invention. In any case, the only other of these papers to also look at \citet{huntingtonklein2025sources}, \citet{grundl2026comparison}, does not focus on agent choices as I do.} Each agent receives the same research prompt and raw dataset but independently generates a complete empirical specification---sample restrictions, outcome and treatment definitions, control set, and standard-error adjustments. The inherent stochasticity of the large language models which power modern AI agents ensures there is variation in research choices.
 
 Do AI sample and specification choices yield a distribution of estimation outcomes similar to humans? To answer this, I apply my AI agent approach to the question studied by many analysts in @huntingtonklein2025sources: how eligibility for the Deferred Action for Childhood Arrivals program affects the probability of full-time employment for eligible workers.
-Across \aiAnalyticN{} AI agent-generated specifications, I obtain interquartile ranges in estimates, standard errors, and sample sizes which  resemble the human many-analyst coefficient distribution. Specification choices---model type, control variables, weighting, and standard error adjustment---differ substantially, with AI converging on certain choices much more than human researchers. Overall my findings suggest that AI, while useful, is not a perfect substitute for multi-human-analyst studies.
+Across \aiAnalyticN{} AI agent-generated specifications, I obtain interquartile ranges in estimates, standard errors, and sample sizes that resemble the human many-analyst coefficient distribution. Specification choices---model type, control variables, weighting, and standard error adjustment---differ substantially, with AI converging on certain choices much more than human researchers. Overall my findings suggest that AI, while useful, is not a perfect substitute for multi-human-analyst studies.
 
 # Method {#sec-method}
 
 ## AI agents as empirical researchers
-For a given empirical research question, social scientists have substantial degrees of freedom in shaping the analysis.``Non-standard errors" \citep{brownlees2024nonstandard} computed across many independent human analyst attempts to answer a research question can capture estimate variation due to researcher degrees of freedom, but are not easily scalable due to high recruitment and coordination costs. Stochastic artificial intelligence agents may provide a way around such scalability challenges.
+For a given empirical research question, social scientists have substantial degrees of freedom in shaping the analysis. ``Non-standard errors" \citep{brownlees2024nonstandard} computed across many independent human analyst attempts to answer a research question can capture estimate variation due to researcher degrees of freedom, but are not easily scalable due to high recruitment and coordination costs. Stochastic artificial intelligence agents may provide a way around such scalability challenges.
 
 Large language AI models, such as GPT or Claude, give non-deterministic responses: the same prompt can generate a range of responses ex-ante. By submitting a prompt to estimate a given empirical parameter many times to AI agents, I propose to simulate at much lower cost a many-analyst approach for generating bounds on the degree of estimation uncertainty due to researcher degrees of freedom.
 
@@ -95,11 +95,11 @@ On the other hand, AI agents may make research choices far outside disciplinary 
 
 ## Application
 
-I task AI agents with the same question answered by many human analysts in @huntingtonklein2025sources. The authors retained 146 teams of economists and ask each to independently answer the same causal question using the same instructions and raw data: how did eligibility for the Deferred Action for Childhood Arrivals immigration policy affect the probability of full-time employment among eligible immigrants? Participants are given a data codebook and the research question but otherwise initially exercise broad discretion over sample construction, variable definitions, and specification choices. In this study I replicate this initial task from @huntingtonklein2025sources in which participants had maximum flexibility to make research choices.
+I task AI agents with the same question answered by many human analysts in @huntingtonklein2025sources. The authors retained 146 teams of economists and asked each to independently answer the same causal question using the same instructions and raw data: how did eligibility for the Deferred Action for Childhood Arrivals immigration policy affect the probability of full-time employment among eligible immigrants? Participants are given a data codebook and the research question but otherwise initially exercise broad discretion over sample construction, variable definitions, and specification choices. In this study I replicate this initial task from @huntingtonklein2025sources in which participants had maximum flexibility to make research choices.
 
 The computing pipeline works as follows. An AI agent is provided with the raw materials to answer the research question: an IPUMS extract and codebook with a broad set of variables, a supplementary state policy dataset and codebook, and instructions adapted from @huntingtonklein2025sources.\footnote{Replication code and the AI agent results can be found at https://github.com/brettmcc/LLM-bootstrapping/.} The agent then writes a concise, structured file outlining their model specification, outcome definition, sample selection, and treatment definition. They proceed to write and execute a Python script to implement the estimation, working through any coding errors along the way, and reporting the resulting coefficient estimate, standard error, and sample size. Sampling and specification choices are then programmatically scraped from agents' reports and cross-referenced against the actual code they produced to ensure accuracy.
 
-I use two frontier AI models---GPT-5.4 mini (OpenAI) and Claude Sonnet 4.6 (Anthropic)\footnote{I exclude \aiExcludedModelRuns{} exploratory runs with Claude's smaller and less advanced Haiku 4.5 model, which yields several degenerate results, such as standard error of 0. Researchers applying this approach should therefore take heed that weaker models may not be suitable for this type of task.}---accessed through GitHub Copilot CLI. I primarily rely on GPT-5.4 mini, as it is cheaper to run than Claude Sonnet 4.6. When using a subscription such as GitHub Copilot, Codex, or Claude Code, the marginal cost of each run is modest, making large-scale replication affordable for individual researchers.
+I use two frontier AI models---GPT-5.4 mini (OpenAI) and Claude Sonnet 4.6 (Anthropic)\footnote{I exclude \aiExcludedModelRuns{} exploratory runs with Claude's smaller and less advanced Haiku 4.5 model, which yielded several degenerate results, such as standard error of 0. Researchers applying this approach should therefore take heed that weaker models may not be suitable for this type of task.}---accessed through GitHub Copilot CLI. I primarily rely on GPT-5.4 mini, as it is cheaper to run than Claude Sonnet 4.6. When using a subscription such as GitHub Copilot, Codex, or Claude Code, the marginal cost of each run is modest, making large-scale replication affordable for individual researchers.
 
 # Results {#sec-results}
 
@@ -139,9 +139,9 @@ For the unweighted effect size, AI obtains a mean of 0.064 and a median of \aiMe
 
 Human coefficient estimates are more spread, exhibiting a 13\% higher standard deviation in effect size. Still, 92\% of AI point estimates are within the min-max range of humans, with about 30\% within humans' interquartile range.
 
-For standard errors, the minimum, 25th percentile, and median are identical across humans and AI, while humans exhibit higher standard errors at the 75th percentile and maximum. As a result, AI agents obtain coefficients statistically significantly different from 0 about 90\% of the time, compared to 78\% time among humans.
+For standard errors, the minimum, 25th percentile, and median are identical across humans and AI, while humans exhibit higher standard errors at the 75th percentile and maximum. As a result, AI agents obtain coefficients statistically significantly different from 0 about 90\% of the time, compared to 78\% of the time among humans.
 
-The range of sample sizes chosen by human researchers---between 681 and over 29 million observations---is several orders of magnitudes larger than what the AI agents chose. Still, the interquartile range is comparable: 75 to 248 thousand for the AI, and 61 to 357 thousand for the humans.
+The range of sample sizes chosen by human researchers---between 681 and over 29 million observations---is several orders of magnitude larger than what the AI agents chose. Still, the interquartile range is comparable: 75 to 248 thousand for the AI, and 61 to 357 thousand for the humans.
 
 ## Specification heterogeneity
 
@@ -164,12 +164,12 @@ Choice of control variables differed substantially between humans and AI, as sho
 \label{tab:controls}
 \small
 \resizebox{\textwidth}{!}{\input{../NHK-replications/meta_analysis_expanded/table5_control_effects.tex}}
-\caption*{\footnotesize \textbf{Notes:} The table presents the number and share of AI and human estimation specifications which included various controls.  Data from \citet{huntingtonklein2025sources} includes more restricted human runs (Tasks 2 and 3) in which the research design was more tightly specified and precleaned data was provided.}
+\caption*{\footnotesize \textbf{Notes:} The table presents the number and share of AI and human estimation specifications which included various controls.  Data from \citet{huntingtonklein2025sources} include more restricted human runs (Tasks 2 and 3) in which the research design was more tightly specified and precleaned data was provided.}
 \end{table}
 \FloatBarrier
 ```
 
-Next, Table \ref{tab:sample-restrictions} compares sample and treated group filters. Rows underneath each variable heading are roughly ordered by the 'correctness' for defining the treated group, as in \citet{huntingtonklein2025sources}. This is based on DACA's eligibility criteria, which is listed in the AI's prompt. The prompt does not specify, however, how to construct the control group.
+Next, Table \ref{tab:sample-restrictions} compares sample and treated group filters. Rows underneath each variable heading are roughly ordered by the 'correctness' for defining the treated group, as in \citet{huntingtonklein2025sources}. This is based on DACA's eligibility criteria, which are listed in the AI's prompt. The prompt does not specify, however, how to construct the control group.
 
 ```{=latex}
 \begin{table}[H]
@@ -185,14 +185,14 @@ Next, Table \ref{tab:sample-restrictions} compares sample and treated group filt
 \FloatBarrier
 ```
 
-Once again AI agents overwhelmingly converged on several sample and treated-group construction choices. Virtually all AI agents restricted the sample to ethnically Hispanic-Mexicans born in Mexico who are not US citizens.\footnote{I suspect this results from the AI becoming highly focused on the the first clause of the AI prompt (copied verbatim from the human task), ``\textbf{Among ethnically Hispanic-Mexican Mexican-born people living in the United States}, what was the causal impact of eligibility for the Deferred Action for Childhood Arrivals (DACA) program (treatment) on the probability that the eligible person is employed full-time (outcome)," emphasis mine.}
+Once again AI agents overwhelmingly converged on several sample and treated-group construction choices. Virtually all AI agents restricted the sample to ethnically Hispanic-Mexicans born in Mexico who are not US citizens.\footnote{I suspect this results from the AI becoming highly focused on the first clause of the AI prompt (copied verbatim from the human task), ``\textbf{Among ethnically Hispanic-Mexican Mexican-born people living in the United States}, what was the causal impact of eligibility for the Deferred Action for Childhood Arrivals (DACA) program (treatment) on the probability that the eligible person is employed full-time (outcome)," emphasis mine.}
 
 Moreover, AI consistently made two subtle mistakes in coding treatment more frequently than the human researchers. First, AI was much less likely to condition treatment on age derived from both birth year and birth quarter (7\% vs. humans' 81\%), instead preferring age measured only in years. This matters because the DACA eligibility age cutoff is June 15th, 2012, as conveyed in the AI's prompt. Second, AI inappropriately includes immigrants arriving in 2007 as part of the treated group (85\% vs. humans' 36\%), when in fact it should have included only those arriving strictly before 2007. AI never conditions treatment on arrival prior to 2007 (0\% compared to humans' 30\%), rather defining it conditional on arrival up to and including 2007 (85\% of the time vs. humans' 36\%). 
 
 # Conclusion {#sec-conclusion}
 This paper develops a novel, scalable approach to multi-analyst studies leveraging new breakthroughs in agentic artificial intelligence. I then test whether current frontier models can match humans in outcomes and choices following the multi-analyst study of @huntingtonklein2025sources.
 
-The resemblance of AI agent estimation outcome distributions to the human distributions is striking. The sharp disagreement in specification choices between AI and humans is equally striking. AI agents converged much more on particular specification and sampling choices relative to human researchers. This finding is consistent with concurrent work by @huang2026aierrors, who find in a different setting that AI choices tend to cluster on certain sampling and specification choices. This suggests that AI is at best an imperfect substitute for humans in multi-analyst designs aimed at quantifying the degree of uncertainty due to researcher degrees-of-freedom.
+The resemblance of AI agent estimation outcome distributions to the human distributions is striking. The sharp disagreement in specification choices between AI and humans is equally striking. AI agents converged much more on particular specification and sampling choices relative to human researchers. This finding is consistent with concurrent work by @huang2026aierrors, who find in a different setting that AI choices tend to cluster on certain sampling and specification choices. This suggests that AI is at best an imperfect substitute for humans in multi-analyst designs aimed at quantifying the degree of uncertainty due to researcher degrees of freedom.
 
 Two limitations are worth emphasizing. First, the @huntingtonklein2025sources benchmark materials were public before my AI runs, so model training data may have included parts of the original study or human submissions. Still, the convergence of many AI choices in contrast to the wide divergence of humans suggests the AI was not merely copying human work. In any case, a novel research question simultaneously assigned to human researchers and AI agents would best address this concern. Second, results may depend on the AI model and agent harness. Future work should explore the degree to which outcomes vary by model-harness pair.
 
