@@ -145,7 +145,52 @@ BENCHMARK_TASK1_TABLE3 = {
     "standard_error": {"min": 0.000, "p25": 0.005, "median": 0.007, "p75": 0.013, "max": 0.460},
     "sample_size": {"min": 681, "p25": 61_600, "median": 179_960, "p75": 356_787, "max": 29_536_580},
 }
+BENCHMARK_TASK1_TABLE3_ROWS = [
+    # Published Task 1 panel from Table 3 of I4R-DP209.pdf.  Store the display
+    # values directly because the paper only reports rounded aggregate moments,
+    # not the underlying human analyst-level data for every row.
+    ["Effect Size (unweighted)", "145", "0.053", "0.095", "-0.049", "0.014", "0.030", "0.051", "0.660"],
+    ["Effect Size (weighted by inverse SE)", "138", "0.044", "0.092", "-0.049", "0.012", "0.026", "0.043", "0.660"],
+    ["Standard Error", "139", "0.019", "0.055", "0.000", "0.005", "0.007", "0.013", "0.460"],
+    ["Sample Size", "145", "828,318", "3,056,037", "681", "61,600", "179,960", "356,787", "29,536,580"],
+    ["Treated-Group Size", "141", "96,395", "648,493", "270", "17,950", "34,435", "52,581", "7,727,201"],
+]
 EXCLUDED_ANALYSIS_MODELS = {"claude-haiku-4.5"}
+
+
+COMPARISON_BOXPLOTS_CAPTION = "Human and AI estimation outcomes"
+COMPARISON_BOXPLOTS_NOTES = (
+    r"Panels compare unweighted point-estimate distributions (top left), point-estimate distributions weighted "
+    r"by inverse standard error (top right), standard errors (bottom left), and $\log$ sample sizes (bottom right) "
+    r"for both the human researcher sample of Task 1 from \citet{huntingtonklein2025sources} and the AI agent "
+    r"sample from this paper. Boxes show the interquartile range, center lines show medians, and whiskers show "
+    r"minimum and maximum values."
+)
+SUMMARY_WITH_NHK_TASK1_CAPTION = "Summary statistics on estimation outcomes"
+SUMMARY_WITH_NHK_TASK1_NOTES = (
+    r"Panel A reports outcomes from the AI agent sample. Panel B restates the published Task 1 panel of Table 3 "
+    r"of \citet{huntingtonklein2025sources}. Treated-group sample size not available for all AI agent runs since "
+    r"its collection was added after the initial runs."
+)
+METHODS_CAPTION = "Estimation choices by researcher type"
+METHODS_NOTES = (
+    r"Estimation choices are inferred from each generated model specification and execution metadata. Data from "
+    r"\citet{huntingtonklein2025sources} includes more restricted human runs (Tasks 2 and 3) in which the "
+    r"research design was more tightly specified and precleaned data was provided."
+)
+CONTROLS_CAPTION = "Control variable choices by researcher type"
+CONTROLS_NOTES = (
+    r"The table presents the number and share of AI and human estimation specifications which included various "
+    r"controls.  Data from \citet{huntingtonklein2025sources} includes more restricted human runs (Tasks 2 and 3) "
+    r"in which the research design was more tightly specified and precleaned data was provided."
+)
+SAMPLE_RESTRICTIONS_CAPTION = "Sample and treated-group restriction choices by researcher type"
+SAMPLE_RESTRICTIONS_NOTES = (
+    r"The table compares AI-agent restriction choices with the published Task 1 counts from Table 6 of "
+    r"\citet{huntingtonklein2025sources}. AI all-sample choices are classified from each retained run's generated "
+    r"sample-selection text. AI treated-group choices combine the all-sample text with each retained run's explicit "
+    r"treatment-definition text, so treated-group restrictions inherit all-sample restrictions."
+)
 
 
 def load_and_filter_data(csv_path: Path, verbose: bool = False, max_abs_effect: float | None = 1.0) -> pd.DataFrame:
@@ -560,14 +605,21 @@ def latex_escape(text: str) -> str:
     return "".join(replacements.get(char, char) for char in text)
 
 
-def write_tabular(path: Path, header: list[str], rows: list[list[str]], column_spec: str) -> None:
+def write_tabular(path: Path, header: list[str], rows: list[list[str]], column_spec: str, *, escape: bool = True) -> None:
+    format_cell = latex_escape if escape else str
     lines = []
     lines.append(f"\\begin{{tabular}}{{{column_spec}}}")
     lines.append("\\toprule")
-    lines.append(" & ".join(latex_escape(col) for col in header) + r" \\")
+    lines.append(" & ".join(format_cell(col) for col in header) + r" \\")
     lines.append("\\midrule")
     for row in rows:
-        lines.append(" & ".join(latex_escape(cell) for cell in row) + r" \\")
+        if not escape and len(row) == 1 and row[0].startswith(r"\addlinespace"):
+            lines.append(row[0])
+            continue
+        if not escape and len(row) == 1 and row[0].startswith(r"\multicolumn"):
+            lines.append(row[0] + r" \\")
+            continue
+        lines.append(" & ".join(format_cell(cell) for cell in row) + r" \\")
     lines.append("\\bottomrule")
     lines.append("\\end{tabular}")
     path.write_text("\n".join(lines), encoding="utf-8")
@@ -621,7 +673,32 @@ def write_table_environment(
     path.write_text("\n".join(lines), encoding="utf-8")
 
 
-def generate_table1(df: pd.DataFrame, output_path: Path) -> None:
+def write_centered_figure_environment(
+    path: Path,
+    *,
+    caption: str,
+    label: str,
+    image_path: str,
+    notes: str,
+    width: str = r"0.82\textwidth",
+) -> None:
+    # Write the same minipage-based figure wrapper used in the manuscript so
+    # regenerated phase 4 figure notes do not drift away from the paper text.
+    lines = [
+        r"\begin{center}",
+        r"\begin{minipage}{\textwidth}",
+        r"\centering",
+        rf"\captionof{{figure}}{{{caption}}}",
+        rf"\label{{{label}}}",
+        rf"\includegraphics[width={width}]{{{image_path}}}",
+        rf"\captionof*{{figure}}{{\scriptsize \textbf{{Notes:}} {notes}}}",
+        r"\end{minipage}",
+        r"\end{center}",
+    ]
+    path.write_text("\n".join(lines), encoding="utf-8")
+
+
+def build_table1_ai_rows(df: pd.DataFrame) -> list[list[str]]:
     n = len(df)
     point_est = df["point_est"].to_numpy()
     se = df["SE"].to_numpy()
@@ -730,11 +807,32 @@ def generate_table1(df: pd.DataFrame, output_path: Path) -> None:
                 format_int(treated_stats["max"]),
             ]
         )
+    return rows
+
+
+def generate_table1(df: pd.DataFrame, output_path: Path) -> None:
+    rows = build_table1_ai_rows(df)
     write_tabular(
         output_path,
         ["", "N", "Mean", "SD", "Min", "Pctl. 25", "Median", "Pctl. 75", "Max"],
         rows,
         "@{}l r r r r r r r r@{}",
+    )
+
+
+def generate_table1_with_nhk_task1(df: pd.DataFrame, output_path: Path) -> None:
+    rows: list[list[str]] = []
+    rows.append([r"\multicolumn{9}{@{}l}{\textit{Panel A: AI-agent estimates}}"])
+    rows.extend(build_table1_ai_rows(df))
+    rows.append([r"\addlinespace"])
+    rows.append([r"\multicolumn{9}{@{}l}{\textit{Panel B: Human estimates}}"])
+    rows.extend(BENCHMARK_TASK1_TABLE3_ROWS)
+    write_tabular(
+        output_path,
+        ["", "N", "Mean", "SD", "Min", "Pctl. 25", "Median", "Pctl. 75", "Max"],
+        rows,
+        "@{}l r r r r r r r r@{}",
+        escape=False,
     )
 
 
@@ -1337,37 +1435,25 @@ def main() -> None:
     df = load_and_filter_data(args.input, verbose=args.verbose, max_abs_effect=max_abs_effect)
 
     generate_table1(df, output_dir / "table1_summary_stats.tex")
+    generate_table1_with_nhk_task1(df, output_dir / "table1_summary_stats_with_nhk_task1.tex")
     generate_table4(df, output_dir / "table4_method_shares.tex")
     generate_table5(df, output_dir / "table5_control_effects.tex")
     generate_table6(df, output_dir / "table6_provider_comparison.tex")
     write_macros(output_dir / "paper_macros.tex", build_paper_metrics(df, filter_counts))
     write_table_environment(
         output_dir / "paper_table1_summary.tex",
-        caption="Distribution of AI-agent-generated estimates of the effect of DACA eligibility on full-time employment",
-        label="tab:summary",
-        tabular_path="../NHK-replications/meta_analysis_expanded/table1_summary_stats.tex",
-        notes=(
-            r"Each observation is one AI-agent-generated specification applied to the same ACS extract. "
-            r"The analytic sample excludes runs without recoverable specifications, execution failures, runs with "
-            r"non-positive standard errors, and successful but degenerate executions with $|\hat{\theta}| > 1$. "
-            r"The treated-group-size row uses the subset of runs with conservatively recovered treated counts. "
-            r"The inverse-SE weighted row uses weights $1/\max(\text{SE}, q_{0.05})$, where $q_{0.05}$ is the "
-            r"5th percentile of SE, to limit the influence of very small standard errors."
-        ),
+        caption=SUMMARY_WITH_NHK_TASK1_CAPTION,
+        label="tab:appendix-summary-nhk",
+        tabular_path="../NHK-replications/meta_analysis_expanded/table1_summary_stats_with_nhk_task1.tex",
+        notes=SUMMARY_WITH_NHK_TASK1_NOTES,
         resize_to_textwidth=True,
     )
     write_table_environment(
         output_dir / "paper_table2_methods.tex",
-        caption=rf"Shares of estimation choices across \aiAnalyticN{{}} retained AI-agent specifications",
+        caption=METHODS_CAPTION,
         label="tab:methods",
         tabular_path="../NHK-replications/meta_analysis_expanded/table4_method_shares.tex",
-        notes=(
-            r"Estimation choices are inferred from each generated model specification and execution metadata. "
-            r"Rows match the categories in Table~4 of \citet{huntingtonklein2025sources}; AI runs with no "
-            r"observed cases in a category are reported as zero rather than omitted. ``Sample Weights'' indicates "
-            r"any non-empty weighting expression in the generated specification. ``Cluster (State \& Year)'' "
-            r"indicates clustering on a combined state-year grouping."
-        ),
+        notes=METHODS_NOTES,
         resize_to_textwidth=True,
     )
     write_table_environment(
@@ -1376,9 +1462,32 @@ def main() -> None:
         label="tab:models",
         tabular_path="../NHK-replications/meta_analysis_expanded/table6_provider_comparison.tex",
         notes=(
-            r"Each column reports summary statistics over the filtered sample used in Table~\ref{tab:summary}. "
+            r"Each column reports summary statistics over the filtered sample used in Table~\ref{tab:appendix-summary-nhk}. "
             r"The Claude Sonnet 4.6 subsample is small; its statistics should be interpreted with caution."
         ),
+    )
+    write_table_environment(
+        output_dir / "paper_table_controls.tex",
+        caption=CONTROLS_CAPTION,
+        label="tab:controls",
+        tabular_path="../NHK-replications/meta_analysis_expanded/table5_control_effects.tex",
+        notes=CONTROLS_NOTES,
+        resize_to_textwidth=True,
+    )
+    write_table_environment(
+        output_dir / "paper_table_sample_restrictions.tex",
+        caption=SAMPLE_RESTRICTIONS_CAPTION,
+        label="tab:sample-restrictions",
+        tabular_path="../NHK-replications/meta_analysis_expanded/table_sample_restrictions.tex",
+        notes=SAMPLE_RESTRICTIONS_NOTES,
+        resize_to_textwidth=True,
+    )
+    write_centered_figure_environment(
+        output_dir / "paper_figure4_comparison_boxplots.tex",
+        caption=COMPARISON_BOXPLOTS_CAPTION,
+        label="fig:comparison-boxplots",
+        image_path="../NHK-replications/meta_analysis_expanded/figure4_comparison_boxplots.png",
+        notes=COMPARISON_BOXPLOTS_NOTES,
     )
 
     if not args.no_figures:

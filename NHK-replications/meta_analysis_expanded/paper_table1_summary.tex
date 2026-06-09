@@ -1,9 +1,9 @@
 \begin{table}[!htbp]
 \centering
-\caption{Distribution of AI-agent-generated estimates of the effect of DACA eligibility on full-time employment}
-\label{tab:summary}
+\caption{Summary statistics on estimation outcomes}
+\label{tab:appendix-summary-nhk}
 \small
-\resizebox{\textwidth}{!}{\input{../NHK-replications/meta_analysis_expanded/table1_summary_stats.tex}}
-\caption*{\textbf{Notes:} Each observation is one AI-agent-generated specification applied to the same ACS extract. The analytic sample excludes runs without recoverable specifications, execution failures, runs with non-positive standard errors, and successful but degenerate executions with $|\hat{\theta}| > 1$. The treated-group-size row uses the subset of runs with conservatively recovered treated counts. The inverse-SE weighted row uses weights $1/\max(\text{SE}, q_{0.05})$, where $q_{0.05}$ is the 5th percentile of SE, to limit the influence of very small standard errors.}
+\resizebox{\textwidth}{!}{\input{../NHK-replications/meta_analysis_expanded/table1_summary_stats_with_nhk_task1.tex}}
+\caption*{\textbf{Notes:} Panel A reports outcomes from the AI agent sample. Panel B restates the published Task 1 panel of Table 3 of \citet{huntingtonklein2025sources}. Treated-group sample size not available for all AI agent runs since its collection was added after the initial runs.}
 \end{table}
 \FloatBarrier
