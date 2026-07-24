@@ -61,12 +61,6 @@ HUMAN_TASK1_ALL_SAMPLE: tuple[HumanTask1Choice, ...] = (
     HumanTask1Choice("Year of Immigration", "Any Year", 7, 145, 4, 145),
     HumanTask1Choice("Year of Immigration", "Other", 5, 145, 3, 145),
     HumanTask1Choice("Year of Immigration", "None", 100, 145, 38, 145),
-    HumanTask1Choice("Education/Veteran", "HS Grad or Veteran", 0, 145, 3, 145),
-    HumanTask1Choice("Education/Veteran", "12th Grade or Veteran", 0, 145, 0, 145),
-    HumanTask1Choice("Education/Veteran", "HS Grad", 13, 145, 21, 145),
-    HumanTask1Choice("Education/Veteran", "HS Grad or Non-Veteran", 0, 145, 0, 145),
-    HumanTask1Choice("Education/Veteran", "Other", 3, 145, 6, 145),
-    HumanTask1Choice("Education/Veteran", "None", 129, 145, 115, 145),
     HumanTask1Choice("Years Continuous in USA", "Used YRSUSA", 23, 145, 55, 145),
     HumanTask1Choice("Years Continuous in USA", "No YRSUSA", 122, 145, 90, 145),
 )
@@ -245,35 +239,6 @@ def classify_year_of_immigration(text: str) -> str:
     return "Other"
 
 
-def classify_education_veteran(text: str) -> str:
-    # These are the education-related variables present in the ACS extract
-    # codebook.  Do not match historical aliases that are not available here.
-    has_education_variable = contains_any(
-        text,
-        (
-            r"(?<!high )(?<!high-)\bschool\b",
-            r"\beducd?\b",
-            r"\bgradeattd?\b",
-            r"\bschltype\b",
-            r"\bdegfieldd?\b",
-        ),
-    )
-    has_veteran = has_variable(text, "vetstat") or has_variable(text, "vetstatd")
-    has_high_school = has_education_variable and contains_any(text, (r"hs grad", r"high school", r"12th grade", r"\beducd?\b"))
-    has_non_veteran = has_veteran and contains_any(text, (r"non-veteran", r"non veteran", r"vetstatd?\b\s*(?:==|=)\s*(?:1|10|11)\b"))
-    if has_high_school and has_non_veteran:
-        return "HS Grad or Non-Veteran"
-    if has_high_school and has_veteran:
-        return "HS Grad or Veteran"
-    if contains_any(text, (r"12th grade",)):
-        return "12th Grade or Veteran" if has_veteran else "HS Grad"
-    if has_high_school:
-        return "HS Grad"
-    if has_veteran:
-        return "Other"
-    return "None"
-
-
 def classify_yrsusa(text: str) -> str:
     return "Used YRSUSA" if contains_any(text, (r"yrsusa", r"continuous.*usa", r"continuous.*u\.s")) else "No YRSUSA"
 
@@ -288,7 +253,6 @@ def ai_choices_for_text(text: str) -> dict[str, str]:
         "Age at Migration": classify_age_at_migration(text),
         "Age in June 2012": classify_age_in_2012(text),
         "Year of Immigration": classify_year_of_immigration(text),
-        "Education/Veteran": classify_education_veteran(text),
         "Years Continuous in USA": classify_yrsusa(text),
     }
 

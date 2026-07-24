@@ -169,7 +169,7 @@ Choice of control variables differed substantially between humans and AI, as sho
 \FloatBarrier
 ```
 
-Next, Table \ref{tab:sample-restrictions} compares sample and treated group filters. Rows underneath each variable heading are roughly ordered by the 'correctness' for defining the treated group, as in \citet{huntingtonklein2025sources}. This is based on DACA's eligibility criteria, which are listed in the AI's prompt. The prompt does not specify, however, how to construct the control group.
+Next, Table \ref{tab:sample-restrictions} compares sample and treated group filters. Rows underneath each variable heading are roughly ordered by the 'correctness' for defining the treated group, as in \citet{huntingtonklein2025sources}. This is based on DACA's eligibility criteria, which are listed in the AI's prompt. The prompt does not specify, however, how to construct the control group.\footnote{In prompting the AI, we did not mention restricting the sample based on education or veteran status, consistent with the prompt given to the human researchers in Task 1 by Huntington-Klein et al. (2025).}
 
 ```{=latex}
 \begin{table}[H]
