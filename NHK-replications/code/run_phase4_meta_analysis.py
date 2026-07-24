@@ -25,113 +25,120 @@ BENCHMARK_TASK1_METHOD_SHARES = {
     "No SE adjustment": {"n": 145, "share": 22.0},
 }
 BENCHMARK_TABLE4_METHOD_SHARES = {
-    "Linear Regression": {"n": 358},
-    "Logit/Probit": {"n": 57},
-    "Matching": {"n": 11},
-    "New DID Estimator": {"n": 7},
-    "Other": {"n": 4},
-    "Cluster (State)": {"n": 118},
-    "Cluster (State & Year)": {"n": 58},
-    "Cluster (ID/Strata/Other)": {"n": 65},
-    "Het-Robust": {"n": 76},
-    "Other/Bootstrap": {"n": 23},
-    "None": {"n": 98},
-    "No Sample Weights": {"n": 329},
-    "Sample Weights": {"n": 109},
+    "Linear Regression": {"n": 122},
+    "Logit/Probit": {"n": 19},
+    "Matching": {"n": 2},
+    "New DID Estimator": {"n": 1},
+    "Other": {"n": 1},
+    "Cluster (State)": {"n": 31},
+    "Cluster (State & Year)": {"n": 22},
+    "Cluster (ID/Strata/Other)": {"n": 20},
+    "Het-Robust": {"n": 24},
+    "Other/Bootstrap": {"n": 7},
+    "None": {"n": 42},
+    "No Sample Weights": {"n": 101},
+    "Sample Weights": {"n": 45},
 }
-BENCHMARK_TABLE4_METHOD_TOTAL = 437
+BENCHMARK_TABLE4_TOTALS = {
+    # The published Task 1 method rows contain 145 classified estimates.
+    "Method": 145,
+    # The published Task 1 SE and weighting rows contain 146 estimates.
+    "S.E. Adjustment": 146,
+    "Weights": 146,
+}
+BENCHMARK_TABLE5_CONTROL_TOTAL = 146
 BENCHMARK_TABLE5_CONTROL_EFFECTS = [
-    # Published Table 5 in I4R-DP209.pdf. Rows are overlapping indicators:
+    # Published Task 1 rows from Table 5 in I4R-DP209.pdf. Rows are overlapping indicators:
     # each row includes every human estimate whose specification contains the
     # listed functional form, so counts are not meant to sum to the total
     # number of estimates.
     {
         "category": "AGE",
         "control": "Linear Age",
-        "n": 164,
-        "mean_effect": 0.058,
-        "sd_effect": 0.107,
-        "mean_se": 0.024,
+        "n": 61,
+        "mean_effect": 0.046,
+        "sd_effect": 0.072,
+        "mean_se": 0.011,
     },
     {
         "category": "AGE",
         "control": "Age FE",
-        "n": 36,
-        "mean_effect": 0.024,
-        "sd_effect": 0.022,
+        "n": 13,
+        "mean_effect": 0.029,
+        "sd_effect": 0.015,
         "mean_se": 0.040,
     },
     {
         "category": "AGE",
         "control": "Age Quadratic",
-        "n": 33,
-        "mean_effect": 0.035,
-        "sd_effect": 0.089,
-        "mean_se": 0.015,
+        "n": 11,
+        "mean_effect": 0.056,
+        "sd_effect": 0.151,
+        "mean_se": 0.007,
     },
     {
         "category": "EDUC",
         "control": "Linear Education",
-        "n": 122,
-        "mean_effect": 0.040,
-        "sd_effect": 0.066,
-        "mean_se": 0.016,
+        "n": 46,
+        "mean_effect": 0.023,
+        "sd_effect": 0.038,
+        "mean_se": 0.009,
     },
     {
         "category": "EDUC",
         "control": "Education FE",
-        "n": 32,
-        "mean_effect": 0.047,
-        "sd_effect": 0.033,
-        "mean_se": 0.021,
+        "n": 8,
+        "mean_effect": 0.071,
+        "sd_effect": 0.055,
+        "mean_se": 0.008,
     },
     {
         "category": "EDUC",
         "control": "Education Transform",
-        "n": 61,
-        "mean_effect": 0.045,
-        "sd_effect": 0.064,
-        "mean_se": 0.017,
+        "n": 16,
+        "mean_effect": 0.066,
+        "sd_effect": 0.120,
+        "mean_se": 0.011,
     },
     {
         "category": "STATE/YEAR",
         "control": "Linear Year",
-        "n": 79,
-        "mean_effect": 0.044,
-        "sd_effect": 0.140,
-        "mean_se": 0.037,
+        "n": 33,
+        "mean_effect": 0.045,
+        "sd_effect": 0.098,
+        "mean_se": 0.010,
     },
     {
         "category": "STATE/YEAR",
         "control": "Year FE",
-        "n": 103,
-        "mean_effect": 0.047,
-        "sd_effect": 0.062,
+        "n": 40,
+        "mean_effect": 0.061,
+        "sd_effect": 0.094,
         "mean_se": 0.026,
     },
     {
         "category": "STATE/YEAR",
         "control": "State FE",
-        "n": 155,
-        "mean_effect": 0.046,
-        "sd_effect": 0.102,
-        "mean_se": 0.031,
+        "n": 52,
+        "mean_effect": 0.053,
+        "sd_effect": 0.080,
+        "mean_se": 0.019,
     },
     {
         "category": "STATE/YEAR",
         "control": "State FE x Year FE",
-        "n": 56,
-        "mean_effect": 0.037,
-        "sd_effect": 0.027,
-        "mean_se": 0.018,
+        "n": 19,
+        "mean_effect": 0.038,
+        "sd_effect": 0.038,
+        "mean_se": 0.010,
     },
     {
         "category": "STATE/YEAR",
         "control": "State FE x Linear Year",
-        "n": 23,
-        "mean_effect": 0.061,
-        "sd_effect": 0.133,
-        "mean_se": 0.017,
+        "n": 5,
+        "mean_effect": 0.142,
+        "sd_effect": 0.289,
+        "mean_se": 0.008,
     },
 ]
 INVERSE_SE_FLOOR_QUANTILE = 0.05
@@ -174,15 +181,13 @@ SUMMARY_WITH_NHK_TASK1_NOTES = (
 )
 METHODS_CAPTION = "Estimation choices by researcher type"
 METHODS_NOTES = (
-    r"Estimation choices are inferred from each generated model specification and execution metadata. Data from "
-    r"\citet{huntingtonklein2025sources} includes more restricted human runs (Tasks 2 and 3) in which the "
-    r"research design was more tightly specified and precleaned data was provided."
+    r"Estimation choices are inferred from each generated model specification and execution metadata. Human results "
+    r"use Task 1 submissions from \citet{huntingtonklein2025sources}."
 )
 CONTROLS_CAPTION = "Control variable choices by researcher type"
 CONTROLS_NOTES = (
     r"The table presents the number and share of AI and human estimation specifications which included various "
-    r"controls.  Data from \citet{huntingtonklein2025sources} includes more restricted human runs (Tasks 2 and 3) "
-    r"in which the research design was more tightly specified and precleaned data was provided."
+    r"controls. Human results use Task 1 submissions from \citet{huntingtonklein2025sources}."
 )
 SAMPLE_RESTRICTIONS_CAPTION = "Sample and treated-group restriction choices by researcher type"
 SAMPLE_RESTRICTIONS_NOTES = (
@@ -882,7 +887,7 @@ def generate_table4(df: pd.DataFrame, output_path: Path) -> None:
             # percentages.  Recompute the one-decimal display value from the
             # benchmark count and total so this table is internally consistent
             # with the requested precision.
-            human_share = 100 * benchmark["n"] / BENCHMARK_TABLE4_METHOD_TOTAL
+            human_share = 100 * benchmark["n"] / BENCHMARK_TABLE4_TOTALS[section]
             rows.append([
                 label,
                 choice,
@@ -898,7 +903,7 @@ def generate_table5(df: pd.DataFrame, output_path: Path) -> None:
     rows = []
     total_df = df.copy()
     ai_total = len(total_df)
-    human_total = BENCHMARK_TABLE4_METHOD_TOTAL
+    human_total = BENCHMARK_TABLE5_CONTROL_TOTAL
     control_terms = total_df["control_variables"].fillna("").apply(split_terms)
     fixed_terms = total_df["fixed_effects"].fillna("").apply(split_terms)
     # Match NHK Table 5's construction: each row is an overlapping inclusion

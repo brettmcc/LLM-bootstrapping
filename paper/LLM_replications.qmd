@@ -151,11 +151,11 @@ Did AI and human researchers arrive at their estimates through similar specifica
 \input{../NHK-replications/meta_analysis_expanded/paper_table2_methods.tex}
 ```
 
-I find that AI agents make notably different model specification choices relative to human economists. AI agents exclusively choose linear models, in contrast to 13\% of human runs using nonlinear models. AI agents also overwhelmingly converged on clustering standard errors at the state level, with 81\% of agents choosing to do so compared to 27\% of human runs. The share of runs featuring heteroskedasticity robust standard errors was quite similar between AI and humans. 
+I find that AI agents make notably different model specification choices relative to human economists. AI agents exclusively choose linear models, in contrast to 13\% of human runs using nonlinear models. AI agents also overwhelmingly converged on clustering standard errors at the state level, with 81\% of agents choosing to do so compared to 21\% of human runs. The share of runs featuring heteroskedasticity robust standard errors was quite similar between AI and humans.
 
 AI agents almost exclusively used sample weights, while a majority of human researchers did not. Using weights is in line with IPUMS instructions, a fact highlighted by @huntingtonklein2025sources.
 
-Choice of control variables differed substantially between humans and AI, as shown in Table \ref{tab:controls}. AI agents included an age control more frequently than humans did, and AI almost never controlled for education while humans did in nearly half of specifications. 92\% of AI agents included year fixed effects, compared to just 24\% of human runs. Similarly, 92\% of AIs included state fixed effects compared to 36\% of human runs. Estimating a fully-saturated difference-in-differences specification diminishes the downsides of linear probability models, the choice of every AI agent, as also noted by @huntingtonklein2025sources. Overall, AI agents agreed on the set of controls much more often than human researchers. Just 25\% of AI agent runs used a set of controls unique among all other AIs, compared to 64\% of humans.
+Choice of control variables differed substantially between humans and AI, as shown in Table \ref{tab:controls}. AI agents included an age control more frequently than humans did, and AI almost never controlled for education while humans did in nearly half of specifications. 92\% of AI agents included year fixed effects, compared to just 27\% of human runs. Similarly, 92\% of AIs included state fixed effects compared to 36\% of human runs. Estimating a fully-saturated difference-in-differences specification diminishes the downsides of linear probability models, the choice of every AI agent, as also noted by @huntingtonklein2025sources. Overall, AI agents agreed on the set of controls much more often than human researchers. Just 25\% of AI agent runs used a set of controls unique among all other AIs, compared to 60\% of humans.
 
 ```{=latex}
 \begin{table}[!htbp]
@@ -164,7 +164,7 @@ Choice of control variables differed substantially between humans and AI, as sho
 \label{tab:controls}
 \small
 \resizebox{\textwidth}{!}{\input{../NHK-replications/meta_analysis_expanded/table5_control_effects.tex}}
-\caption*{\footnotesize \textbf{Notes:} The table presents the number and share of AI and human estimation specifications which included various controls.  Data from \citet{huntingtonklein2025sources} include more restricted human runs (Tasks 2 and 3) in which the research design was more tightly specified and precleaned data was provided.}
+\caption*{\footnotesize \textbf{Notes:} The table presents the number and share of AI and human estimation specifications which included various controls. Human results use Task 1 submissions from \citet{huntingtonklein2025sources}.}
 \end{table}
 \FloatBarrier
 ```
