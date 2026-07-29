@@ -1,5 +1,5 @@
 ---
-title: "Measuring Estimation Uncertainty due to Researcher Degrees of Freedom with Agentic Artificial Intelligence"
+title: "Research Choices of Agentic Artificial Intelligence"
 author:
   - name: Brett A. McCully
     affiliations:
@@ -53,16 +53,16 @@ date: last-modified
 number-sections: true
 number-depth: 2
 abstract: |
-  Researchers’ sample and specification choices generate uncertainty not captured by standard errors. Measuring this uncertainty is costly, requiring recruiting and coordinating many independent research teams. I develop a scalable alternative whereby many AI agents receive the same research prompt and raw data, and separately design and estimate empirical specifications. I benchmark this approach against a recent human multi-analyst study. AI agents’ coefficient, standard-error, and sample-size distributions are broadly comparable to those of human analysts, but AI achieves this via systematically different sample and specification choices. Agentic AI can help measure researcher-induced uncertainty, but remains an imperfect substitute for humans.
+  Researchers increasingly rely on agentic artificial intelligence in research production. I assess the degree to which AI research choices diverge from those of human experts. Fixing the research question and raw data, I compare the sampling and specification choices, and resulting estimates, of 145 human teams to those of 156 AI agents. AI coefficient, standard-error, and sample-size distributions broadly resemble human analysts', but AI achieves this via systematically different sample and specification choices. Agentic AI thus remains an imperfect substitute for human researchers for the models tested.
 ---
 
 ```{=latex}
 \begin{quotation}
 \footnotesize
-\noindent \textbf{Keywords:} Non-standard errors, multi-analyst studies, AI agents
+\noindent \textbf{Keywords:} AI agents, LLMs, multi-analyst studies
 
 \medskip
-\noindent \textbf{JEL Codes:} C6, C12, C15
+\noindent \textbf{JEL Codes:} C6, C18, C88
 \end{quotation}
 
 \vfill
@@ -75,12 +75,22 @@ abstract: |
 
 # Introduction {#sec-intro}
 
+Recent advances in artificial intelligence are transforming the way research is done. Economists increasingly use agentic AI, such as Claude Code and Codex, to execute various tasks in research.\footnote{A straw poll during the NBER Summer Institute for Household Finance revealed approximately 60\% of economists are `all-in' on agentic AI, see \url{https://x.com/S_Stantcheva/status/2080706102044291124}.} Some are testing the extent to which agentic AI can automate the entire research pipeline from idea to paper [@projectape2026; @willner2026verifying]. A key question that remains before agentic AI can automate research is whether the quality of agentic AI's decisions match those of expert human researchers.
+
+I assess how AI agents' sampling and specification decisions and estimation results match up to those of humans. Each agent receives the same research prompt and raw dataset but independently generates a complete empirical specification---sample restrictions, outcome and treatment definitions, control set, and standard-error adjustments. The inherent stochasticity of the large language models which power modern AI agents ensures there is variation in research choices. I benchmark AI agents against humans by having them answer the same question studied by many human analysts in @huntingtonklein2025sources: how eligibility for the Deferred Action for Childhood Arrivals program affects the probability of full-time employment for eligible workers. 
+
+Across \aiAnalyticN{} AI agent-generated specifications, I obtain interquartile ranges in estimates, standard errors, and sample sizes that resemble the human many-analyst coefficient distribution. Specification choices---model type, control variables, weighting, and standard error adjustment---differ substantially, with AI converging on certain choices much more than human researchers. Overall my findings suggest that AI, while useful, is not a perfect substitute for multi-human-analyst studies.
+
+A growing body of evidence shows that researchers answering the same question and using the same raw data make different decisions that can produce meaningfully different estimates [@silberzahn2018many; @huntington2021influence; @breznau2022observing]. There are at least 3 other concurrent, unpublished papers that similarly compare variance in AI estimates to those found in human multi-analyst benchmarks: \citet{gao2026nonstandard}, \citet{grundl2026comparison}, and \citet{huang2026aierrors}. The only other of these papers to also look at \citet{huntingtonklein2025sources}, \citet{grundl2026comparison}, does not focus on agent choices as I do. 
+
+<!--
 Empirical papers routinely report standard errors that quantify sampling uncertainty. These standard errors are conditional on a set of researcher decisions: how to define the estimation sample, how to construct outcomes and treatments, which specification to use, and how to compute standard errors. A growing body of evidence shows that researchers answering the same question and using the same raw data make different decisions that can produce meaningfully different estimates [@silberzahn2018many; @huntington2021influence; @breznau2022observing]. This implies an additional source of uncertainty beyond standard errors capturing sampling variation: researcher degrees of freedom [@stevenson2026humans]. Measuring parameter uncertainty due to researcher degrees of freedom at scale is challenging. Multi-analyst studies are expensive, requiring extensive recruitment and coordination.
 
 I assess a novel approach: AI agents that perform empirical analyses at scale.\footnote{There are at least 3 other concurrent, unpublished papers that attempt to do broadly what I propose in this article: \citet{gao2026nonstandard}, \citet{grundl2026comparison}, and \citet{huang2026aierrors}. Given the timing of the release of these working papers and the work on my own public GitHub repository for this article dating back to January 2026 (see \url{https://github.com/brettmcc/LLM-bootstrapping}), this is a clear case of parallel invention. In any case, the only other of these papers to also look at \citet{huntingtonklein2025sources}, \citet{grundl2026comparison}, does not focus on agent choices as I do.} Each agent receives the same research prompt and raw dataset but independently generates a complete empirical specification---sample restrictions, outcome and treatment definitions, control set, and standard-error adjustments. The inherent stochasticity of the large language models which power modern AI agents ensures there is variation in research choices.
 
 Do AI sample and specification choices yield a distribution of estimation outcomes similar to humans? To answer this, I apply my AI agent approach to the question studied by many analysts in @huntingtonklein2025sources: how eligibility for the Deferred Action for Childhood Arrivals program affects the probability of full-time employment for eligible workers.
 Across \aiAnalyticN{} AI agent-generated specifications, I obtain interquartile ranges in estimates, standard errors, and sample sizes that resemble the human many-analyst coefficient distribution. Specification choices---model type, control variables, weighting, and standard error adjustment---differ substantially, with AI converging on certain choices much more than human researchers. Overall my findings suggest that AI, while useful, is not a perfect substitute for multi-human-analyst studies.
+-->
 
 # Method {#sec-method}
 
@@ -91,7 +101,7 @@ Large language AI models, such as GPT or Claude, give non-deterministic response
 
 Why might AI agents produce reasonable research choices? Their underlying models are trained on huge corpora of digital data [@openai2025gpt5systemcard; @anthropic2026systemcard], likely including much economics research and associated code. The language in the prompt given to the AI agent (e.g., words such as "causal" and a focus on labor market outcomes) should nudge the AI towards producing output more in line with the conventions of applied economists, rather than, say, data science practice in industry. AI outputs may therefore be interpreted as draws from a noisy representation of standard empirical social science practice.
 
-On the other hand, AI agents may make research choices far outside disciplinary norms and make a set of choices which are less internally coherent. Yet due to the enormous complexity of frontier large language AI models (each having trillions of parameters), the secrecy of the labs regarding the weights of each parameter, and the randomness of the output, one cannot deduce how models will respond simply from theory. The degree to which AI agents hew to human patterns of research choices is therefore an empirical question.
+On the other hand, AI agents may make research choices far outside disciplinary norms and make a set of choices which are less internally coherent. Due to the enormous complexity of frontier large language AI models (each having trillions of parameters), the secrecy of the labs regarding the weights of each parameter, and the randomness of the output, one cannot deduce how models will respond simply from theory. The degree to which AI agents hew to human patterns of research choices is therefore an empirical question.
 
 ## Application
 
@@ -99,7 +109,9 @@ I task AI agents with the same question answered by many human analysts in @hunt
 
 The computing pipeline works as follows. An AI agent is provided with the raw materials to answer the research question: an IPUMS extract and codebook with a broad set of variables, a supplementary state policy dataset and codebook, and instructions adapted from @huntingtonklein2025sources.\footnote{Replication code and the AI agent results can be found at https://github.com/brettmcc/LLM-bootstrapping/.} The agent then writes a concise, structured file outlining their model specification, outcome definition, sample selection, and treatment definition. They proceed to write and execute a Python script to implement the estimation, working through any coding errors along the way, and reporting the resulting coefficient estimate, standard error, and sample size. Sampling and specification choices are then programmatically scraped from agents' reports and cross-referenced against the actual code they produced to ensure accuracy.
 
-I use two frontier AI models---GPT-5.4 mini (OpenAI) and Claude Sonnet 4.6 (Anthropic)\footnote{I exclude \aiExcludedModelRuns{} exploratory runs with Claude's smaller and less advanced Haiku 4.5 model, which yielded several degenerate results, such as standard error of 0. Researchers applying this approach should therefore take heed that weaker models may not be suitable for this type of task.}---accessed through GitHub Copilot CLI. I primarily rely on GPT-5.4 mini, as it is cheaper to run than Claude Sonnet 4.6. When using a subscription such as GitHub Copilot, Codex, or Claude Code, the marginal cost of each run is modest, making large-scale replication affordable for individual researchers.
+Access to IPUMS differed between AI agents and human researchers. In particular, humans were instructed to navigate to the IPUMS website and select the variables they thought relevant. In contrast, I gave AI agents a fixed IPUMS extract. I constructed this extract by including all variables used by any of the human researchers. To obtain this list of variables, I scanned the repository of human submissions to @huntingtonklein2025sources hosted by OpenScienceFoundation and extracted all variables used by any human research team across tasks 1--3. This necessarily restricts AI agents from choosing any variable, no matter how irrelevant, but still gives them substantial latitude in variable selection.\footnote{An alternative would have been to give each AI agent access to the IPUMS API via my personal API key. I opted not to both to avoid hundreds of large ACS files on my machine and to not overburden the IPUMS API.}
+
+I used two then-frontier medium-size AI models---GPT-5.4 mini (OpenAI) and Claude Sonnet 4.6 (Anthropic)\footnote{I exclude \aiExcludedModelRuns{} exploratory runs with Claude's smaller and less advanced Haiku 4.5 model, which yielded several degenerate results, such as standard error of 0. Researchers applying this approach should therefore take heed that weaker models may not be suitable for this type of task.}---accessed through GitHub Copilot CLI. I primarily rely on GPT-5.4 mini, as it is cheaper to run than Claude Sonnet 4.6. When using a subscription such as Codex or Claude Code, the marginal cost of each run is modest, making large-scale replication affordable for individual researchers.
 
 # Results {#sec-results}
 
@@ -117,7 +129,7 @@ Figure \ref{fig:comparison-boxplots} depicts box-and-whisker plots for both huma
 \captionof{figure}{Human and AI estimation outcomes}
 \label{fig:comparison-boxplots}
 \includegraphics[width=0.82\textwidth]{../NHK-replications/meta_analysis_expanded/figure4_comparison_boxplots.png}
-\captionof*{figure}{\scriptsize \textbf{Notes:} Panels compare unweighted point-estimate distributions (top left), point-estimate distributions weighted by inverse standard error (top right), standard errors (bottom left), and $\log$ sample sizes (bottom right) for both the human researcher sample of Task 1 from \citet{huntingtonklein2025sources} and the AI agent sample from this paper. Boxes show the interquartile range, center lines show medians, and whiskers show minimum and maximum values.}
+\captionof*{figure}{\scriptsize \textbf{Notes:} Panels compare unweighted point-estimate distributions (top left), point-estimate distributions weighted by inverse standard error (top right), standard errors (bottom left), and $\log$ sample sizes (bottom right) for both the human researcher sample of Task 1 from \citet{huntingtonklein2025sources} and the AI agent sample from this paper. In line with \citet{huntingtonklein2025sources}, inverse standard error weights are capped at the 95th percentile. Boxes show the interquartile range, center lines show medians, and whiskers show minimum and maximum values.}
 \end{minipage}
 \end{center}
 ```
@@ -135,11 +147,11 @@ Across all four outcomes, means and medians are fairly similar between human and
 \end{table}
 ```
 
-For the unweighted effect size, AI obtains a mean of 0.064 and a median of \aiMedianEffect{} and humans a mean of 0.053 and median of \benchmarkMedianEffect{}. The 25th percentile estimates are identical at 0.014, while the 75th percentile effect is substantially larger for AI agents at 0.099 relative to humans' 0.051. AI agents also obtained a much lower minimum estimate of -0.148 compared to humans' -0.049, while the AI's maximum estimate is also much lower than humans'. 
+For the unweighted effect size plotted in the top left, AI obtains a mean of 0.064 and a median of \aiMedianEffect{} and humans a mean of 0.053 and median of \benchmarkMedianEffect{}. The 25th percentile estimates are identical at 0.014, while the 75th percentile effect is substantially larger for AI agents at 0.099 relative to humans' 0.051. AI agents also obtained a much lower minimum estimate of -0.148 compared to humans' -0.049, while the AI's maximum estimate is also much lower than humans'. Results are quite similar for the inverse-standard error weighted coefficients plotted in the top right.
 
-Human coefficient estimates are more spread, exhibiting a 13\% higher standard deviation in effect size. Still, 92\% of AI point estimates are within the min-max range of humans, with about 30\% within humans' interquartile range.
+The distribution of human point estimates are more spread, exhibiting a 13\% higher standard deviation in effect size. The maximum human estimate is nearly 2.5 times the maximum AI estimate, while the minimum AI estimate is nearly 3 times more negative than the minimum human estimate. Still, 92\% of AI point estimates are within the min-max range of humans, with about 30\% within humans' interquartile range.
 
-For standard errors, the minimum, 25th percentile, and median are identical across humans and AI, while humans exhibit higher standard errors at the 75th percentile and maximum. As a result, AI agents obtain coefficients statistically significantly different from 0 about 90\% of the time, compared to 78\% of the time among humans.
+For standard errors, plotted in the bottom left, the minimum, 25th percentile, and median are identical across humans and AI, while human estimates exhibit higher standard errors at the 75th percentile and maximum. As a result, AI agents obtain coefficients statistically significantly different from 0 about 90\% of the time, compared to 78\% of the time among humans.
 
 The range of sample sizes chosen by human researchers---between 681 and over 29 million observations---is several orders of magnitude larger than what the AI agents chose. Still, the interquartile range is comparable: 75 to 248 thousand for the AI, and 61 to 357 thousand for the humans.
 
@@ -194,7 +206,7 @@ Moreover, AI consistently made two subtle mistakes in coding treatment more freq
 # Conclusion {#sec-conclusion}
 This paper develops a novel, scalable approach to multi-analyst studies leveraging new breakthroughs in agentic artificial intelligence. I then test whether current frontier models can match humans in outcomes and choices following the multi-analyst study of @huntingtonklein2025sources.
 
-The resemblance of AI agent estimation outcome distributions to the human distributions is striking. The sharp disagreement in specification choices between AI and humans is equally striking. AI agents converged much more on particular specification and sampling choices relative to human researchers. This finding is consistent with concurrent work by @huang2026aierrors, who find in a different setting that AI choices tend to cluster on certain sampling and specification choices. This suggests that AI is at best an imperfect substitute for humans in multi-analyst designs aimed at quantifying the degree of uncertainty due to researcher degrees of freedom.
+While the AI agent estimation outcome distributions resembles that of humans, the way in which each group arrives to those estimates differ markedly. AI agents converged much more on particular specification and sampling choices relative to human researchers. This finding is consistent with concurrent work by @huang2026aierrors, who find in a different setting that AI choices tend to cluster on certain sampling and specification choices. This suggests that AI is an imperfect substitute for humans in multi-analyst designs aimed at quantifying the degree of uncertainty due to researcher degrees of freedom.
 
 Two limitations are worth emphasizing. First, the @huntingtonklein2025sources benchmark materials were public before my AI runs, so model training data may have included parts of the original study or human submissions. Still, the convergence of many AI choices in contrast to the wide divergence of humans suggests the AI was not merely copying human work. In any case, a novel research question simultaneously assigned to human researchers and AI agents would best address this concern. Second, results may depend on the AI model and agent harness. Future work should explore the degree to which outcomes vary by model-harness pair.
 
