@@ -115,8 +115,60 @@
 \usepackage{float}
 \usepackage[section]{placeins}
 \usepackage[dvipsnames]{xcolor}
-\input{../NHK-replications/meta_analysis_expanded/paper_macros.tex}
-\input{LLM_replications_wordcount.tex}
+% The following result macros are inlined from
+% ../NHK-replications/meta_analysis_expanded/paper_macros.tex so that this
+% submission source does not depend on generated TeX files.
+\newcommand{\aiAnalyticN}{156}
+\newcommand{\aiAttemptedRuns}{156}
+\newcommand{\aiClaudeSonnetIqrLower}{$-0.005$}
+\newcommand{\aiClaudeSonnetIqrUpper}{$0.132$}
+\newcommand{\aiClaudeSonnetMean}{$0.069$}
+\newcommand{\aiClaudeSonnetMedian}{$0.075$}
+\newcommand{\aiClaudeSonnetN}{20}
+\newcommand{\aiClaudeSonnetSd}{$0.089$}
+\newcommand{\aiClusterStateShare}{$77.6$}
+\newcommand{\aiDroppedRuns}{0}
+\newcommand{\aiExcludedModelRuns}{40}
+\newcommand{\aiFailedValidationRuns}{0}
+\newcommand{\aiGptMiniIqrLower}{$0.015$}
+\newcommand{\aiGptMiniIqrUpper}{$0.092$}
+\newcommand{\aiGptMiniMean}{$0.064$}
+\newcommand{\aiGptMiniMedian}{$0.036$}
+\newcommand{\aiGptMiniN}{136}
+\newcommand{\aiGptMiniSd}{$0.084$}
+\newcommand{\aiIqrLower}{$0.014$}
+\newcommand{\aiIqrUpper}{$0.099$}
+\newcommand{\aiIqrWidth}{$0.084$}
+\newcommand{\aiLinearModelShare}{$100.0$}
+\newcommand{\aiMeanEffect}{$0.064$}
+\newcommand{\aiMedianEffect}{$0.037$}
+\newcommand{\aiMissingSpecRuns}{0}
+\newcommand{\aiNoResultsRuns}{0}
+\newcommand{\aiNoStateFeMean}{$0.056$}
+\newcommand{\aiNoYearFeMean}{$0.051$}
+\newcommand{\aiNonpositiveSeRuns}{0}
+\newcommand{\aiOutlierRuns}{0}
+\newcommand{\aiPerwtShare}{$87.8$}
+\newcommand{\aiRecoverableSpecs}{156}
+\newcommand{\aiSampleMax}{636,722}
+\newcommand{\aiSampleMin}{1,764}
+\newcommand{\aiSeMean}{$0.008$}
+\newcommand{\aiSigFivePctFraction}{$0.897$}
+\newcommand{\aiSigTenPctFraction}{$0.923$}
+\newcommand{\aiStateFeMean}{$0.065$}
+\newcommand{\aiStateFeShare}{$91.7$}
+\newcommand{\aiWeightedMeanEffect}{$0.060$}
+\newcommand{\aiYearFeMean}{$0.065$}
+\newcommand{\aiYearFeShare}{$91.0$}
+\newcommand{\benchmarkEffectN}{145}
+\newcommand{\benchmarkIqrLower}{$0.014$}
+\newcommand{\benchmarkIqrUpper}{$0.051$}
+\newcommand{\benchmarkIqrWidth}{$0.037$}
+\newcommand{\benchmarkMeanEffect}{$0.053$}
+\newcommand{\benchmarkMedianEffect}{$0.030$}
+
+% Inlined from LLM_replications_wordcount.tex.
+\newcommand{\MainTextWordCount}{1,997}
 \newcommand{\titleaffiliation}{Collegio Carlo Alberto}
 \newcommand{\titlefirstdraft}{First draft: April 10, 2026}
 \newcommand{\titledate}{This draft: \today}
@@ -359,7 +411,37 @@ and specification.
 Table \ref{tab:methods} displays the prevalence of model specification
 choices between AI and human runs.
 
-\input{../NHK-replications/meta_analysis_expanded/paper_table2_methods.tex}
+% Inlined from paper_table2_methods.tex and its nested table4_method_shares.tex.
+\begin{table}[!htbp]
+\centering
+\caption{Estimation choices by researcher type}
+\label{tab:methods}
+\small
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}l l r r r r@{}}
+\toprule
+ &  & \multicolumn{2}{c}{AI} & \multicolumn{2}{c}{Humans} \\
+\cmidrule(lr){3-4}\cmidrule(lr){5-6}
+Category & Choice & N & Share (\%) & N & Share (\%) \\
+\midrule
+Method & Linear Regression & 156 & 100.0 & 122 & 84.1 \\
+ & Logit/Probit & 0 & 0.0 & 19 & 13.1 \\
+ & Matching & 0 & 0.0 & 2 & 1.4 \\
+ & New DID Estimator & 0 & 0.0 & 1 & 0.7 \\
+ & Other & 0 & 0.0 & 1 & 0.7 \\
+S.E. Adjustment & Cluster (State) & 127 & 81.4 & 31 & 21.2 \\
+ & Cluster (State \& Year) & 1 & 0.6 & 22 & 15.1 \\
+ & Cluster (ID/Strata/Other) & 0 & 0.0 & 20 & 13.7 \\
+ & Het-Robust & 26 & 16.7 & 24 & 16.4 \\
+ & Other/Bootstrap & 0 & 0.0 & 7 & 4.8 \\
+ & None & 2 & 1.3 & 42 & 28.8 \\
+Weights & No Sample Weights & 7 & 4.5 & 101 & 69.2 \\
+ & Sample Weights & 149 & 95.5 & 45 & 30.8 \\
+\bottomrule
+\end{tabular} }
+\caption*{\footnotesize \textbf{Notes:} Estimation choices are inferred from each generated model specification and execution metadata. Human results use Task 1 submissions from \citet{huntingtonklein2025sources}.}
+\end{table}
+\FloatBarrier
 
 I find that AI agents exhibit little to no variation in their
 specification choices, sharply contrasting with humans. AI agents
@@ -404,7 +486,26 @@ to 60\% of humans.
 \caption{Control variable choices by researcher type}
 \label{tab:controls}
 \small
-\resizebox{\textwidth}{!}{\input{../NHK-replications/meta_analysis_expanded/table5_control_effects.tex}}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}l l r r r r@{}}
+\toprule
+ &  & \multicolumn{2}{c}{AI} & \multicolumn{2}{c}{Humans} \\
+\cmidrule(lr){3-4}\cmidrule(lr){5-6}
+Category & Control & N & Share (\%) & N & Share (\%) \\
+\midrule
+AGE & Linear Age & 82 & 52.6 & 61 & 41.8 \\
+AGE & Age FE & 19 & 12.2 & 13 & 8.9 \\
+AGE & Age Quadratic & 69 & 44.2 & 11 & 7.5 \\
+EDUC & Linear Education & 3 & 1.9 & 46 & 31.5 \\
+EDUC & Education FE & 1 & 0.6 & 8 & 5.5 \\
+EDUC & Education Transform & 0 & 0.0 & 16 & 11.0 \\
+STATE/YEAR & Linear Year & 16 & 10.3 & 33 & 22.6 \\
+STATE/YEAR & Year FE & 143 & 91.7 & 40 & 27.4 \\
+STATE/YEAR & State FE & 144 & 92.3 & 52 & 35.6 \\
+STATE/YEAR & State FE x Year FE & 132 & 84.6 & 19 & 13.0 \\
+STATE/YEAR & State FE x Linear Year & 15 & 9.6 & 5 & 3.4 \\
+\bottomrule
+\end{tabular} }
 \caption*{\footnotesize \textbf{Notes:} The table presents the number and share of AI and human estimation specifications that included various controls. Human results use Task 1 submissions from \citet{huntingtonklein2025sources}.}
 \end{table}
 \FloatBarrier
@@ -424,7 +525,55 @@ group.\footnote{In prompting the AI, I did not mention restricting the sample ba
 \tiny
 \setlength{\tabcolsep}{1.4pt}
 \renewcommand{\arraystretch}{0.55}
-\resizebox{\textwidth}{!}{\input{../NHK-replications/meta_analysis_expanded/table_sample_restrictions.tex}}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lrcrcrcrc}
+\toprule
+Variable & \multicolumn{4}{c}{AI} & \multicolumn{4}{c}{Humans} \\
+\cmidrule(lr){2-5}\cmidrule(lr){6-9}
+& \multicolumn{2}{c}{All} & \multicolumn{2}{c}{Treated} & \multicolumn{2}{c}{All} & \multicolumn{2}{c}{Treated} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}\cmidrule(lr){8-9}
+& N & Share (\%) & N & Share (\%) & N & Share (\%) & N & Share (\%) \\
+\midrule
+Hispanic & 156 & & 156 & & 144 & & 144 & \\
+... Hispanic-Mexican & 154 & 98.7 & 154 & 98.7 & 105 & 72.9 & 109 & 75.7 \\
+... Hispanic-Any & 2 & 1.3 & 2 & 1.3 & 17 & 11.8 & 17 & 11.8 \\
+... Hispanic-Mex or Mex-Born & 0 & 0.0 & 0 & 0.0 & 1 & 0.7 & 2 & 1.4 \\
+... None & 0 & 0.0 & 0 & 0.0 & 21 & 14.6 & 16 & 11.1 \\
+Birthplace & 156 & & 156 & & 145 & & 145 & \\
+... Mexican-Born & 154 & 98.7 & 154 & 98.7 & 103 & 71.0 & 112 & 77.2 \\
+... Hispanic-Mex or Mex-Born & 0 & 0.0 & 0 & 0.0 & 2 & 1.4 & 2 & 1.4 \\
+... Non-US Born & 0 & 0.0 & 0 & 0.0 & 4 & 2.8 & 4 & 2.8 \\
+... Central America-Born & 0 & 0.0 & 0 & 0.0 & 1 & 0.7 & 1 & 0.7 \\
+... None & 2 & 1.3 & 2 & 1.3 & 35 & 24.1 & 26 & 17.9 \\
+Citizenship & 156 & & 156 & & 145 & & 145 & \\
+... Non-Citizen & 153 & 98.1 & 153 & 98.1 & 83 & 57.2 & 117 & 80.7 \\
+... Foreign-Born & 2 & 1.3 & 2 & 1.3 & 2 & 1.4 & 2 & 1.4 \\
+... Non-Cit or Natlzd post-2012 & 0 & 0.0 & 0 & 0.0 & 4 & 2.8 & 7 & 4.8 \\
+... Other & 1 & 0.6 & 1 & 0.6 & 11 & 7.6 & 11 & 7.6 \\
+... None & 0 & 0.0 & 0 & 0.0 & 45 & 31.0 & 8 & 5.5 \\
+Age at Migration & 156 & & 156 & & 145 & & 145 & \\
+... $<$ 16 & 56 & 35.9 & 112 & 71.8 & 21 & 14.5 & 105 & 72.4 \\
+... $\leq$ 16 & 0 & 0.0 & 0 & 0.0 & 10 & 6.9 & 25 & 17.2 \\
+... Other & 36 & 23.1 & 12 & 7.7 & 24 & 16.6 & 11 & 7.6 \\
+... None & 64 & 41.0 & 32 & 20.5 & 90 & 62.1 & 4 & 2.8 \\
+Age in June 2012 & 156 & & 156 & & 145 & & 145 & \\
+... Year-Quarter Age & 6 & 3.8 & 11 & 7.1 & 40 & 27.6 & 117 & 80.7 \\
+... Year-Only Age & 148 & 94.9 & 143 & 91.7 & 18 & 12.4 & 21 & 14.5 \\
+... Other & 0 & 0.0 & 0 & 0.0 & 2 & 1.4 & 0 & 0.0 \\
+... None & 2 & 1.3 & 2 & 1.3 & 85 & 58.6 & 7 & 4.8 \\
+Year of Immigration & 156 & & 156 & & 145 & & 145 & \\
+... $<$ 2007 & 0 & 0.0 & 0 & 0.0 & 15 & 10.3 & 43 & 29.7 \\
+... $\leq$ 2007 & 78 & 50.0 & 133 & 85.3 & 13 & 9.0 & 52 & 35.9 \\
+... $<$ 2012 & 0 & 0.0 & 0 & 0.0 & 3 & 2.1 & 1 & 0.7 \\
+... $\leq$ 2012 & 0 & 0.0 & 0 & 0.0 & 2 & 1.4 & 4 & 2.8 \\
+... Any Year & 44 & 28.2 & 9 & 5.8 & 7 & 4.8 & 4 & 2.8 \\
+... Other & 26 & 16.7 & 9 & 5.8 & 5 & 3.4 & 3 & 2.1 \\
+... None & 8 & 5.1 & 5 & 3.2 & 100 & 69.0 & 38 & 26.2 \\
+Years Continuous in USA & 156 & & 156 & & 145 & & 145 & \\
+... Used YRSUSA & 1 & 0.6 & 4 & 2.6 & 23 & 15.9 & 55 & 37.9 \\
+... No YRSUSA & 155 & 99.4 & 152 & 97.4 & 122 & 84.1 & 90 & 62.1 \\
+\bottomrule
+\end{tabular} }
 \caption*{\footnotesize \textbf{Notes:} The table compares AI-agent restriction choices with the published Task 1 counts from Table 6 of \citet{huntingtonklein2025sources}. Treated-group restrictions inherit those used to restrict the whole sample.}
 \end{table}
 \FloatBarrier
@@ -477,7 +626,26 @@ their estimation outcomes, underlining the stochasticity of AI outputs.
 \caption{Summary statistics on estimation outcomes}
 \label{tab:appendix-summary-nhk}
 \small
-\resizebox{\textwidth}{!}{\input{../NHK-replications/meta_analysis_expanded/table1_summary_stats_with_nhk_task1.tex}}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}l r r r r r r r r@{}}
+\toprule
+ & N & Mean & SD & Min & Pctl. 25 & Median & Pctl. 75 & Max \\
+\midrule
+\multicolumn{9}{@{}l}{\textit{Panel A: AI-agent estimates}} \\
+Effect Size (unweighted) & 156 & 0.064 & 0.084 & -0.148 & 0.014 & 0.037 & 0.099 & 0.261 \\
+Effect Size (weighted by inverse SE) & 156 & 0.060 & 0.080 & -0.148 & 0.013 & 0.035 & 0.091 & 0.261 \\
+Standard Error & 156 & 0.008 & 0.007 & 0.000 & 0.005 & 0.007 & 0.010 & 0.088 \\
+Sample Size & 156 & 165,965 & 123,732 & 1,764 & 75,319 & 125,655 & 248,270 & 636,722 \\
+Treated-Group Size & 155 & 65,518 & 28,865 & 7,717 & 36,477 & 74,231 & 81,508 & 169,320 \\
+\addlinespace
+\multicolumn{9}{@{}l}{\textit{Panel B: Human estimates}} \\
+Effect Size (unweighted) & 145 & 0.053 & 0.095 & -0.049 & 0.014 & 0.030 & 0.051 & 0.660 \\
+Effect Size (weighted by inverse SE) & 138 & 0.044 & 0.092 & -0.049 & 0.012 & 0.026 & 0.043 & 0.660 \\
+Standard Error & 139 & 0.019 & 0.055 & 0.000 & 0.005 & 0.007 & 0.013 & 0.460 \\
+Sample Size & 145 & 828,318 & 3,056,037 & 681 & 61,600 & 179,960 & 356,787 & 29,536,580 \\
+Treated-Group Size & 141 & 96,395 & 648,493 & 270 & 17,950 & 34,435 & 52,581 & 7,727,201 \\
+\bottomrule
+\end{tabular} }
 \caption*{\footnotesize \textbf{Notes:} Panel A reports outcomes from the AI agent sample. Panel B restates the published Task 1 panel of Table 3 of \citet{huntingtonklein2025sources}. Treated-group sample size not available for all AI agent runs since its collection was added after the initial runs.}
 \end{table}
 
@@ -535,7 +703,75 @@ writing) GPT-5.6 and Claude Fable 5 can better match or even outperform
 human experts.
 
 
-\bibliography{bibliography.bib}
+% Bibliography inlined from the ecca.bst-formatted BibTeX output. This makes
+% the submission independent of bibliography.bib and of a BibTeX build step.
+\begin{thebibliography}{12}
+\providecommand{\natexlab}[1]{#1}
+
+\bibitem[{{Anthropic}(2026)}]{anthropic2026systemcard}
+\textsc{{Anthropic}} (2026). System card: Claude sonnet 4.6.
+
+\bibitem[{Breznau \textit{et~al.}(2022)Breznau, Rinke, Wuttke
+  \textit{et~al.}}]{breznau2022observing}
+\textsc{Breznau, N.}, \textsc{Rinke, M.~E.}, \textsc{Wuttke, A.}
+  \textit{et~al.} (2022). Observing many researchers using the same data and
+  hypothesis reveals a hidden universe of uncertainty. \textit{Proceedings of
+  the National Academy of Sciences}, \textbf{119}~(44), e2203150119.
+
+\bibitem[{Gao and Xiao(2026)}]{gao2026nonstandard}
+\textsc{Gao, R.} and \textsc{Xiao, S.~C.} (2026). Nonstandard errors in {AI}
+  agents. SSRN working paper, date written: March 16, 2026.
+
+\bibitem[{Grundl(2026)}]{grundl2026comparison}
+\textsc{Grundl, S.} (2026). A comparison of agentic {AI} systems and human
+  economists. SSRN working paper, date written: April 9, 2026.
+
+\bibitem[{Huang \textit{et~al.}(2026)Huang, Menkveld and
+  Yu}]{huang2026aierrors}
+\textsc{Huang, W.}, \textsc{Menkveld, A.~J.} and \textsc{Yu, S.} (2026). {AI}
+  ``errors''. SSRN working paper, date written: March 13, 2026.
+
+\bibitem[{Huntington-Klein \textit{et~al.}(2021)Huntington-Klein, Arenas, Beam,
+  Bertoni, Bloem, Burli, Chen, Grieco, Ekpe, Pugatch
+  \textit{et~al.}}]{huntington2021influence}
+\textsc{Huntington-Klein, N.}, \textsc{Arenas, A.}, \textsc{Beam, E.},
+  \textsc{Bertoni, M.}, \textsc{Bloem, J.~R.}, \textsc{Burli, P.},
+  \textsc{Chen, N.}, \textsc{Grieco, P.}, \textsc{Ekpe, G.}, \textsc{Pugatch,
+  T.} \textit{et~al.} (2021). The influence of hidden researcher decisions in
+  applied microeconomics. \textit{Economic Inquiry}, \textbf{59}~(3), 944--960.
+
+\bibitem[{Huntington-Klein \textit{et~al.}(2025)Huntington-Klein, Portner,
+  McCarthy and {The Many Economists Collaborative on Researcher
+  Variation}}]{huntingtonklein2025sources}
+\textsc{---}, \textsc{Portner, C.~C.}, \textsc{McCarthy, I.} and \textsc{{The
+  Many Economists Collaborative on Researcher Variation}} (2025). \textit{The
+  Sources of Researcher Variation in Economics}. {I4R} Discussion Paper 209,
+  Institute for Replication ({I4R}).
+
+\bibitem[{Korinek(2025)}]{korinek2025ai}
+\textsc{Korinek, A.} (2025). \textit{AI agents for economic research}. Tech.
+  rep., National Bureau of Economic Research.
+
+\bibitem[{{OpenAI}(2025)}]{openai2025gpt5systemcard}
+\textsc{{OpenAI}} (2025). {GPT-5} system card.
+
+\bibitem[{{Project APE}(2026)}]{projectape2026}
+\textsc{{Project APE}} (2026). Project {APE}: Autonomous policy evaluation.
+  Social Catalyst Lab, University of Zurich, accessed July 29, 2026.
+
+\bibitem[{Silberzahn \textit{et~al.}(2018)Silberzahn, Uhlmann, Martin
+  \textit{et~al.}}]{silberzahn2018many}
+\textsc{Silberzahn, R.}, \textsc{Uhlmann, E.~L.}, \textsc{Martin, D.~P.}
+  \textit{et~al.} (2018). Many analysts, one data set: Making transparent how
+  variations in analytic choices affect results. \textit{Advances in Methods
+  and Practices in Psychological Science}, \textbf{1}~(3), 337--356.
+
+\bibitem[{Willner and Yanagizawa-Drott(2026)}]{willner2026verifying}
+\textsc{Willner, O.} and \textsc{Yanagizawa-Drott, D.} (2026). Verifying the
+  verifiers: Towards autonomous policy evaluation, working paper, July 20,
+  2026.
+
+\end{thebibliography}
 
 
 
