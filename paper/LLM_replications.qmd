@@ -48,6 +48,7 @@ format:
     linestretch: 1.5
     cite-method: natbib
     biblio-style: ecca
+    keep-tex: true
 bibliography: bibliography.bib
 date: last-modified
 number-sections: true
