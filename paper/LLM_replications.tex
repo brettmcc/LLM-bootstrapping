@@ -264,7 +264,7 @@ use or whether to use sampling weights, AI agents overwhelming make the
 same decision, despite AI agents' underlying stochasticity. By contrast,
 there is substantially more variation in the decisions human experts
 make at the same forking paths. Despite these differences, the AI
-agents' distributions of point estimates, standard errrors, and sample
+agents' distributions of point estimates, standard errors, and sample
 size broadly resemble those of the human experts. Overall, my findings
 underline why researchers should review the data cleaning and analysis
 decisions of AI, as there is a strong likelihood that some of these
@@ -289,7 +289,7 @@ researchers}\label{ai-agents-as-empirical-researchers}
 Large language models, such as GPT or Claude, give non-deterministic
 responses: the same prompt can generate a range of responses ex ante. By
 submitting a prompt to estimate a given empirical parameter many times
-to AI agents, one canobtain a distribution of AI choices and compare
+to AI agents, one can obtain a distribution of AI choices and compare
 them to those in existing many-analyst studies.
 
 Why might AI agents produce reasonable research choices? Their
@@ -321,7 +321,7 @@ question using the same instructions and raw data: how did eligibility
 for the Deferred Action for Childhood Arrivals immigration policy affect
 the probability of full-time employment among eligible immigrants?
 Participants were given a data codebook and the research question but
-otherwise initially exercise broad discretion over sample construction,
+otherwise initially exercised broad discretion over sample construction,
 variable definitions, and specification choices. In this study I
 replicate this initial task from \citet{huntingtonklein2025sources} in
 which participants had maximum flexibility to make research choices.
@@ -330,7 +330,7 @@ The computing pipeline works as follows. An AI agent is provided with
 the raw materials to answer the research question: an IPUMS extract and
 codebook with a broad set of variables, a supplementary state policy
 dataset and codebook, and instructions adapted from
-\citet{huntingtonklein2025sources}.\footnote{Replication code and the AI agent results can be found at https://github.com/brettmcc/LLM-bootstrapping/.}
+\citet{huntingtonklein2025sources}.\footnote{Replication code and the AI agent results can be found at \url{https://github.com/brettmcc/LLM-bootstrapping/}.}
 The agent then writes a concise, structured file outlining their model
 specification, outcome definition, sample selection, and treatment
 definition. They proceed to write and execute a Python script to
@@ -348,9 +348,8 @@ all variables used by any of the human researchers. To obtain this list
 of variables, I scanned the repository of human submissions to
 \citet{huntingtonklein2025sources} hosted by Open Science Framework and
 extracted all variables used by any human research team across tasks
-1--3. This necessarily restricts AI agents from choosing any variable,
-no matter how relevant, but still gives them substantial latitude in
-variable
+1--3. This restricts AI agents from choosing any variable, no matter how
+relevant, but still gives them substantial latitude in variable
 selection.\footnote{An alternative would have been to give each AI agent access to the IPUMS API via my personal API key. I opted against this both to avoid hundreds of large ACS files on my machine and to not overburden the IPUMS API.}
 
 I used two then-frontier medium-sized AI models---GPT-5.4 mini (OpenAI)
@@ -436,7 +435,7 @@ by the `correctness' for defining the treated group, as in
 \citet{huntingtonklein2025sources}. This is based on DACA's eligibility
 criteria, which are listed in the AI's prompt. The prompt does not
 specify, however, how to construct the control
-group.\footnote{In prompting the AI, I did not mention restricting the sample based on education or veteran status, consistent with the prompt given to the human researchers in Task 1 by Huntington-Klein et al. (2025).}
+group.\footnote{In prompting the AI, I did not mention restricting the sample based on education or veteran status, consistent with the prompt given to the human researchers in Task 1 by \citet{huntingtonklein2025sources}.}
 
 \begin{table}[H]
 \centering
@@ -453,24 +452,27 @@ group.\footnote{In prompting the AI, I did not mention restricting the sample ba
 Once again AI agents overwhelmingly converged on several sample and
 treated-group construction choices. Virtually all AI agents restricted
 the sample to ethnically Hispanic-Mexicans born in Mexico who are not US
-citizens.\footnote{I suspect this results from the AI becoming highly focused on the first clause of the AI prompt (copied verbatim from the human task), ``\textbf{Among ethnically Hispanic-Mexican Mexican-born people living in the United States}, what was the causal impact of eligibility for the Deferred Action for Childhood Arrivals (DACA) program (treatment) on the probability that the eligible person is employed full-time (outcome)," emphasis mine.}
+citizens.\footnote{I suspect this results from the AI becoming highly focused on the first clause of the AI prompt (copied verbatim from the human task), ``\textbf{Among ethnically Hispanic-Mexican Mexican-born people living in the United States}, what was the causal impact of eligibility for the Deferred Action for Childhood Arrivals (DACA) program (treatment) on the probability that the eligible person is employed full-time (outcome),'' emphasis mine.}
 
 Moreover, AI consistently diverged from humans when coding treatment.
 First, AI was much less likely to condition treatment on age derived
 from both birth year and birth quarter (7\% vs.~humans' 81\%), instead
-preferring age measured only in years. This matters because the DACA
-eligibility age cutoff is June 15, 2012, as conveyed in the AI's prompt.
-Second, AI includes immigrants arriving in 2007 as part of the treated
-group (85\% vs.~humans' 36\%). DACA applied to those who lived
+preferring age measured only in years. This lack of precision matters
+because the DACA eligibility age cutoff is June 15, 2012, as conveyed in
+the AI's prompt. Second, AI frequently includes immigrants arriving in
+2007 as part of the treated group. DACA applied to those who lived
 continuously in the US since June 15, 2007. AI never conditions
 treatment on arrival prior to 2007 (0\% compared to humans' 30\%),
 rather defining it conditional on arrival up to and including 2007 (85\%
-of the time vs.~humans' 36\%).
+of the time vs.~humans' 36\%). Relatedly, AI rarely used years of
+continuous US residence in defining treatment (3\% vs.~humans' 38\%).
+Hence AI is less conservative on average than humans in assigning DACA
+eligibility, including more ineligible individuals in the treated group.
 
 \subsection{Distribution of estimates}\label{distribution-of-estimates}
 
 Despite sharp differences in sampling and specification choices, how do
-the resulting estimation outcomes comapre? Figure
+the resulting estimation outcomes compare? Figure
 \ref{fig:comparison-boxplots} depicts box-and-whisker plots for both
 human and AI analyses for weighted and unweighted effects, standard
 errors, and sample size. Boxes show the interquartile range, center
@@ -487,10 +489,9 @@ reported in Table \ref{tab:appendix-summary-nhk}.
 \end{minipage}
 \end{center}
 
-Across all four outcomes, means and medians are fairly similar between
-human and AI researchers. Moreover, AI agents exhibit substantial
-dispersion in their estimation outcomes, underlining the stochasticity
-of AI outputs.
+Across all four outcomes, medians are fairly similar between human and
+AI researchers. Moreover, AI agents exhibit substantial dispersion in
+their estimation outcomes, underlining the stochasticity of AI outputs.
 
 \begin{table}[!htbp]
 \centering
@@ -506,17 +507,15 @@ mean of 0.064 and a median of \aiMedianEffect{} and humans a mean of
 0.053 and median of \benchmarkMedianEffect{}. The 25th percentile
 estimates are identical at 0.014, while the 75th percentile effect is
 substantially larger for AI agents at 0.099 relative to humans' 0.051.
-AI agents also obtained a much lower minimum estimate of -0.148 compared
-to humans' -0.049, while the AI's maximum estimate is much lower than
-humans'. Results are quite similar for the inverse-standard error
-weighted coefficients plotted in the top right.
+Results are quite similar for the inverse-standard error weighted
+coefficients plotted in the top right.
 
 Human point estimates exhibit a 13\% higher standard deviation in effect
 size, driven by a much longer positive tail. The maximum human estimate
-is nearly 2.5 times the maximum AI estimate, while the minimum AI
-estimate is nearly 3 times more negative than the minimum human
-estimate. Still, 92\% of AI point estimates are within the min-max range
-of humans, and 30\% are within humans' interquartile range.
+is 2.5 times the maximum AI estimate, while the minimum AI estimate is 3
+times more negative than the minimum human estimate. Still, 92\% of AI
+point estimates are within the min-max range of humans, and 30\% are
+within humans' interquartile range.
 
 For standard errors, plotted in the bottom left, the minimum, 25th
 percentile, and median are identical across humans and AI, while human
@@ -534,11 +533,11 @@ the humans.
 \section{Conclusion}\label{sec-conclusion}
 
 This paper assesses the choices of agentic artificial intelligence and
-how theuy compare to human experts'. I do so leveraging the
-multi-analyst study of \citet{huntingtonklein2025sources}.
+how they compare to human experts'. I do so leveraging the multi-analyst
+study of \citet{huntingtonklein2025sources}.
 
 While AI agent estimation outcome distributions resemble those of
-humans, the way in which each group arrives to those estimates differ
+humans, the way in which each group arrives at those estimates differ
 markedly. AI agents converged much more on particular specification and
 sampling choices relative to human researchers. This finding is
 consistent with concurrent work by \citet{huang2026aierrors}, who find
@@ -558,10 +557,6 @@ agent harness. Future work should both explore the degree to which
 outcomes vary by model-harness pair and examine whether more advanced
 models, such as (at the time of writing) GPT-5.6 and Claude Fable 5 can
 better match or even outperform human experts.
-
-\appendix
-\setcounter{table}{0}
-\renewcommand{\thetable}{A.\arabic{table}}
 
 
 \bibliography{bibliography.bib}
